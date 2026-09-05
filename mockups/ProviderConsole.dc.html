@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+    :root{
+      --bg:oklch(98% 0.004 250);--surface:oklch(100% 0 0);--border:oklch(91% 0.007 250);
+      --text:oklch(23% 0.02 255);--text-2:oklch(52% 0.015 255);--text-3:oklch(66% 0.01 255);
+      --accent-soft:oklch(94% 0.03 258);--success:oklch(58% 0.13 150);--success-soft:oklch(95% 0.05 150);
+      --warning:oklch(62% 0.14 70);--warning-soft:oklch(96% 0.06 85);--danger:oklch(58% 0.18 25);--danger-soft:oklch(96% 0.06 25);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);}
+    h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif;margin:0;letter-spacing:-0.01em;}
+    a{color:var(--text);text-decoration:none;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;}
+    .btn-primary{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:8px;color:#fff;font-weight:600;font-size:13px;border:none;cursor:pointer;}
+    .btn-secondary{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:var(--surface);color:var(--text);font-weight:600;font-size:13px;border:1px solid var(--border);cursor:pointer;}
+    .sidebar-link{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--text-2);}
+    .sidebar-link.active{background:var(--accent-soft);color:var(--text);font-weight:600;}
+    .tab{padding:10px 4px;font-size:13px;font-weight:600;color:var(--text-3);border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px;}
+    .tab.active{color:var(--text);}
+    .q-row{display:grid;grid-template-columns:1.5fr 1fr 0.9fr 0.9fr 1fr 0.7fr;align-items:center;gap:10px;padding:13px 20px;border-bottom:1px solid var(--border);font-size:13px;}
+    .q-row.head{color:var(--text-3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;padding-top:12px;padding-bottom:12px;}
+    .avatar-sm{width:22px;height:22px;border-radius:100px;background:var(--accent-soft);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+    .count-pill{background:oklch(93% 0.01 255);color:var(--text-2);border-radius:100px;font-size:11px;padding:1px 7px;font-weight:700;}
+  </style>
+</helmet>
+
+<div style="display:flex;min-height:900px;width:1440px;background:var(--bg);">
+
+  <div style="width:240px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 16px;background:var(--surface);">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 8px 20px 8px;">
+      <div style="width:28px;height:28px;border-radius:7px;background:{{accent}};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;">C</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;">CSSP</div>
+      <span class="badge" style="background:oklch(93% 0.01 255);color:var(--text-2);margin-left:auto;">Provider</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;">
+      <div class="sidebar-link active"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4.5l1.5 3h6l1.5-3H21"/><path d="M5 6h14l2 6v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-7l2-6Z"/></svg>Console</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 4.3a1.6 1.6 0 0 1 2.8 0l8 14.2a1.6 1.6 0 0 1-1.4 2.4H4a1.6 1.6 0 0 1-1.4-2.4l8-14.2Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>Incidents &amp; Maintenance</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>CS Engagement</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1h-.2a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.6v-.2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z"/></svg>Settings</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 10px;border-top:1px solid var(--border);margin-top:8px;">
+      <div style="width:30px;height:30px;border-radius:100px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:{{accent}};">MW</div>
+      <div style="display:flex;flex-direction:column;min-width:0;"><span style="font-size:13px;font-weight:600;">Made Wirawan</span><span style="font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Customer Success</span></div>
+    </div>
+  </div>
+
+  <div style="flex:1;padding:36px 44px;overflow:auto;">
+    <div style="margin-bottom:16px;">
+      <h1 style="font-size:24px;">Console</h1>
+      <p style="margin:6px 0 0 0;color:var(--text-2);font-size:14px;">Everything customers have submitted, in one place.</p>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:10px;background:var(--accent-soft);margin-bottom:20px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="{{accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/></svg>
+      <span style="font-size:13px;font-weight:600;">3 visitors awaiting approval across your facilities.</span>
+      <a href="#" style="margin-left:auto;font-size:13px;font-weight:700;color:{{accent}};">Review →</a>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:24px;padding:0 20px;border-bottom:1px solid var(--border);">
+        <div class="tab active" style="border-color:{{accent}};">Ticket Queue <span class="count-pill" style="background:{{accent}};color:#fff;">9</span></div>
+        <div class="tab">Remote Hands <span class="count-pill">2</span></div>
+        <div class="tab">Visitor Approvals <span class="count-pill">3</span></div>
+        <div class="tab">Documents</div>
+      </div>
+
+      <div style="display:flex;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);">
+        <input class="card" placeholder="Search accounts or tickets" style="flex:1;max-width:280px;padding:9px 12px;font-size:13px;border-radius:8px;">
+        <select class="card" style="padding:9px 14px;font-size:13px;font-weight:600;border-radius:8px;"><option>All categories</option><option>Complaint</option><option>RFI</option><option>Service Request</option></select>
+        <select class="card" style="padding:9px 14px;font-size:13px;font-weight:600;border-radius:8px;"><option>All statuses</option><option>Submitted</option><option>In Progress</option></select>
+      </div>
+
+      <div class="q-row head"><span>Ticket</span><span>Account</span><span>Category</span><span>Status</span><span>Assigned</span><span>Age</span></div>
+      <div class="q-row" style="background:oklch(97% 0.01 258);">
+        <span style="font-weight:600;">AC noise near Rack C14</span>
+        <span style="color:var(--text-2);">Meridian Logistics</span>
+        <span class="badge" style="background:var(--danger-soft);color:var(--danger);width:fit-content;">Complaint</span>
+        <span class="badge" style="background:var(--warning-soft);color:var(--warning);width:fit-content;">In Progress</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span class="avatar-sm" style="color:{{accent}};">MW</span> You</span>
+        <span style="color:var(--text-2);">6h</span>
+      </div>
+      <div class="q-row">
+        <span style="font-weight:600;">Available rack space BTM-02 Q4</span>
+        <span style="color:var(--text-2);">Meridian Logistics</span>
+        <span class="badge" style="background:var(--accent-soft);color:{{accent}};width:fit-content;">RFI</span>
+        <span class="badge" style="background:oklch(93% 0.01 255);color:var(--text-2);width:fit-content;">Submitted</span>
+        <span style="color:var(--text-3);">Unassigned</span>
+        <span style="color:var(--warning);font-weight:600;">1d 4h</span>
+      </div>
+      <div class="q-row">
+        <span style="font-weight:600;">Power draw report request</span>
+        <span style="color:var(--text-2);">Meridian Logistics</span>
+        <span class="badge" style="background:oklch(96% 0.005 255);color:var(--text-3);width:fit-content;">Service Request</span>
+        <span class="badge" style="background:var(--warning-soft);color:var(--warning);width:fit-content;">In Progress</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span class="avatar-sm" style="color:{{accent}};">MW</span> You</span>
+        <span style="color:var(--text-2);">2h</span>
+      </div>
+      <div class="q-row">
+        <span style="font-weight:600;">Cross-connect provisioning — carrier room B</span>
+        <span style="color:var(--text-2);">Nusantara Cloud</span>
+        <span class="badge" style="background:oklch(96% 0.005 255);color:var(--text-3);width:fit-content;">Service Request</span>
+        <span class="badge" style="background:var(--warning-soft);color:var(--warning);width:fit-content;">In Progress</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span class="avatar-sm">RS</span> Rina S.</span>
+        <span style="color:var(--text-2);">2h</span>
+      </div>
+      <div class="q-row">
+        <span style="font-weight:600;">Escalating billing discrepancy</span>
+        <span style="color:var(--text-2);">Trisula Fintech</span>
+        <span class="badge" style="background:var(--danger-soft);color:var(--danger);width:fit-content;">Complaint</span>
+        <span class="badge" style="background:oklch(93% 0.01 255);color:var(--text-2);width:fit-content;">Submitted</span>
+        <span style="color:var(--text-3);">Unassigned</span>
+        <span style="color:var(--text-2);">3h</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2f5fdb","options":["#2f5fdb","#0f766e","#7c3aed","#111827"]}}'>
+class Component extends DCLogic {
+  renderVals() { return { accent: this.props.accent ?? '#2f5fdb' }; }
+}
+</script>
+</body>
+</html>

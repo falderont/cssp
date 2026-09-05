@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+    :root{
+      --bg:oklch(98% 0.004 250);--surface:oklch(100% 0 0);--border:oklch(91% 0.007 250);
+      --text:oklch(23% 0.02 255);--text-2:oklch(52% 0.015 255);--text-3:oklch(66% 0.01 255);
+      --accent-soft:oklch(94% 0.03 258);--success:oklch(58% 0.13 150);--success-soft:oklch(95% 0.05 150);
+      --warning:oklch(62% 0.14 70);--warning-soft:oklch(96% 0.06 85);--danger:oklch(58% 0.18 25);--danger-soft:oklch(96% 0.06 25);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);}
+    h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif;margin:0;letter-spacing:-0.01em;}
+    a{color:var(--text);text-decoration:none;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;}
+    .btn-primary{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;color:#fff;font-weight:600;font-size:14px;border:none;cursor:pointer;}
+    .sidebar-link{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--text-2);}
+    .sidebar-link.active{background:var(--accent-soft);color:var(--text);font-weight:600;}
+    .field-label{font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block;}
+    .field{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);}
+    .rh-card{padding:16px 18px;border-bottom:1px solid var(--border);}
+    .rh-card:last-child{border-bottom:none;}
+    .step{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-3);}
+    .step-dot{width:7px;height:7px;border-radius:100px;background:var(--border);}
+    .step-dot.done{background:var(--success);}
+    .step-dot.current{background:var(--text-3);}
+    .step-line{width:16px;height:1.5px;background:var(--border);}
+  </style>
+</helmet>
+
+<div style="display:flex;min-height:940px;width:1440px;background:var(--bg);">
+
+  <div style="width:240px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 16px;background:var(--surface);">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 8px 20px 8px;">
+      <div style="width:28px;height:28px;border-radius:7px;background:{{accent}};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;">C</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;">CSSP</div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);"><div style="display:flex;flex-direction:column;"><span style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Enterprise Account</span><span style="font-size:13px;font-weight:600;">Meridian Logistics</span></div><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-3);"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;"><div style="display:flex;flex-direction:column;"><span style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em;">Site</span><span style="font-size:13px;font-weight:600;">All sites (3) · Global Admin</span></div><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-3);"><path d="M6 9l6 6 6-6"/></svg></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;">
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.2c2.9.5 5 2.7 5 5.8"/></svg>Visitors</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 4.3a1.6 1.6 0 0 1 2.8 0l8 14.2a1.6 1.6 0 0 1-1.4 2.4H4a1.6 1.6 0 0 1-1.4-2.4l8-14.2Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>Incidents &amp; Maintenance</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 10.5v5.5M9.5 13.5l2.5 2.5 2.5-2.5"/></svg>Download Center</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1.5a1.5 1.5 0 0 0 0 3V15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5a1.5 1.5 0 0 0 0-3V9Z"/><path d="M13 7v10" stroke-dasharray="2 2"/></svg>Tickets</div>
+      <div class="sidebar-link active"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V6a1.5 1.5 0 0 1 3 0v5"/><path d="M11 11V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M14 11.5V6a1.5 1.5 0 0 1 3 0v7"/><path d="M17 12v-2a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-2a7 7 0 0 1-5.6-2.8L3 15.7c-.6-.8-.4-1.9.4-2.4.7-.5 1.7-.4 2.3.3L8 16"/></svg>Remote Hands</div>
+      <div class="sidebar-link"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1h-.2a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.6v-.2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.6 1h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z"/></svg>Settings</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 10px;border-top:1px solid var(--border);margin-top:8px;">
+      <div style="width:30px;height:30px;border-radius:100px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:{{accent}};">DA</div>
+      <div style="display:flex;flex-direction:column;min-width:0;"><span style="font-size:13px;font-weight:600;">Dita Ayu</span><span style="font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">IT Infrastructure Mgr</span></div>
+    </div>
+  </div>
+
+  <div style="flex:1;padding:36px 44px;overflow:auto;">
+    <div style="margin-bottom:20px;">
+      <h1 style="font-size:24px;">Remote Hands</h1>
+      <p style="margin:6px 0 0 0;color:var(--text-2);font-size:14px;">Request physical work on-site — power cycles, cabling, inspections — and track it through to completion with photo proof.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
+      <div class="card" style="padding:0;">
+        <div style="padding:15px 20px;border-bottom:1px solid var(--border);"><h3 style="font-size:15px;">Your Requests</h3></div>
+
+        <div class="rh-card">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;">Power cycle — Switch SW-C14-02</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px;">BTM-02 · Rack C14 · Requested Sep 4, 09:00–10:00</div>
+            </div>
+            <span class="badge" style="background:var(--warning-soft);color:var(--warning);">In Progress</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:12px;">
+            <div class="step"><div class="step-dot done"></div>Submitted</div><div class="step-line"></div>
+            <div class="step"><div class="step-dot done"></div>Accepted</div><div class="step-line"></div>
+            <div class="step" style="color:var(--text);"><div class="step-dot current" style="background:{{accent}};"></div>In Progress</div><div class="step-line"></div>
+            <div class="step"><div class="step-dot"></div>Completed</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-2);margin-top:10px;">Assigned to <span style="font-weight:600;color:var(--text);">Yoga Pratama</span> — started 09:14</div>
+        </div>
+
+        <div class="rh-card">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;">Visual inspection — Cage 7 cabling</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px;">BTM-02 · Cage 7 · Aug 30</div>
+            </div>
+            <span class="badge" style="background:var(--success-soft);color:var(--success);">Completed</span>
+          </div>
+          <p style="font-size:13px;color:var(--text-2);margin:10px 0 0 0;">Technician notes: all patch cables secure, no visible wear. No action needed.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+            <div style="width:56px;height:40px;border-radius:6px;background:oklch(93% 0.01 255);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-3)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M21 15l-5-5-4 4-2-2-5 5"/></svg></div>
+            <span style="font-size:12px;color:var(--text-3);">Completion photo attached</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-3);">Yoga Pratama · 18 min billed</span>
+          </div>
+        </div>
+
+        <div class="rh-card">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-size:14px;font-weight:600;">Mount replacement 1U server — Rack B08</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px;">JKT-01 · Rack B08 · Aug 22</div>
+            </div>
+            <span class="badge" style="background:var(--success-soft);color:var(--success);">Completed</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+            <span style="font-size:12px;color:var(--text-3);">Rated by you:</span>
+            <span class="badge" style="background:var(--accent-soft);color:{{accent}};">👍 Helpful</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-3);">Made Wirawan · 42 min billed</span>
+          </div>
+        </div>
+      </div>
+
+      <form class="card" style="height:fit-content;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);"><h3 style="font-size:15px;">New Remote Hands Request</h3><p style="margin:4px 0 0 0;font-size:12px;color:var(--text-3);">Billable per your contract's included-hours allowance.</p></div>
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;">
+          <div><span class="field-label">Task type</span><select class="field"><option>Power Cycle</option><option>Visual Inspection</option><option>Cable Patch</option><option>Mount / Unmount Hardware</option><option>KVM Console Access</option><option>Other</option></select></div>
+          <div><span class="field-label">Facility</span><select class="field"><option>BTM-02 — Batam</option><option>JKT-01 — Jakarta</option><option>SBY-01 — Surabaya</option></select></div>
+          <div><span class="field-label">Asset / rack reference</span><input class="field" placeholder="e.g. Rack C14, Switch SW-C14-02"></div>
+          <div><span class="field-label">Description</span><textarea class="field" rows="3" style="resize:none;">Please power-cycle the top-of-rack switch — it's unresponsive to ping but shows link lights.</textarea></div>
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1;"><span class="field-label">Requested date</span><input class="field" placeholder="2026-09-06"></div>
+            <div style="flex:1;"><span class="field-label">Time window</span><input class="field" placeholder="09:00–10:00"></div>
+          </div>
+          <button class="btn-primary" style="background:{{accent}};justify-content:center;margin-top:4px;">Submit Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2f5fdb","options":["#2f5fdb","#0f766e","#7c3aed","#111827"]}}'>
+class Component extends DCLogic {
+  renderVals() { return { accent: this.props.accent ?? '#2f5fdb' }; }
+}
+</script>
+</body>
+</html>

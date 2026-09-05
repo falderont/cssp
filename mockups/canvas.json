@@ -1,0 +1,17 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 1200, "title": "Customer Dashboard" },
+    { "file": "Visitors.dc.html", "x": 1560, "y": 0, "w": 1440, "h": 920, "title": "Visitor Management" },
+    { "file": "Incidents.dc.html", "x": 3120, "y": 0, "w": 1440, "h": 920, "title": "Incidents & Maintenance" },
+    { "file": "Documents.dc.html", "x": 4680, "y": 0, "w": 1440, "h": 920, "title": "Download Center" },
+    { "file": "Tickets.dc.html", "x": 6240, "y": 0, "w": 1440, "h": 940, "title": "Tickets" },
+    { "file": "RemoteHands.dc.html", "x": 7800, "y": 0, "w": 1440, "h": 940, "title": "Remote / Smart Hands" },
+    { "file": "ProviderConsole.dc.html", "x": 9360, "y": 0, "w": 1440, "h": 920, "title": "Provider Console" },
+    { "file": "CSEngagement.dc.html", "x": 10920, "y": 0, "w": 1440, "h": 920, "title": "CS Engagement & Performance" }
+  ],
+  "annotations": [
+    { "id": "note-customer", "x": 0, "y": -80, "w": 9240, "text": "Customer-facing screens (enterprise multi-site: Global Admin view)" },
+    { "id": "note-provider", "x": 9360, "y": -80, "w": 3000, "text": "Provider-facing screens (internal only)" }
+  ],
+  "launch": { "view": "canvas" }
+}
