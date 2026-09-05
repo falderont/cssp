@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSSP Colocation Portal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --bg: oklch(97% 0.006 250);
+    --surface: oklch(100% 0 0);
+    --surface-2: oklch(98.3% 0.005 250);
+    --ink: oklch(22% 0.02 255);
+    --ink-2: oklch(50% 0.016 255);
+    --ink-3: oklch(65% 0.012 255);
+    --line: oklch(90% 0.008 250);
+    --accent: #2f5fdb;
+    --accent-soft: oklch(94% 0.03 258);
+    --accent-ink: oklch(38% 0.15 262);
+    --provider: oklch(48% 0.09 195);
+    --provider-soft: oklch(93% 0.035 195);
+    --provider-ink: oklch(34% 0.07 195);
+    --good: oklch(56% 0.13 150);
+    --good-soft: oklch(95% 0.05 150);
+    --warn: oklch(60% 0.15 70);
+    --warn-soft: oklch(96% 0.06 85);
+    --bad: oklch(58% 0.18 25);
+    --bad-soft: oklch(96% 0.06 25);
+    --mono-tint: oklch(96% 0.006 250);
+    --shadow: 0 1px 2px oklch(22% 0.02 255 / 0.04), 0 10px 26px oklch(22% 0.02 255 / 0.05);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: oklch(18.5% 0.012 255);
+      --surface: oklch(23% 0.014 255);
+      --surface-2: oklch(26% 0.015 255);
+      --ink: oklch(94% 0.008 255);
+      --ink-2: oklch(74% 0.014 255);
+      --ink-3: oklch(58% 0.012 255);
+      --line: oklch(32% 0.018 255);
+      --accent: #7fa0ff;
+      --accent-soft: oklch(30% 0.06 262);
+      --accent-ink: oklch(87% 0.06 262);
+      --provider: oklch(72% 0.1 195);
+      --provider-soft: oklch(28% 0.05 195);
+      --provider-ink: oklch(85% 0.06 195);
+      --good: oklch(68% 0.15 150);
+      --good-soft: oklch(28% 0.07 150);
+      --warn: oklch(74% 0.15 75);
+      --warn-soft: oklch(30% 0.08 85);
+      --bad: oklch(68% 0.18 25);
+      --bad-soft: oklch(30% 0.09 25);
+      --mono-tint: oklch(26% 0.014 255);
+      --shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 10px 26px oklch(0% 0 0 / 0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg: oklch(18.5% 0.012 255);
+    --surface: oklch(23% 0.014 255);
+    --surface-2: oklch(26% 0.015 255);
+    --ink: oklch(94% 0.008 255);
+    --ink-2: oklch(74% 0.014 255);
+    --ink-3: oklch(58% 0.012 255);
+    --line: oklch(32% 0.018 255);
+    --accent: #7fa0ff;
+    --accent-soft: oklch(30% 0.06 262);
+    --accent-ink: oklch(87% 0.06 262);
+    --provider: oklch(72% 0.1 195);
+    --provider-soft: oklch(28% 0.05 195);
+    --provider-ink: oklch(85% 0.06 195);
+    --good: oklch(68% 0.15 150);
+    --good-soft: oklch(28% 0.07 150);
+    --warn: oklch(74% 0.15 75);
+    --warn-soft: oklch(30% 0.08 85);
+    --bad: oklch(68% 0.18 25);
+    --bad-soft: oklch(30% 0.09 25);
+    --mono-tint: oklch(26% 0.014 255);
+    --shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 10px 26px oklch(0% 0 0 / 0.35);
+  }
+
+  *{ box-sizing: border-box; }
+  html{ text-size-adjust: 100%; }
+  body{
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3{ font-family: 'Space Grotesk', system-ui, sans-serif; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  p{ margin: 0; }
+  ul{ margin: 0; padding: 0; list-style: none; }
+  code, .mono{ font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+  ::selection{ background: var(--accent-soft); }
+  a{ color: inherit; }
+  img, svg{ display: block; }
+  @media (prefers-reduced-motion: reduce){ *{ animation: none !important; transition: none !important; } }
+
+  .page{ max-width: 1180px; margin: 0 auto; padding: 56px 32px 80px; }
+
+  /* ---------- hero ---------- */
+  .hero{
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 48px;
+    align-items: center;
+    padding-bottom: 44px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+  .eyebrow{
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+    color: var(--accent-ink); background: var(--accent-soft);
+    padding: 5px 11px; border-radius: 100px; letter-spacing: 0.03em;
+    margin-bottom: 18px;
+  }
+  .eyebrow .dot{ width: 6px; height: 6px; border-radius: 100px; background: var(--accent); }
+  .hero h1{ font-size: clamp(32px, 4vw, 44px); line-height: 1.08; margin-bottom: 16px; }
+  .hero h1 em{ font-style: normal; color: var(--accent); }
+  .hero .lede{ font-size: 17px; color: var(--ink-2); max-width: 54ch; margin-bottom: 26px; }
+  .hero .lede strong{ color: var(--ink); font-weight: 600; }
+  .fact-row{ display: flex; gap: 28px; flex-wrap: wrap; }
+  .fact{ display: flex; flex-direction: column; gap: 2px; }
+  .fact b{ font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; }
+  .fact span{ font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .hero-panel{
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 22px 24px; font-size: 13px;
+  }
+  .hero-panel .panel-label{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 600; margin-bottom: 12px; }
+  .mod-list{ display: flex; flex-direction: column; gap: 10px; }
+  .mod-list li{ display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .mod-list li:last-child{ border-bottom: none; padding-bottom: 0; }
+  .mod-list .mi{ width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--accent-soft); color: var(--accent-ink); }
+  .mod-list .mi svg{ width: 14px; height: 14px; }
+  .mod-list span.tag{ margin-left: auto; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
+
+  /* ---------- section shell ---------- */
+  section.block{ margin-bottom: 64px; }
+  .block-head{ margin-bottom: 28px; max-width: 62ch; }
+  .block-head .kicker{ font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+  .block-head h2{ font-size: 27px; margin-bottom: 8px; }
+  .block-head p{ color: var(--ink-2); font-size: 14.5px; }
+
+  /* ---------- personas ---------- */
+  .persona-group{ margin-bottom: 30px; }
+  .group-label{
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+    padding: 6px 12px 6px 8px; border-radius: 100px; margin-bottom: 16px;
+  }
+  .group-label .swatch{ width: 8px; height: 8px; border-radius: 100px; }
+  .group-label.role-customer{ background: var(--accent-soft); color: var(--accent-ink); }
+  .group-label.role-customer .swatch{ background: var(--accent); }
+  .group-label.role-provider{ background: var(--provider-soft); color: var(--provider-ink); }
+  .group-label.role-provider .swatch{ background: var(--provider); }
+
+  .persona-grid{ display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+  @media (max-width: 860px){ .persona-grid{ grid-template-columns: 1fr; } }
+
+  .persona-card{
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px; display: flex; flex-direction: column; gap: 12px;
+    border-top: 3px solid var(--accent);
+  }
+  .persona-card.role-provider{ border-top-color: var(--provider); }
+  .persona-top{ display: flex; align-items: center; gap: 12px; }
+  .persona-avatar{
+    width: 42px; height: 42px; border-radius: 100px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 14px;
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+  .persona-card.role-provider .persona-avatar{ background: var(--provider-soft); color: var(--provider-ink); }
+  .persona-name{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px; }
+  .persona-role{ font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+  .persona-context{ font-size: 13px; color: var(--ink-2); }
+  .persona-goals{ display: flex; flex-direction: column; gap: 6px; }
+  .persona-goals li{ font-size: 12.5px; color: var(--ink-2); padding-left: 14px; position: relative; }
+  .persona-goals li::before{ content: ''; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 100px; background: var(--ink-3); }
+  .persona-uses{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+  .chip{
+    font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace;
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2);
+    padding: 4px 9px; border-radius: 6px;
+  }
+
+  /* ---------- workflows ---------- */
+  .flow{ background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+  .flow-head{ display: flex; align-items: flex-start; gap: 14px; padding: 20px 24px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+  .flow-icon{
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent-soft); color: var(--accent-ink);
+  }
+  .flow-icon svg{ width: 20px; height: 20px; }
+  .flow-head h3{ font-size: 17px; }
+  .flow-head p{ font-size: 13px; color: var(--ink-2); margin-top: 3px; }
+  .flow-num{ margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-3); flex-shrink: 0; padding-top: 3px; }
+
+  .flow-steps{ display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; padding: 22px 24px; }
+  .step{
+    display: flex; flex-direction: column; gap: 10px; width: 208px; flex-shrink: 0;
+  }
+  .step-num{
+    width: 24px; height: 24px; border-radius: 100px; background: var(--surface-2); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: var(--ink-2);
+  }
+  .step-role{
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    padding: 3px 9px; border-radius: 100px; width: fit-content;
+  }
+  .step-role.role-customer{ background: var(--accent-soft); color: var(--accent-ink); }
+  .step-role.role-provider{ background: var(--provider-soft); color: var(--provider-ink); }
+  .step-role.role-system{ background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line); }
+  .step-body strong{ display: block; font-size: 13.5px; font-weight: 600; margin-bottom: 3px; }
+  .step-body span{ display: block; font-size: 12.5px; color: var(--ink-2); }
+  .step-body .mono{ font-size: 11px; color: var(--ink-3); margin-top: 4px; display: block; }
+
+  .flow-arrow{
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 34px; color: var(--ink-3); align-self: center; margin-top: -2px;
+  }
+  .flow-arrow svg{ width: 18px; height: 18px; }
+  @media (max-width: 700px){ .flow-arrow{ display: none; } .step{ width: 100%; padding-bottom: 14px; border-bottom: 1px dashed var(--line); } .step:last-child{ border-bottom: none; padding-bottom: 0; } .flow-steps{ flex-direction: column; } }
+
+  /* ---------- footer ---------- */
+  .closing{
+    display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center;
+    padding: 28px 28px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line);
+  }
+  .closing h3{ font-size: 16px; margin-bottom: 6px; }
+  .closing p{ font-size: 13px; color: var(--ink-2); max-width: 56ch; }
+  .closing .badge-row{ display: flex; gap: 8px; flex-wrap: wrap; }
+  .status-pill{ font-size: 11px; font-weight: 600; padding: 5px 11px; border-radius: 100px; white-space: nowrap; }
+  .status-pill.good{ background: var(--good-soft); color: var(--good); }
+  .status-pill.warn{ background: var(--warn-soft); color: var(--warn); }
+  @media (max-width: 640px){ .closing{ grid-template-columns: 1fr; } .hero{ grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <div>
+      <div class="eyebrow"><span class="dot"></span> Product concept · v4 scope</div>
+      <h1>The consolidated front end colocation providers <em>don't have.</em></h1>
+      <p class="lede">CSSP is a CRM + ITSM layer that sits on top of a data center's existing DCIM, CMMS and BMS — <strong>not a replacement for them</strong> — giving enterprise customers one login across every site they occupy, and giving the CS team one place to run the relationship.</p>
+      <div class="fact-row">
+        <div class="fact"><b>6</b><span>MVP modules</span></div>
+        <div class="fact"><b>3</b><span>sites per enterprise account</span></div>
+        <div class="fact"><b>6</b><span>personas across both sides</span></div>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <div class="panel-label">MVP modules</div>
+      <ul class="mod-list">
+        <li><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.2c2.9.5 5 2.7 5 5.8"/></svg></span>Visitor Management<span class="tag">Site-scoped</span></li>
+        <li><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 4.3a1.6 1.6 0 0 1 2.8 0l8 14.2a1.6 1.6 0 0 1-1.4 2.4H4a1.6 1.6 0 0 1-1.4-2.4l8-14.2Z"/><path d="M12 10v4"/></svg></span>Incident Management<span class="tag">Manual adapter</span></li>
+        <li><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 10.5v5.5M9.5 13.5l2.5 2.5 2.5-2.5"/></svg></span>Download Center<span class="tag">Net-new</span></li>
+        <li><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1.5a1.5 1.5 0 0 0 0 3V15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5a1.5 1.5 0 0 0 0-3V9Z"/><path d="M13 7v10" stroke-dasharray="2 2"/></svg></span>Ticketing<span class="tag">3 categories</span></li>
+        <li><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V6a1.5 1.5 0 0 1 3 0v5"/><path d="M11 11V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M14 11.5V6a1.5 1.5 0 0 1 3 0v7"/><path d="M17 12v-2a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-2a7 7 0 0 1-5.6-2.8L3 15.7c-.6-.8-.4-1.9.4-2.4.7-.5 1.7-.4 2.3.3L8 16"/></svg></span>Remote / Smart Hands<span class="tag">Billable</span></li>
+        <li><span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>CS Engagement & Performance<span class="tag">Internal only</span></li>
+      </ul>
+    </div>
+  </header>
+
+  <section class="block" id="personas">
+    <div class="block-head">
+      <div class="kicker">Who's on the platform</div>
+      <h2>Six people, one shared record</h2>
+      <p>Every screen in CSSP exists because one of these six people was chasing something by email or WhatsApp. The cast below carries through the mockups and prototype too — same names, same facilities.</p>
+    </div>
+
+    <div class="persona-group">
+      <div class="group-label role-customer"><span class="swatch"></span>Customer-side — Meridian Logistics</div>
+      <div class="persona-grid">
+        <article class="persona-card">
+          <div class="persona-top">
+            <div class="persona-avatar">DA</div>
+            <div><div class="persona-name">Dita Ayu</div><div class="persona-role">IT Infrastructure Manager · Global Admin</div></div>
+          </div>
+          <p class="persona-context">Logs in once and sees the roll-up across all <span class="mono">3</span> enrolled sites — <span class="mono">BTM-02</span>, <span class="mono">JKT-01</span>, <span class="mono">SBY-01</span> — instead of three separate relationships.</p>
+          <ul class="persona-goals">
+            <li>Track ticket &amp; incident status without an inbox full of threads</li>
+            <li>Approve Remote Hands work at whichever site needs it</li>
+            <li>Pull SLA reports ahead of the quarterly business review</li>
+          </ul>
+          <div class="persona-uses"><span class="chip">Dashboard</span><span class="chip">Tickets</span><span class="chip">Remote Hands</span></div>
+        </article>
+
+        <article class="persona-card">
+          <div class="persona-top">
+            <div class="persona-avatar">LM</div>
+            <div><div class="persona-name">Lina Marpaung</div><div class="persona-role">Front-desk / Admin Contact</div></div>
+          </div>
+          <p class="persona-context">Schedules every vendor and auditor visit for Dita's team at <span class="mono">BTM-02</span> — the only module she opens.</p>
+          <ul class="persona-goals">
+            <li>Book a visit window without a phone call to security</li>
+            <li>Know a visit is approved before the vendor shows up</li>
+            <li>See past visits without asking front-desk to check a logbook</li>
+          </ul>
+          <div class="persona-uses"><span class="chip">Visitors</span></div>
+        </article>
+
+        <article class="persona-card">
+          <div class="persona-top">
+            <div class="persona-avatar">SD</div>
+            <div><div class="persona-name">Sari Dewi</div><div class="persona-role">Compliance / Facilities Contact</div></div>
+          </div>
+          <p class="persona-context">Pulled in twice a year for SOC 2 evidence — needs the certificate, not a relationship with the provider.</p>
+          <ul class="persona-goals">
+            <li>Find last quarter's compliance certificate herself</li>
+            <li>Confirm a document covers the right facility before citing it</li>
+            <li>Avoid re-requesting something that was already emailed once</li>
+          </ul>
+          <div class="persona-uses"><span class="chip">Download Center</span></div>
+        </article>
+      </div>
+    </div>
+
+    <div class="persona-group">
+      <div class="group-label role-provider"><span class="swatch"></span>Provider-side — the CS &amp; Ops team</div>
+      <div class="persona-grid">
+        <article class="persona-card role-provider">
+          <div class="persona-top">
+            <div class="persona-avatar">MW</div>
+            <div><div class="persona-name">Made Wirawan</div><div class="persona-role">CS Manager</div></div>
+          </div>
+          <p class="persona-context">Owns the Meridian relationship end to end — triages every ticket type from one queue, assigns Remote Hands work, and reviews the team's KPIs weekly.</p>
+          <ul class="persona-goals">
+            <li>Triage complaints, RFIs and service requests from one screen</li>
+            <li>See who on the team is overloaded before a customer complains</li>
+            <li>Log a call so it's not lost when someone covers his accounts</li>
+          </ul>
+          <div class="persona-uses"><span class="chip">Console</span><span class="chip">CS Engagement</span></div>
+        </article>
+
+        <article class="persona-card role-provider">
+          <div class="persona-top">
+            <div class="persona-avatar">EN</div>
+            <div><div class="persona-name">Eka Nurhaliza</div><div class="persona-role">Security / Front-desk Staff</div></div>
+          </div>
+          <p class="persona-context">Runs the badge desk at <span class="mono">BTM-02</span> — approves who's allowed in, then checks them in and out on the day.</p>
+          <ul class="persona-goals">
+            <li>See every pending visitor across her facility in one queue</li>
+            <li>Deny a request with a reason the customer actually sees</li>
+            <li>Check a visitor in without re-typing what was already submitted</li>
+          </ul>
+          <div class="persona-uses"><span class="chip">Visitor Approvals</span></div>
+        </article>
+
+        <article class="persona-card role-provider">
+          <div class="persona-top">
+            <div class="persona-avatar">YP</div>
+            <div><div class="persona-name">Yoga Pratama</div><div class="persona-role">NOC / Field Technician</div></div>
+          </div>
+          <p class="persona-context">The person who's actually in the data hall — posts incidents as they happen and executes Remote Hands requests rack by rack.</p>
+          <ul class="persona-goals">
+            <li>Publish an incident once and have every affected customer see it</li>
+            <li>Know exactly which rack and what task before walking the floor</li>
+            <li>Log completion proof fast enough to move to the next ticket</li>
+          </ul>
+          <div class="persona-uses"><span class="chip">Incidents</span><span class="chip">Remote Hands</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="workflows">
+    <div class="block-head">
+      <div class="kicker">How each module actually runs</div>
+      <h2>Six features, storyboarded end to end</h2>
+      <p>Every module below is the same shape: someone on the customer side starts it, someone on the provider side moves it forward, and the result closes the loop back to the person who asked.</p>
+    </div>
+
+    <!-- 1. Visitor Management -->
+    <div class="flow">
+      <div class="flow-head">
+        <div class="flow-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.2c2.9.5 5 2.7 5 5.8"/></svg></div>
+        <div><h3>Visitor Management</h3><p>Register once — security handles approval and check-in from the same record.</p></div>
+        <div class="flow-num">01 / 06</div>
+      </div>
+      <div class="flow-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-role role-customer">Lina · Front-desk Contact</div>
+          <div class="step-body"><strong>Registers a visitor</strong><span>Cabling contractor, BTM-02, Sep 10, 09:00–12:00.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-role role-provider">Eka · Security</div>
+          <div class="step-body"><strong>Reviews and decides</strong><span>Approves, or denies with a reason the customer can see.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-role role-provider">Eka · Security</div>
+          <div class="step-body"><strong>Checks in / out</strong><span>Same record, no separate logbook at the badge desk.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-role role-customer">Dita · Global Admin</div>
+          <div class="step-body"><strong>Sees the history</strong><span>Every visit across all 3 sites, no calling ahead.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Incident Management -->
+    <div class="flow">
+      <div class="flow-head">
+        <div class="flow-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 4.3a1.6 1.6 0 0 1 2.8 0l8 14.2a1.6 1.6 0 0 1-1.4 2.4H4a1.6 1.6 0 0 1-1.4-2.4l8-14.2Z"/><path d="M12 10v4"/></svg></div>
+        <div><h3>Incident Management</h3><p>One entry, published once, visible to every customer it affects.</p></div>
+        <div class="flow-num">02 / 06</div>
+      </div>
+      <div class="flow-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-role role-provider">Yoga · NOC</div>
+          <div class="step-body"><strong>Publishes an incident</strong><span class="mono">INC-88 — Power distribution event, BTM-02</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-role role-system">System</div>
+          <div class="step-body"><strong>Fans out instantly</strong><span>Every account enrolled at BTM-02 sees it — no mass email.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-role role-customer">Dita · Global Admin</div>
+          <div class="step-body"><strong>Reads it in plain language</strong><span>Status, facility, and start time — not a raw ticket dump.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-role role-provider">Yoga · NOC</div>
+          <div class="step-body"><strong>Marks it resolved</strong><span>Same record — no separate close-out email.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Download Center -->
+    <div class="flow">
+      <div class="flow-head">
+        <div class="flow-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 10.5v5.5M9.5 13.5l2.5 2.5 2.5-2.5"/></svg></div>
+        <div><h3>Download Center</h3><p>A real document library, scoped to site or the whole enterprise account.</p></div>
+        <div class="flow-num">03 / 06</div>
+      </div>
+      <div class="flow-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-role role-provider">Made · CS Manager</div>
+          <div class="step-body"><strong>Publishes a document</strong><span>ISO 27001 certificate — scoped to all facilities, not just one.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-role role-customer">Sari · Compliance Contact</div>
+          <div class="step-body"><strong>Filters by category</strong><span>SLA Report / Compliance / Invoice — finds it herself.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-role role-customer">Sari · Compliance Contact</div>
+          <div class="step-body"><strong>Downloads it</strong><span>Cites it in the SOC 2 audit — no email chase, no re-ask.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Ticketing -->
+    <div class="flow">
+      <div class="flow-head">
+        <div class="flow-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1.5a1.5 1.5 0 0 0 0 3V15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1.5a1.5 1.5 0 0 0 0-3V9Z"/><path d="M13 7v10" stroke-dasharray="2 2"/></svg></div>
+        <div><h3>Ticketing</h3><p>Complaint, RFI or Service Request — one shared queue either way.</p></div>
+        <div class="flow-num">04 / 06</div>
+      </div>
+      <div class="flow-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-role role-customer">Dita · Global Admin</div>
+          <div class="step-body"><strong>Raises a ticket</strong><span class="mono">TCK-3301 — AC noise near Rack C14</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-role role-provider">Made · CS Manager</div>
+          <div class="step-body"><strong>Triages the queue</strong><span>Every category, every account, in one screen — assigns it.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-role role-provider">Made · CS Manager</div>
+          <div class="step-body"><strong>Resolves &amp; updates status</strong><span>Submitted → In Progress → Done.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-role role-customer">Dita · Global Admin</div>
+          <div class="step-body"><strong>Sees it live</strong><span>Optionally rates the resolution — feeds team CSAT.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Remote / Smart Hands -->
+    <div class="flow">
+      <div class="flow-head">
+        <div class="flow-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V6a1.5 1.5 0 0 1 3 0v5"/><path d="M11 11V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M14 11.5V6a1.5 1.5 0 0 1 3 0v7"/><path d="M17 12v-2a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-2a7 7 0 0 1-5.6-2.8L3 15.7c-.6-.8-.4-1.9.4-2.4.7-.5 1.7-.4 2.3.3L8 16"/></svg></div>
+        <div><h3>Remote / Smart Hands</h3><p>A billable physical task, tracked from request to completion proof.</p></div>
+        <div class="flow-num">05 / 06</div>
+      </div>
+      <div class="flow-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-role role-customer">Dita · Global Admin</div>
+          <div class="step-body"><strong>Submits a request</strong><span class="mono">RH-118 — Power Cycle, Rack C14</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-role role-provider">Made · CS Manager</div>
+          <div class="step-body"><strong>Accepts &amp; assigns</strong><span>Picks a technician from the on-site team.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-role role-provider">Yoga · Technician</div>
+          <div class="step-body"><strong>Starts &amp; completes it</strong><span>Timer runs on-site — notes, a photo, 18 minutes billed.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-role role-customer">Dita · Global Admin</div>
+          <div class="step-body"><strong>Sees the proof</strong><span>No walking the floor herself to confirm it happened.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. CS Engagement & Performance -->
+    <div class="flow">
+      <div class="flow-head">
+        <div class="flow-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div><h3>CS Engagement &amp; Performance</h3><p>Internal only. The customer never sees this module exists.</p></div>
+        <div class="flow-num">06 / 06</div>
+      </div>
+      <div class="flow-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-role role-provider">Made · CS Manager</div>
+          <div class="step-body"><strong>Logs a touchpoint</strong><span>Call with Dita — Q4 rack expansion, no blockers.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-role role-system">System</div>
+          <div class="step-body"><strong>Auto-logs the rest</strong><span>Resolved tickets and completed Remote Hands tasks, too.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-role role-provider">Made · CS Manager</div>
+          <div class="step-body"><strong>Reviews Team Performance</strong><span>Tickets resolved, response time, CSAT — per rep.</span></div>
+        </div>
+        <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-role role-system">System</div>
+          <div class="step-body"><strong>Stays internal</strong><span>Never surfaced to any customer role, by design.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="closing">
+    <div>
+      <h3>Where this stands</h3>
+      <p>PRD, mockups and a clickable prototype all cover this v4 scope. Next: a build-sequencing call on what ships to the first design partner versus what's a fast-follow.</p>
+    </div>
+    <div class="badge-row">
+      <span class="status-pill good">PRD v4 — done</span>
+      <span class="status-pill good">Mockups — done</span>
+      <span class="status-pill good">Prototype — done</span>
+      <span class="status-pill warn">Design partners — pending</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
