@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Local scratch (used only during interactive dev checks, never committed)
+*.local.*
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
