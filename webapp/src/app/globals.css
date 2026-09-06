@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #2563eb;
+  --brand-primary-dark: #1d4ed8;
+  --brand-secondary: #0f172a;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark));
+}

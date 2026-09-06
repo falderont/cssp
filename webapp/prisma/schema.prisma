@@ -1,0 +1,419 @@
+// CSSP data model.
+// NOTE: SQLite (the default dev datasource below) has no native enum type,
+// so status/role/category fields are typed String and validated in the app
+// layer (see src/lib/constants.ts) rather than as Prisma enums. Swapping the
+// datasource to PostgreSQL for production does not require changing this.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Provider branding + facility hierarchy (Region -> Facility -> Building)
+// ---------------------------------------------------------------------------
+
+model ProviderSettings {
+  id             String   @id @default("singleton")
+  companyName    String
+  logoUrl        String?
+  primaryColor   String   @default("#2563eb")
+  secondaryColor String   @default("#0f172a")
+  supportEmail   String
+  supportPhone   String
+  address        String?
+  updatedAt      DateTime @updatedAt
+}
+
+model Region {
+  id        String     @id @default(cuid())
+  name      String
+  code      String     @unique
+  createdAt DateTime   @default(now())
+  facilities Facility[]
+}
+
+model Facility {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  timezone  String   @default("UTC")
+  acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id])
+  createdAt DateTime @default(now())
+
+  buildings         Building[]
+  siteEnrollments   SiteEnrollment[]
+  incidents         Incident[]
+  maintenanceEvents MaintenanceEvent[]
+  telemetrySource   TelemetrySource?
+  telemetryPoints   TelemetryPoint[]
+  documents         Document[]
+  restrictedUsers   User[]             @relation("UserRestrictedFacility")
+}
+
+model Building {
+  id         String   @id @default(cuid())
+  name       String
+  code       String
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+  createdAt  DateTime @default(now())
+
+  incidents         Incident[]
+  maintenanceEvents MaintenanceEvent[]
+  telemetryPoints   TelemetryPoint[]
+  visitorRequests   VisitorRequest[]
+
+  @@unique([facilityId, code])
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy: EnterpriseAccount = a customer company; SiteEnrollment ties an
+// account to one facility (an account can be enrolled at several facilities).
+// ---------------------------------------------------------------------------
+
+model EnterpriseAccount {
+  id           String   @id @default(cuid())
+  name         String
+  legalName    String?
+  tier         String   @default("Standard")
+  status       String   @default("Active")
+  billingEmail String?
+  logoUrl      String?
+  createdAt    DateTime @default(now())
+
+  users           User[]
+  siteEnrollments SiteEnrollment[]
+  documents       Document[]
+  invoices        Invoice[]
+  engagementLogs  EngagementLog[]
+}
+
+model SiteEnrollment {
+  id                   String   @id @default(cuid())
+  enterpriseAccountId  String
+  enterpriseAccount    EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
+  facilityId           String
+  facility             Facility @relation(fields: [facilityId], references: [id])
+  status               String   @default("Active")
+  spaceRef             String?
+  createdAt            DateTime @default(now())
+
+  visitorRequests  VisitorRequest[]
+  remoteHandsTasks RemoteHandsTask[]
+  tickets          Ticket[]
+
+  @@unique([enterpriseAccountId, facilityId])
+}
+
+model User {
+  id                   String   @id @default(cuid())
+  name                 String
+  email                String   @unique
+  passwordHash         String
+  role                 String
+  title                String?
+  phone                String?
+  avatarUrl            String?
+  isActive             Boolean  @default(true)
+  enterpriseAccountId  String?
+  enterpriseAccount    EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  restrictedFacilityId String?
+  restrictedFacility   Facility? @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
+  createdAt            DateTime @default(now())
+
+  hostedVisitorRequests  VisitorRequest[]    @relation("HostUser")
+  createdVisitorRequests VisitorRequest[]    @relation("CreatedByUser")
+  createdIncidents       Incident[]          @relation("IncidentCreatedBy")
+  incidentUpdates        IncidentUpdate[]
+  createdMaintenance     MaintenanceEvent[]  @relation("MaintenanceCreatedBy")
+  createdTickets         Ticket[]            @relation("TicketCreatedBy")
+  assignedTickets        Ticket[]            @relation("TicketAssignedTo")
+  createdRemoteHands     RemoteHandsTask[]   @relation("RHCreatedBy")
+  assignedRemoteHands    RemoteHandsTask[]   @relation("RHAssignedTechnician")
+  publishedDocuments     Document[]          @relation("DocPublishedBy")
+  engagementLogs         EngagementLog[]     @relation("EngagementRep")
+  notifications          Notification[]
+}
+
+// ---------------------------------------------------------------------------
+// Visitor management (single + group/batch) + campus ACS integration stub
+// ---------------------------------------------------------------------------
+
+model VisitorRequest {
+  id               String   @id @default(cuid())
+  siteEnrollmentId String
+  siteEnrollment   SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
+  buildingId       String?
+  building         Building? @relation(fields: [buildingId], references: [id])
+  purpose          String
+  visitDate        DateTime
+  windowStart      String
+  windowEnd        String
+  isGroup          Boolean  @default(false)
+  source           String   @default("Single") // Single/Batch
+  hostUserId       String?
+  hostUser         User?    @relation("HostUser", fields: [hostUserId], references: [id])
+  createdById      String
+  createdByUser    User     @relation("CreatedByUser", fields: [createdById], references: [id])
+  acsSyncStatus    String   @default("NotSynced") // NotSynced/Synced/Failed
+  createdAt        DateTime @default(now())
+
+  visitors Visitor[]
+  acsLogs  AcsIntegrationLog[]
+}
+
+model Visitor {
+  id               String   @id @default(cuid())
+  visitorRequestId String
+  visitorRequest   VisitorRequest @relation(fields: [visitorRequestId], references: [id])
+  fullName         String
+  idType           String?
+  idNumber         String?
+  company          String?
+  email            String?
+  phone            String?
+  status           String   @default("Pending") // Pending/Approved/Denied/CheckedIn/CheckedOut
+  badgeCode        String?
+  checkedInAt      DateTime?
+  checkedOutAt     DateTime?
+  createdAt        DateTime @default(now())
+}
+
+model AcsIntegrationLog {
+  id               String   @id @default(cuid())
+  visitorRequestId String
+  visitorRequest   VisitorRequest @relation(fields: [visitorRequestId], references: [id])
+  endpointUrl      String
+  requestPayload   String
+  responseStatus   Int
+  responseBody     String
+  createdAt        DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Incidents + maintenance (both facility/building scoped, customer-visible)
+// ---------------------------------------------------------------------------
+
+model Incident {
+  id                String   @id @default(cuid())
+  facilityId        String
+  facility          Facility @relation(fields: [facilityId], references: [id])
+  buildingId        String?
+  building          Building? @relation(fields: [buildingId], references: [id])
+  title             String
+  description       String
+  severity          String   @default("P3") // P1/P2/P3/P4
+  status            String   @default("Investigating") // Investigating/Identified/Monitoring/Resolved
+  isCustomerVisible Boolean  @default(true)
+  startedAt         DateTime
+  resolvedAt        DateTime?
+  createdById       String
+  createdByUser     User     @relation("IncidentCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+
+  updates IncidentUpdate[]
+}
+
+model IncidentUpdate {
+  id            String   @id @default(cuid())
+  incidentId    String
+  incident      Incident @relation(fields: [incidentId], references: [id])
+  message       String
+  createdById   String
+  createdByUser User     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model MaintenanceEvent {
+  id            String   @id @default(cuid())
+  facilityId    String
+  facility      Facility @relation(fields: [facilityId], references: [id])
+  buildingId    String?
+  building      Building? @relation(fields: [buildingId], references: [id])
+  title         String
+  description   String
+  maintType     String   @default("Planned") // Planned/Emergency
+  impact        String   @default("NoImpact") // NoImpact/RedundancyReduced/FullOutage
+  startAt       DateTime
+  endAt         DateTime
+  status        String   @default("Scheduled") // Scheduled/InProgress/Completed/Cancelled
+  createdById   String
+  createdByUser User     @relation("MaintenanceCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+
+  notifications MaintenanceNotification[]
+}
+
+model MaintenanceNotification {
+  id                  String   @id @default(cuid())
+  maintenanceEventId  String
+  maintenanceEvent    MaintenanceEvent @relation(fields: [maintenanceEventId], references: [id])
+  channel             String   @default("IN_APP") // IN_APP/EMAIL
+  audience            String
+  message             String
+  sentAt              DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Tickets (Complaint/RFI/Service Request) + Remote/Smart Hands
+// ---------------------------------------------------------------------------
+
+model Ticket {
+  id               String   @id @default(cuid())
+  siteEnrollmentId String
+  siteEnrollment   SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
+  category         String   // Complaint/RFI/ServiceRequest
+  subject          String
+  description      String
+  status           String   @default("Submitted") // Submitted/InProgress/Done
+  priority         String   @default("Normal") // Low/Normal/High/Urgent
+  createdById      String
+  createdByUser    User     @relation("TicketCreatedBy", fields: [createdById], references: [id])
+  assignedToId     String?
+  assignedToUser   User?    @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
+  createdAt        DateTime @default(now())
+  resolvedAt       DateTime?
+  csatRating       String?
+}
+
+model RemoteHandsTask {
+  id                   String   @id @default(cuid())
+  siteEnrollmentId     String
+  siteEnrollment       SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
+  taskType             String
+  assetRef             String
+  description          String
+  requestedWindowStart DateTime?
+  requestedWindowEnd   DateTime?
+  status               String   @default("Submitted") // Submitted/Accepted/InProgress/Completed/Cancelled
+  createdById          String
+  createdByUser        User     @relation("RHCreatedBy", fields: [createdById], references: [id])
+  assignedTechnicianId String?
+  assignedTechnician   User?    @relation("RHAssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  startedAt            DateTime?
+  completedAt          DateTime?
+  billableMinutes      Int?
+  completionNotes      String?
+  completionPhotoUrl   String?
+  csatRating           String?
+  createdAt            DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// BMS telemetry (optional per-facility integration, read-only mirror)
+// ---------------------------------------------------------------------------
+
+model TelemetrySource {
+  id         String    @id @default(cuid())
+  facilityId String    @unique
+  facility   Facility  @relation(fields: [facilityId], references: [id])
+  vendor     String?
+  status     String    @default("NotConfigured") // NotConfigured/Connected/Error
+  lastSyncAt DateTime?
+}
+
+model TelemetryPoint {
+  id         String   @id @default(cuid())
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+  buildingId String?
+  building   Building? @relation(fields: [buildingId], references: [id])
+  metric     String   // TEMP_C/HUMIDITY_PCT/POWER_KW/PUE
+  value      Float
+  recordedAt DateTime
+
+  @@index([facilityId, metric, recordedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Reporting / download center
+// ---------------------------------------------------------------------------
+
+model Document {
+  id                  String   @id @default(cuid())
+  enterpriseAccountId String?
+  enterpriseAccount   EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  facilityId          String?
+  facility            Facility? @relation(fields: [facilityId], references: [id])
+  title               String
+  category            String   // SLAReport/Invoice/Compliance/Contract/Other
+  fileName            String
+  storageKey          String
+  mimeType            String
+  fileSizeKb          Int
+  publishedById       String
+  publishedByUser     User     @relation("DocPublishedBy", fields: [publishedById], references: [id])
+  publishedAt         DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Billing / invoicing
+// ---------------------------------------------------------------------------
+
+model Invoice {
+  id                  String   @id @default(cuid())
+  enterpriseAccountId String
+  enterpriseAccount   EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
+  invoiceNumber       String   @unique
+  periodStart         DateTime
+  periodEnd           DateTime
+  issueDate           DateTime
+  dueDate             DateTime
+  status              String   @default("Draft") // Draft/Sent/Paid/Overdue
+  currency            String   @default("USD")
+  subtotal            Float
+  tax                 Float
+  total               Float
+  notes               String?
+  createdAt           DateTime @default(now())
+
+  lineItems InvoiceLineItem[]
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  description String
+  category    String  // Space/Power/CrossConnect/RemoteHands/Other
+  quantity    Float   @default(1)
+  unitPrice   Float
+  amount      Float
+}
+
+// ---------------------------------------------------------------------------
+// Internal CS engagement + team performance (computed from this + tickets/RH)
+// ---------------------------------------------------------------------------
+
+model EngagementLog {
+  id                      String   @id @default(cuid())
+  enterpriseAccountId     String
+  enterpriseAccount       EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
+  repId                   String
+  rep                     User     @relation("EngagementRep", fields: [repId], references: [id])
+  type                    String   // call/email/meeting/site_visit/ticket/remote_hands
+  notes                   String
+  occurredAt              DateTime @default(now())
+  linkedTicketId          String?
+  linkedRemoteHandsTaskId String?
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  category  String   // incident/maintenance/visitor/ticket/remote_hands/billing
+  linkUrl   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

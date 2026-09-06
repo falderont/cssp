@@ -1,0 +1,72 @@
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { LinkButton, Button } from "@/components/ui/button";
+import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { requireSuperAdmin } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { toggleUserActive } from "@/actions/admin";
+import { ROLE_LABELS, isInternalRole, type Role } from "@/lib/constants";
+
+export default async function UsersPage() {
+  await requireSuperAdmin();
+  const users = await prisma.user.findMany({
+    include: { enterpriseAccount: true, restrictedFacility: true },
+    orderBy: { name: "asc" },
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Users"
+        description="Everyone who can sign in — provider staff and tenant users."
+        actions={
+          <LinkButton href="/ops/admin/users/new">
+            <Plus className="h-4 w-4" /> Add user
+          </LinkButton>
+        }
+      />
+      <Table>
+        <THead>
+          <tr>
+            <TH>Name</TH>
+            <TH>Email</TH>
+            <TH>Role</TH>
+            <TH>Account</TH>
+            <TH>Status</TH>
+            <TH>Actions</TH>
+          </tr>
+        </THead>
+        <TBody>
+          {users.length === 0 && <EmptyRow colSpan={6} message="No users yet." />}
+          {users.map((u) => {
+            const toggleBound = toggleUserActive.bind(null, u.id, "/ops/admin/users");
+            return (
+              <TR key={u.id}>
+                <TD className="font-medium text-slate-900">{u.name}</TD>
+                <TD>{u.email}</TD>
+                <TD>
+                  <Badge tone={isInternalRole(u.role) ? "blue" : "slate"}>{ROLE_LABELS[u.role as Role] ?? u.role}</Badge>
+                </TD>
+                <TD>
+                  {u.enterpriseAccount?.name ?? "—"}
+                  {u.restrictedFacility ? ` (${u.restrictedFacility.name} only)` : ""}
+                </TD>
+                <TD>
+                  <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "Active" : "Disabled"}</Badge>
+                </TD>
+                <TD>
+                  <form action={toggleBound}>
+                    <Button type="submit" size="sm" variant="ghost">
+                      {u.isActive ? "Disable" : "Enable"}
+                    </Button>
+                  </form>
+                </TD>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
+    </div>
+  );
+}
