@@ -25,3 +25,6 @@ npm-debug.log*
 
 # misc
 .DS_Store
+
+# TypeScript incremental build cache
+*.tsbuildinfo
