@@ -1,22 +1,23 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { UserForm } from "@/components/admin/user-form";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export default async function NewUserPage() {
-  await requireSuperAdmin();
-  const [accounts, facilities] = await Promise.all([
+  await requireSysAdmin();
+  const [accounts, facilities, regions] = await Promise.all([
     prisma.enterpriseAccount.findMany({ orderBy: { name: "asc" } }),
     prisma.facility.findMany({ orderBy: { name: "asc" } }),
+    prisma.region.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
     <div>
-      <PageHeader title="Add user" description="Internal staff or a tenant user." />
+      <PageHeader title="Add user" description="Internal staff or a tenant user, across any persona." />
       <Card className="max-w-2xl">
         <CardBody>
-          <UserForm accounts={accounts} facilities={facilities} />
+          <UserForm accounts={accounts} facilities={facilities} regions={regions} />
         </CardBody>
       </Card>
     </div>

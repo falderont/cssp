@@ -5,9 +5,10 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
-import { CUSTOMER_ROLES, INTERNAL_ROLES } from "@/lib/constants";
+import { logAudit } from "@/lib/audit";
+import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
 
@@ -21,7 +22,7 @@ const brandingSchema = z.object({
 });
 
 export async function updateBranding(formData: FormData) {
-  await requireSuperAdmin();
+  const admin = await requireSysAdmin();
   const parsed = brandingSchema.parse({
     companyName: formData.get("companyName"),
     primaryColor: formData.get("primaryColor"),
@@ -43,17 +44,19 @@ export async function updateBranding(formData: FormData) {
     update: { ...parsed, address: parsed.address || null, ...(logoUrl ? { logoUrl } : {}) },
   });
 
+  await logAudit({ actorId: admin.id, action: "branding.update", summary: `Updated provider branding (${parsed.companyName}).` });
   revalidatePath("/", "layout");
 }
 
 // --- Regions ----------------------------------------------------------------
 
 export async function createRegion(formData: FormData) {
-  await requireSuperAdmin();
+  const admin = await requireSysAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  await prisma.region.create({ data: { name, code } });
+  const region = await prisma.region.create({ data: { name, code } });
+  await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
   revalidatePath("/ops/admin/regions");
 }
 
@@ -69,7 +72,7 @@ const facilitySchema = z.object({
 });
 
 export async function createFacility(formData: FormData) {
-  await requireSuperAdmin();
+  const admin = await requireSysAdmin();
   const parsed = facilitySchema.parse({
     name: formData.get("name"),
     code: formData.get("code"),
@@ -90,19 +93,20 @@ export async function createFacility(formData: FormData) {
     },
   });
 
+  await logAudit({ actorId: admin.id, action: "facility.create", summary: `Created facility ${parsed.name}.`, targetType: "Facility", targetId: facility.id });
   revalidatePath("/ops/admin/facilities");
   redirect(`/ops/admin/facilities/${facility.id}`);
 }
 
 export async function updateFacilityAcs(facilityId: string, formData: FormData) {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const acsEndpointUrl = String(formData.get("acsEndpointUrl") ?? "") || null;
   await prisma.facility.update({ where: { id: facilityId }, data: { acsEndpointUrl } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
 export async function createBuilding(facilityId: string, formData: FormData) {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
@@ -120,7 +124,7 @@ const accountSchema = z.object({
 });
 
 export async function createEnterpriseAccount(formData: FormData) {
-  await requireSuperAdmin();
+  const admin = await requireSysAdmin();
   const parsed = accountSchema.parse({
     name: formData.get("name"),
     legalName: formData.get("legalName") || undefined,
@@ -137,12 +141,13 @@ export async function createEnterpriseAccount(formData: FormData) {
     },
   });
 
+  await logAudit({ actorId: admin.id, action: "tenant.create", summary: `Created tenant account ${parsed.name}.`, targetType: "EnterpriseAccount", targetId: account.id });
   revalidatePath("/ops/admin/accounts");
   redirect(`/ops/admin/accounts/${account.id}`);
 }
 
 export async function createSiteEnrollment(enterpriseAccountId: string, formData: FormData) {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const facilityId = String(formData.get("facilityId") ?? "");
   const spaceRef = String(formData.get("spaceRef") ?? "") || null;
   if (!facilityId) throw new Error("Choose a facility.");
@@ -159,10 +164,12 @@ const userSchema = z.object({
   role: z.enum([...INTERNAL_ROLES, ...CUSTOMER_ROLES] as [string, ...string[]]),
   enterpriseAccountId: z.string().optional(),
   restrictedFacilityId: z.string().optional(),
+  restrictedRegionId: z.string().optional(),
+  csScope: z.string().optional(),
 });
 
 export async function createUser(formData: FormData) {
-  await requireSuperAdmin();
+  const admin = await requireSysAdmin();
   const parsed = userSchema.parse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -170,32 +177,93 @@ export async function createUser(formData: FormData) {
     role: formData.get("role"),
     enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
     restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
+    restrictedRegionId: formData.get("restrictedRegionId") || undefined,
+    csScope: formData.get("csScope") || undefined,
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
   if (isCustomer && !parsed.enterpriseAccountId) {
     throw new Error("Tenant users must belong to an enterprise account.");
   }
+  const isCsTeam = parsed.role === ROLES.CS_TEAM;
 
   const passwordHash = await bcrypt.hash(parsed.password, 10);
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name: parsed.name,
       email: parsed.email.toLowerCase().trim(),
       passwordHash,
       role: parsed.role,
       enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
-      restrictedFacilityId: isCustomer ? parsed.restrictedFacilityId || null : null,
+      restrictedFacilityId: parsed.restrictedFacilityId || null,
+      restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+      csScope: isCsTeam ? parsed.csScope || "Site" : null,
     },
   });
 
+  await logAudit({ actorId: admin.id, action: "user.create", summary: `Created user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: user.id });
   revalidatePath("/ops/admin/users");
   redirect("/ops/admin/users");
 }
 
+const updateUserSchema = userSchema.omit({ password: true });
+
+export async function updateUser(userId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const parsed = updateUserSchema.parse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    role: formData.get("role"),
+    enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
+    restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
+    restrictedRegionId: formData.get("restrictedRegionId") || undefined,
+    csScope: formData.get("csScope") || undefined,
+  });
+
+  const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
+  if (isCustomer && !parsed.enterpriseAccountId) {
+    throw new Error("Tenant users must belong to an enterprise account.");
+  }
+  const isCsTeam = parsed.role === ROLES.CS_TEAM;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: parsed.name,
+      email: parsed.email.toLowerCase().trim(),
+      role: parsed.role,
+      enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
+      restrictedFacilityId: parsed.restrictedFacilityId || null,
+      restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+      csScope: isCsTeam ? parsed.csScope || "Site" : null,
+    },
+  });
+
+  await logAudit({ actorId: admin.id, action: "user.update", summary: `Updated user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: userId });
+  revalidatePath("/ops/admin/users");
+  redirect("/ops/admin/users");
+}
+
+export async function resetUserPassword(userId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+  const passwordHash = await bcrypt.hash(password, 10);
+  const target = await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await logAudit({ actorId: admin.id, action: "user.reset_password", summary: `Reset password for ${target.name}.`, targetType: "User", targetId: userId });
+  revalidatePath(`/ops/admin/users/${userId}`);
+}
+
 export async function toggleUserActive(userId: string, returnPath: string) {
-  await requireSuperAdmin();
+  const admin = await requireSysAdmin();
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   await prisma.user.update({ where: { id: userId }, data: { isActive: !user.isActive } });
+  await logAudit({
+    actorId: admin.id,
+    action: "user.toggle_active",
+    summary: `${user.isActive ? "Disabled" : "Enabled"} user ${user.name}.`,
+    targetType: "User",
+    targetId: userId,
+  });
   revalidatePath(returnPath);
 }

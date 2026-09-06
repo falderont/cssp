@@ -17,6 +17,8 @@ import {
   Truck,
   IdCard,
   ShieldAlert,
+  FileBarChart,
+  Palette,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,8 @@ const ICONS: Record<IconKey, LucideIcon> = {
   Truck,
   IdCard,
   ShieldAlert,
+  FileBarChart,
+  Palette,
 };
 
 export function Sidebar({
@@ -43,11 +47,13 @@ export function Sidebar({
   companyName,
   logoUrl,
   portalLabel,
+  tenantBrand,
 }: {
   navItems: NavItem[];
   companyName: string;
   logoUrl?: string | null;
   portalLabel: string;
+  tenantBrand?: { name: string; logoUrl?: string | null } | null;
 }) {
   const pathname = usePathname();
 
@@ -65,6 +71,19 @@ export function Sidebar({
           <p className="text-[11px] uppercase tracking-wide text-slate-400">{portalLabel}</p>
         </div>
       </div>
+      {tenantBrand && (
+        <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-5 py-2.5">
+          {tenantBrand.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={tenantBrand.logoUrl} alt={tenantBrand.name} className="h-5 w-5 rounded object-cover" />
+          ) : (
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-brand/10 text-[10px] font-semibold text-brand">
+              {tenantBrand.name.charAt(0)}
+            </span>
+          )}
+          <p className="truncate text-xs font-medium text-slate-600">{tenantBrand.name}</p>
+        </div>
+      )}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {navItems.map((item) => {
           const active = item.href === pathname || (item.href !== "/portal" && item.href !== "/ops" && pathname.startsWith(item.href));

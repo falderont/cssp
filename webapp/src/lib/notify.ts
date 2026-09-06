@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { ROLES } from "./constants";
 
 type NotifyData = { title: string; body: string; category: string; linkUrl?: string };
 
@@ -35,7 +36,7 @@ export async function notifyFacilityTenantUsers(facilityId: string, data: Notify
 
 export async function notifyEnterpriseAccountAdmins(enterpriseAccountId: string, data: NotifyData) {
   const users = await prisma.user.findMany({
-    where: { enterpriseAccountId, isActive: true, role: "CUSTOMER_ADMIN" },
+    where: { enterpriseAccountId, isActive: true, role: ROLES.TENANT_GLOBAL_ADMIN },
     select: { id: true },
   });
   await notifyUsers(

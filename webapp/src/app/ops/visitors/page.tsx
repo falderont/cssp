@@ -4,15 +4,27 @@ import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table
 import { StatusBadge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate } from "@/lib/utils";
 import { summarizeVisitorStatuses } from "@/lib/constants";
 
 export default async function OpsVisitorsPage({ searchParams }: { searchParams: { facility?: string; status?: string } }) {
-  await requireInternalUser();
-  const facilities = await prisma.facility.findMany({ orderBy: { name: "asc" } });
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
+  const facilities = await prisma.facility.findMany({
+    where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
+    orderBy: { name: "asc" },
+  });
+  const allowedFacilityIds = scopedFacilityIds
+    ? searchParams.facility && scopedFacilityIds.includes(searchParams.facility)
+      ? [searchParams.facility]
+      : scopedFacilityIds
+    : searchParams.facility
+      ? [searchParams.facility]
+      : undefined;
 
   const requests = await prisma.visitorRequest.findMany({
-    where: searchParams.facility ? { siteEnrollment: { facilityId: searchParams.facility } } : undefined,
+    where: allowedFacilityIds ? { siteEnrollment: { facilityId: { in: allowedFacilityIds } } } : undefined,
     include: {
       visitors: true,
       siteEnrollment: { include: { facility: true, enterpriseAccount: true } },

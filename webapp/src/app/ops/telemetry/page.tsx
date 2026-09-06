@@ -4,11 +4,14 @@ import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table
 import { StatusBadge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 
 export default async function OpsTelemetryPage() {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
   const facilities = await prisma.facility.findMany({
+    where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
     include: { telemetrySource: true, region: true },
     orderBy: { name: "asc" },
   });

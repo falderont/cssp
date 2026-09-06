@@ -7,6 +7,8 @@ declare module "next-auth" {
       role: string;
       enterpriseAccountId: string | null;
       restrictedFacilityId: string | null;
+      restrictedRegionId: string | null;
+      csScope: string | null;
     } & DefaultSession["user"];
   }
   interface User {
@@ -14,6 +16,8 @@ declare module "next-auth" {
     role: string;
     enterpriseAccountId: string | null;
     restrictedFacilityId: string | null;
+    restrictedRegionId: string | null;
+    csScope: string | null;
   }
 }
 
@@ -23,5 +27,7 @@ declare module "next-auth/jwt" {
     role: string;
     enterpriseAccountId: string | null;
     restrictedFacilityId: string | null;
+    restrictedRegionId: string | null;
+    csScope: string | null;
   }
 }

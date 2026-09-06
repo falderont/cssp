@@ -1,9 +1,33 @@
 import { prisma } from "./prisma";
+import { ROLES } from "./constants";
 
 type ScopedUser = {
   enterpriseAccountId: string | null;
   restrictedFacilityId: string | null;
 };
+
+type OpsScopedUser = {
+  role: string;
+  restrictedFacilityId: string | null;
+  restrictedRegionId: string | null;
+  csScope?: string | null;
+};
+
+// Facility IDs an internal/ops user's list views should be filtered to.
+// Returns undefined for roles with account-wide visibility (Sys Admin,
+// Service Desk, CS Team scoped Corporate/Billing) — meaning "no filter".
+export async function getOpsFacilityIds(user: OpsScopedUser): Promise<string[] | undefined> {
+  if (user.role === ROLES.CS_TEAM) {
+    if (user.csScope === "Site" && user.restrictedFacilityId) return [user.restrictedFacilityId];
+    if (user.csScope === "Region" && user.restrictedRegionId) {
+      const facilities = await prisma.facility.findMany({ where: { regionId: user.restrictedRegionId }, select: { id: true } });
+      return facilities.map((f) => f.id);
+    }
+    return undefined;
+  }
+  if (user.restrictedFacilityId) return [user.restrictedFacilityId];
+  return undefined;
+}
 
 // A customer user sees every SiteEnrollment for their account, unless they're
 // a site-restricted "site contact" (PRD's customer-site role), in which case

@@ -2,11 +2,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { createEnterpriseAccount } from "@/actions/admin";
 
 export default async function NewAccountPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
 
   return (
     <div>

@@ -1,31 +1,48 @@
 // Central place for the string "enums" the SQLite schema stores as plain
 // strings (see prisma/schema.prisma header note).
 
+// Persona model — two sides of the house:
+//  - Tenant/customer personas: scoped to one EnterpriseAccount.
+//  - Internal/provider personas: staff of the colocation provider.
 export const ROLES = {
-  SUPER_ADMIN: "SUPER_ADMIN",
-  PROVIDER_OPS: "PROVIDER_OPS",
-  PROVIDER_SECURITY: "PROVIDER_SECURITY",
-  PROVIDER_TECHNICIAN: "PROVIDER_TECHNICIAN",
-  PROVIDER_CS: "PROVIDER_CS",
-  PROVIDER_CS_MANAGER: "PROVIDER_CS_MANAGER",
-  PROVIDER_FINANCE: "PROVIDER_FINANCE",
-  CUSTOMER_ADMIN: "CUSTOMER_ADMIN",
-  CUSTOMER_USER: "CUSTOMER_USER",
+  // --- Tenant / customer personas ---------------------------------------
+  TENANT_GLOBAL_ADMIN: "TENANT_GLOBAL_ADMIN", // full control of the account, every site
+  TENANT_SITE_LEAD: "TENANT_SITE_LEAD", // operational lead for one enrolled site
+  TENANT_BILLING: "TENANT_BILLING", // billing/invoices + contract documents only
+  TENANT_TECH_USER: "TENANT_TECH_USER", // day-to-day: visitors, service requests, deliveries
+
+  // --- Internal / provider personas -------------------------------------
+  SYS_ADMIN: "SYS_ADMIN", // global system administrator — full platform control
+  SERVICE_DESK: "SERVICE_DESK", // first point of contact, intake & triage across all sites
+  OPS_SITE_MANAGER: "OPS_SITE_MANAGER", // manages one facility end-to-end
+  OPS_SITE_LEAD: "OPS_SITE_LEAD", // hands-on site supervisor, executes assigned work
+  OPS_FRONT_OFFICE_SECURITY: "OPS_FRONT_OFFICE_SECURITY", // reception/guard house/badge desk
+  CS_TEAM: "CS_TEAM", // customer success — scoped via csScope (Corporate/Region/Site/Billing)
+  OPS_VENDOR: "OPS_VENDOR", // external contractor, scoped to assigned tasks only
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
-export const INTERNAL_ROLES: Role[] = [
-  ROLES.SUPER_ADMIN,
-  ROLES.PROVIDER_OPS,
-  ROLES.PROVIDER_SECURITY,
-  ROLES.PROVIDER_TECHNICIAN,
-  ROLES.PROVIDER_CS,
-  ROLES.PROVIDER_CS_MANAGER,
-  ROLES.PROVIDER_FINANCE,
+export const TENANT_ROLES: Role[] = [
+  ROLES.TENANT_GLOBAL_ADMIN,
+  ROLES.TENANT_SITE_LEAD,
+  ROLES.TENANT_BILLING,
+  ROLES.TENANT_TECH_USER,
 ];
 
-export const CUSTOMER_ROLES: Role[] = [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER];
+export const INTERNAL_ROLES: Role[] = [
+  ROLES.SYS_ADMIN,
+  ROLES.SERVICE_DESK,
+  ROLES.OPS_SITE_MANAGER,
+  ROLES.OPS_SITE_LEAD,
+  ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.CS_TEAM,
+  ROLES.OPS_VENDOR,
+];
+
+// Kept as an alias — most of the codebase refers to tenant/customer roles as
+// "customer roles" (customer-facing portal, requireCustomerUser(), etc.).
+export const CUSTOMER_ROLES: Role[] = TENANT_ROLES;
 
 export function isInternalRole(role: string): boolean {
   return (INTERNAL_ROLES as string[]).includes(role);
@@ -35,16 +52,59 @@ export function isCustomerRole(role: string): boolean {
   return (CUSTOMER_ROLES as string[]).includes(role);
 }
 
+// Roles whose day-to-day work is naturally pinned to one facility — the
+// admin "restrict to one site" control is meaningful (and, for these ops
+// roles, expected) for them. Global/account-wide roles ignore it even if set.
+export const SITE_SCOPABLE_ROLES: Role[] = [
+  ROLES.TENANT_SITE_LEAD,
+  ROLES.TENANT_TECH_USER,
+  ROLES.OPS_SITE_MANAGER,
+  ROLES.OPS_SITE_LEAD,
+  ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.OPS_VENDOR,
+];
+
+export function isSiteScopableRole(role: string): boolean {
+  return (SITE_SCOPABLE_ROLES as string[]).includes(role);
+}
+
 export const ROLE_LABELS: Record<Role, string> = {
-  SUPER_ADMIN: "Super Admin",
-  PROVIDER_OPS: "NOC / Operations (Building Service Manager)",
-  PROVIDER_SECURITY: "Security / Front Desk",
-  PROVIDER_TECHNICIAN: "Field Technician",
-  PROVIDER_CS: "Customer Success",
-  PROVIDER_CS_MANAGER: "CS Manager",
-  PROVIDER_FINANCE: "Finance / Billing",
-  CUSTOMER_ADMIN: "Tenant Global Admin",
-  CUSTOMER_USER: "Tenant Site Contact",
+  TENANT_GLOBAL_ADMIN: "Global Admin",
+  TENANT_SITE_LEAD: "Site Lead",
+  TENANT_BILLING: "Billing",
+  TENANT_TECH_USER: "Tech User",
+  SYS_ADMIN: "Global Sys Admin",
+  SERVICE_DESK: "Service Desk",
+  OPS_SITE_MANAGER: "Ops — Site Manager",
+  OPS_SITE_LEAD: "Ops — Site Lead",
+  OPS_FRONT_OFFICE_SECURITY: "Ops — Front Office & Security",
+  CS_TEAM: "Customer Success Team",
+  OPS_VENDOR: "Ops — External Vendor",
+};
+
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  TENANT_GLOBAL_ADMIN: "Full control of the account across every enrolled site — users, AAL, reports, billing, branding.",
+  TENANT_SITE_LEAD: "Operational lead for one enrolled site — approvals and day-to-day requests at that site.",
+  TENANT_BILLING: "Invoices, contracts and billing documents only.",
+  TENANT_TECH_USER: "Day-to-day requester — visitors, service requests, deliveries.",
+  SYS_ADMIN: "Full platform control — users, tenants, sites, integrations, system health.",
+  SERVICE_DESK: "First point of contact — intake and triage across every site.",
+  OPS_SITE_MANAGER: "Manages one facility end-to-end — approvals, assignment, overrides.",
+  OPS_SITE_LEAD: "Hands-on site supervisor — executes and completes assigned work.",
+  OPS_FRONT_OFFICE_SECURITY: "Reception, guard house and badge desk — visitor & delivery front line.",
+  CS_TEAM: "Customer success — scope determines account coverage (corporate/region/site/billing).",
+  OPS_VENDOR: "External contractor — sees only the tasks assigned to them.",
+};
+
+// --- Customer Success Team scope ---------------------------------------------
+// Only meaningful when role === ROLES.CS_TEAM (see User.csScope).
+export const CS_SCOPES = ["Corporate", "Region", "Site", "Billing"] as const;
+export type CsScope = (typeof CS_SCOPES)[number];
+export const CS_SCOPE_LABELS: Record<CsScope, string> = {
+  Corporate: "Corporate (all accounts)",
+  Region: "Region",
+  Site: "Site",
+  Billing: "Billing",
 };
 
 // --- Visitor management ------------------------------------------------------
@@ -205,10 +265,57 @@ export function statusBadgeTone(status: string): "green" | "amber" | "red" | "sl
     "Accepted",
     "Expected",
     "Arrived",
+    "PendingApproval",
+    "NotConfigured",
   ];
-  const negative = ["Denied", "Cancelled", "Overdue", "Error", "Failed", "Suspended", "Blacklisted", "Rejected"];
+  const negative = ["Denied", "Cancelled", "Overdue", "Error", "Failed", "Suspended", "Blacklisted", "Rejected", "Revoked", "Expired", "Disabled"];
   if (positive.includes(status)) return "green";
   if (warning.includes(status)) return "amber";
   if (negative.includes(status)) return "red";
   return "slate";
 }
+
+// --- Authorized Access List (AAL) — permanent site access, distinct from a
+// one-off dated visitor request. Requested by the tenant, approved by ops. --
+
+export const AAL_ACCESS_LEVELS = ["Standard", "Escorted", "FullAccess"] as const;
+export const AAL_ACCESS_LEVEL_LABELS: Record<string, string> = {
+  Standard: "Standard (business hours)",
+  Escorted: "Escorted only",
+  FullAccess: "Full access (24/7)",
+};
+
+export const AAL_STATUSES = ["PendingApproval", "Active", "Rejected", "Revoked"] as const;
+
+export function isAalExpired(entry: { status: string; validUntil: Date | string | null }): boolean {
+  if (entry.status !== "Active" || !entry.validUntil) return false;
+  return new Date(entry.validUntil).getTime() < Date.now();
+}
+
+// --- System integrations (Global Sys Admin) ----------------------------------
+
+export const SYSTEM_INTEGRATION_STATUSES = ["NotConfigured", "Connected", "Error", "Disabled"] as const;
+
+export const SYSTEM_INTEGRATION_CATALOG: { key: string; name: string; description: string }[] = [
+  { key: "ACS", name: "Access Control System (ACS)", description: "Campus badge/door access sync for visitor management." },
+  { key: "DCIM", name: "DCIM", description: "Data Center Infrastructure Management — incident reports, asset data." },
+  { key: "BMS", name: "Building Management System (BMS)", description: "Telemetry mirror — temperature, humidity, power, PUE." },
+  { key: "SSO", name: "Single Sign-On (SSO)", description: "Enterprise identity provider for staff and tenant login." },
+  { key: "EMAIL", name: "Email / SMTP", description: "Outbound notification and invitation email delivery." },
+];
+
+// --- Reports (Tenant Global Admin) -------------------------------------------
+
+export const REPORT_TYPES = ["VisitorActivity", "IncidentSummary", "ServiceRequestSummary", "BillingSummary", "MaintenanceSummary"] as const;
+export const REPORT_TYPE_LABELS: Record<string, string> = {
+  VisitorActivity: "Visitor Activity",
+  IncidentSummary: "Incident Summary",
+  ServiceRequestSummary: "Service Request Summary",
+  BillingSummary: "Billing Summary",
+  MaintenanceSummary: "Maintenance Summary",
+};
+
+// --- Global preferences -------------------------------------------------------
+
+export const CURRENCIES = ["USD", "EUR", "SGD", "IDR", "GBP"] as const;
+export const TIMEZONES = ["UTC", "Asia/Jakarta", "Asia/Singapore", "America/New_York", "Europe/London"] as const;

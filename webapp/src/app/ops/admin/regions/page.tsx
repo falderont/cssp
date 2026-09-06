@@ -3,12 +3,12 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Field, Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createRegion } from "@/actions/admin";
 
 export default async function RegionsPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const regions = await prisma.region.findMany({ include: { facilities: true }, orderBy: { name: "asc" } });
 
   return (

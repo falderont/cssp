@@ -5,13 +5,13 @@ import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table
 import { Badge } from "@/components/ui/badge";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createSiteEnrollment } from "@/actions/admin";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
 export default async function AccountDetailPage({ params }: { params: { id: string } }) {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const account = await prisma.enterpriseAccount.findUnique({
     where: { id: params.id },
     include: {

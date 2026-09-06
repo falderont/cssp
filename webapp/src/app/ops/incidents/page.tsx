@@ -8,11 +8,14 @@ import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { IncidentMatrix } from "@/components/incidents/matrix";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 
 export default async function OpsIncidentsPage() {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
   const incidents = await prisma.incident.findMany({
+    where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
     include: { facility: true, building: true },
     orderBy: { startedAt: "desc" },
     take: 200,

@@ -6,22 +6,27 @@ import { Card, CardBody } from "@/components/ui/card";
 import { ServiceRequestCalendar } from "@/components/service-requests/calendar";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
+import { ROLES, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
 
 export default async function OpsServiceRequestsPage({
   searchParams,
 }: {
   searchParams: { category?: string; status?: string; month?: string };
 }) {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
+  const isVendor = user.role === ROLES.OPS_VENDOR;
   const { year, month } = parseMonthParam(searchParams.month);
 
   const requests = await prisma.serviceRequest.findMany({
     where: {
       ...(searchParams.category ? { category: searchParams.category } : {}),
       ...(searchParams.status ? { status: searchParams.status } : {}),
+      ...(scopedFacilityIds ? { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } : {}),
+      ...(isVendor ? { assignedToId: user.id } : {}),
     },
     include: { siteEnrollment: { include: { facility: true, enterpriseAccount: true } }, assignedToUser: true },
     orderBy: { createdAt: "desc" },

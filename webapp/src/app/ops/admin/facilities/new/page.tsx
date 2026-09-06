@@ -2,12 +2,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createFacility } from "@/actions/admin";
 
 export default async function NewFacilityPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const regions = await prisma.region.findMany({ orderBy: { name: "asc" } });
 
   return (

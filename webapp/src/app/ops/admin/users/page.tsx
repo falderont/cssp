@@ -3,15 +3,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton, Button } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { toggleUserActive } from "@/actions/admin";
-import { ROLE_LABELS, isInternalRole, type Role } from "@/lib/constants";
+import { CS_SCOPE_LABELS, ROLE_LABELS, isInternalRole, type Role } from "@/lib/constants";
 
 export default async function UsersPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const users = await prisma.user.findMany({
-    include: { enterpriseAccount: true, restrictedFacility: true },
+    include: { enterpriseAccount: true, restrictedFacility: true, restrictedRegion: true },
     orderBy: { name: "asc" },
   });
 
@@ -19,7 +19,7 @@ export default async function UsersPage() {
     <div>
       <PageHeader
         title="Users"
-        description="Everyone who can sign in — provider staff and tenant users."
+        description="Everyone who can sign in — every internal persona and every tenant persona."
         actions={
           <LinkButton href="/ops/admin/users/new">
             <Plus className="h-4 w-4" /> Add user
@@ -32,7 +32,7 @@ export default async function UsersPage() {
             <TH>Name</TH>
             <TH>Email</TH>
             <TH>Role</TH>
-            <TH>Account</TH>
+            <TH>Scope</TH>
             <TH>Status</TH>
             <TH>Actions</TH>
           </tr>
@@ -49,18 +49,29 @@ export default async function UsersPage() {
                   <Badge tone={isInternalRole(u.role) ? "blue" : "slate"}>{ROLE_LABELS[u.role as Role] ?? u.role}</Badge>
                 </TD>
                 <TD>
-                  {u.enterpriseAccount?.name ?? "—"}
-                  {u.restrictedFacility ? ` (${u.restrictedFacility.name} only)` : ""}
+                  {[
+                    u.enterpriseAccount?.name,
+                    u.csScope ? (CS_SCOPE_LABELS[u.csScope as keyof typeof CS_SCOPE_LABELS] ?? u.csScope) : null,
+                    u.restrictedRegion ? `Region: ${u.restrictedRegion.name}` : null,
+                    u.restrictedFacility ? `${u.restrictedFacility.name} only` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
                 </TD>
                 <TD>
                   <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "Active" : "Disabled"}</Badge>
                 </TD>
                 <TD>
-                  <form action={toggleBound}>
-                    <Button type="submit" size="sm" variant="ghost">
-                      {u.isActive ? "Disable" : "Enable"}
-                    </Button>
-                  </form>
+                  <div className="flex items-center gap-1.5">
+                    <LinkButton href={`/ops/admin/users/${u.id}`} size="sm" variant="ghost">
+                      Edit
+                    </LinkButton>
+                    <form action={toggleBound}>
+                      <Button type="submit" size="sm" variant="ghost">
+                        {u.isActive ? "Disable" : "Enable"}
+                      </Button>
+                    </form>
+                  </div>
                 </TD>
               </TR>
             );

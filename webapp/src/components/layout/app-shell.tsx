@@ -13,6 +13,8 @@ export function AppShell({
   unreadCount,
   notificationsHref,
   topbarSlot,
+  tenantBrand,
+  themeColor,
   children,
 }: {
   navItems: NavItem[];
@@ -25,12 +27,14 @@ export function AppShell({
   unreadCount?: number;
   notificationsHref: string;
   topbarSlot?: React.ReactNode;
+  tenantBrand?: { name: string; logoUrl?: string | null } | null;
+  themeColor?: string | null;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50" style={themeColor ? ({ "--brand-primary": themeColor } as React.CSSProperties) : undefined}>
       <div className="no-print contents">
-        <Sidebar navItems={navItems} companyName={companyName} logoUrl={logoUrl} portalLabel={portalLabel} />
+        <Sidebar navItems={navItems} companyName={companyName} logoUrl={logoUrl} portalLabel={portalLabel} tenantBrand={tenantBrand} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="no-print contents">

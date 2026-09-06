@@ -11,6 +11,10 @@ export async function getSession() {
 export async function requireUser() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
+  if (session.user.role !== ROLES.SYS_ADMIN) {
+    const settings = await prisma.providerSettings.findUnique({ where: { id: "singleton" } });
+    if (settings?.maintenanceMode) redirect("/maintenance");
+  }
   return session.user;
 }
 
@@ -27,19 +31,42 @@ export async function requireCustomerUser() {
   return user as typeof user & { enterpriseAccountId: string };
 }
 
-export async function requireSuperAdmin() {
+export async function requireSysAdmin() {
   const user = await requireInternalUser();
-  if (user.role !== ROLES.SUPER_ADMIN) redirect("/ops");
+  if (user.role !== ROLES.SYS_ADMIN) redirect("/ops");
   return user;
 }
 
-// Blacklist management is delegated to Security/Ops day-to-day, not
-// restricted to the Super Admin like the rest of /ops/admin — must match
+// Blacklist management is delegated to front-line ops day-to-day, not
+// restricted to the Sys Admin like the rest of /ops/admin — must match
 // the role check in actions/blacklist.ts.
 export async function requireBlacklistManager() {
   const user = await requireInternalUser();
-  const allowed: string[] = [ROLES.SUPER_ADMIN, ROLES.PROVIDER_SECURITY, ROLES.PROVIDER_OPS];
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_FRONT_OFFICE_SECURITY, ROLES.OPS_SITE_MANAGER];
   if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+// Runs a facility, coordinates approvals/assignment day-to-day.
+export async function requireOpsManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_SITE_MANAGER];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+export async function requireTenantGlobalAdmin() {
+  const user = await requireCustomerUser();
+  if (user.role !== ROLES.TENANT_GLOBAL_ADMIN) redirect("/portal");
+  return user;
+}
+
+// A tenant user who can act for their whole account, or is the operational
+// lead for the one site they're restricted to.
+export async function requireTenantAdminOrSiteLead() {
+  const user = await requireCustomerUser();
+  const allowed: string[] = [ROLES.TENANT_GLOBAL_ADMIN, ROLES.TENANT_SITE_LEAD];
+  if (!allowed.includes(user.role)) redirect("/portal");
   return user;
 }
 

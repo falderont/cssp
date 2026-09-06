@@ -18,15 +18,23 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model ProviderSettings {
-  id             String   @id @default("singleton")
+  id             String  @id @default("singleton")
   companyName    String
   logoUrl        String?
-  primaryColor   String   @default("#2563eb")
-  secondaryColor String   @default("#0f172a")
+  primaryColor   String  @default("#2563eb")
+  secondaryColor String  @default("#0f172a")
   supportEmail   String
   supportPhone   String
   address        String?
-  updatedAt      DateTime @updatedAt
+
+  // Global preferences (Global Sys Admin)
+  defaultCurrency       String  @default("USD")
+  defaultTimezone       String  @default("UTC")
+  sessionTimeoutMinutes Int     @default(60)
+  maintenanceMode       Boolean @default(false)
+  maintenanceMessage    String?
+
+  updatedAt DateTime @updatedAt
 }
 
 model Region {
@@ -35,6 +43,7 @@ model Region {
   code       String     @unique
   createdAt  DateTime   @default(now())
   facilities Facility[]
+  csUsers    User[]     @relation("UserRestrictedRegion")
 }
 
 model Facility {
@@ -48,15 +57,16 @@ model Facility {
   region         Region   @relation(fields: [regionId], references: [id])
   createdAt      DateTime @default(now())
 
-  buildings         Building[]
-  siteEnrollments   SiteEnrollment[]
-  incidents         Incident[]
-  maintenanceEvents MaintenanceEvent[]
-  telemetrySource   TelemetrySource?
-  telemetryPoints   TelemetryPoint[]
-  documents         Document[]
-  deliveries        Delivery[]
-  restrictedUsers   User[]             @relation("UserRestrictedFacility")
+  buildings               Building[]
+  siteEnrollments         SiteEnrollment[]
+  incidents               Incident[]
+  maintenanceEvents       MaintenanceEvent[]
+  telemetrySource         TelemetrySource?
+  telemetryPoints         TelemetryPoint[]
+  documents               Document[]
+  deliveries              Delivery[]
+  restrictedUsers         User[]                  @relation("UserRestrictedFacility")
+  authorizedAccessEntries AuthorizedAccessEntry[]
 }
 
 model Building {
@@ -88,14 +98,16 @@ model EnterpriseAccount {
   status       String   @default("Active")
   billingEmail String?
   logoUrl      String?
+  primaryColor String? // optional tenant brand accent shown in their portal
   createdAt    DateTime @default(now())
 
-  users           User[]
-  siteEnrollments SiteEnrollment[]
-  documents       Document[]
-  invoices        Invoice[]
-  engagementLogs  EngagementLog[]
-  deliveries      Delivery[]
+  users                   User[]
+  siteEnrollments         SiteEnrollment[]
+  documents               Document[]
+  invoices                Invoice[]
+  engagementLogs          EngagementLog[]
+  deliveries              Delivery[]
+  authorizedAccessEntries AuthorizedAccessEntry[]
 }
 
 model SiteEnrollment {
@@ -120,6 +132,7 @@ model User {
   email                String             @unique
   passwordHash         String
   role                 String
+  csScope              String? // Corporate/Region/Site/Billing — only when role = CS_TEAM
   title                String?
   phone                String?
   avatarUrl            String?
@@ -128,22 +141,28 @@ model User {
   enterpriseAccount    EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
   restrictedFacilityId String?
   restrictedFacility   Facility?          @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
+  restrictedRegionId   String?
+  restrictedRegion     Region?            @relation("UserRestrictedRegion", fields: [restrictedRegionId], references: [id])
   createdAt            DateTime           @default(now())
 
-  hostedVisitorRequests   VisitorRequest[]   @relation("HostUser")
-  createdVisitorRequests  VisitorRequest[]   @relation("CreatedByUser")
-  createdIncidents        Incident[]         @relation("IncidentCreatedBy")
+  hostedVisitorRequests   VisitorRequest[]        @relation("HostUser")
+  createdVisitorRequests  VisitorRequest[]        @relation("CreatedByUser")
+  createdIncidents        Incident[]              @relation("IncidentCreatedBy")
   incidentUpdates         IncidentUpdate[]
-  uploadedIncidentReports Incident[]         @relation("IncidentReportUploadedBy")
-  createdMaintenance      MaintenanceEvent[] @relation("MaintenanceCreatedBy")
-  createdServiceRequests  ServiceRequest[]   @relation("SRCreatedBy")
-  assignedServiceRequests ServiceRequest[]   @relation("SRAssignedTo")
-  publishedDocuments      Document[]         @relation("DocPublishedBy")
-  engagementLogs          EngagementLog[]    @relation("EngagementRep")
+  uploadedIncidentReports Incident[]              @relation("IncidentReportUploadedBy")
+  createdMaintenance      MaintenanceEvent[]      @relation("MaintenanceCreatedBy")
+  createdServiceRequests  ServiceRequest[]        @relation("SRCreatedBy")
+  assignedServiceRequests ServiceRequest[]        @relation("SRAssignedTo")
+  publishedDocuments      Document[]              @relation("DocPublishedBy")
+  engagementLogs          EngagementLog[]         @relation("EngagementRep")
   notifications           Notification[]
-  createdBlacklistEntries BlacklistEntry[]   @relation("BlacklistCreatedBy")
-  loggedDeliveries        Delivery[]         @relation("DeliveryLoggedBy")
-  receivedDeliveries      Delivery[]         @relation("DeliveryReceivedBy")
+  createdBlacklistEntries BlacklistEntry[]        @relation("BlacklistCreatedBy")
+  loggedDeliveries        Delivery[]              @relation("DeliveryLoggedBy")
+  receivedDeliveries      Delivery[]              @relation("DeliveryReceivedBy")
+  requestedAalEntries     AuthorizedAccessEntry[] @relation("AalRequestedBy")
+  decidedAalEntries       AuthorizedAccessEntry[] @relation("AalDecidedBy")
+  auditLogs               AuditLog[]
+  backups                 BackupRecord[]
 }
 
 // ---------------------------------------------------------------------------
@@ -475,4 +494,71 @@ model Notification {
   linkUrl   String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Authorized Access List (AAL) — permanent, undated site access for a named
+// person (contractor, long-term staff), distinct from a one-off dated
+// VisitorRequest. Requested by the tenant, decided by ops for that facility.
+// ---------------------------------------------------------------------------
+
+model AuthorizedAccessEntry {
+  id                  String            @id @default(cuid())
+  enterpriseAccountId String
+  enterpriseAccount   EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
+  facilityId          String
+  facility            Facility          @relation(fields: [facilityId], references: [id])
+  fullName            String
+  idType              String?
+  idNumber            String?
+  company             String?
+  accessLevel         String            @default("Standard") // Standard/Escorted/FullAccess
+  reason              String
+  validFrom           DateTime          @default(now())
+  validUntil          DateTime?
+  status              String            @default("PendingApproval") // PendingApproval/Active/Rejected/Revoked
+  requestedById       String
+  requestedBy         User              @relation("AalRequestedBy", fields: [requestedById], references: [id])
+  decidedById         String?
+  decidedBy           User?             @relation("AalDecidedBy", fields: [decidedById], references: [id])
+  decidedAt           DateTime?
+  decisionNotes       String?
+  createdAt           DateTime          @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Global Sys Admin control plane: integrations, audit log, backups.
+// ---------------------------------------------------------------------------
+
+model SystemIntegration {
+  id         String    @id @default(cuid())
+  key        String    @unique // ACS/DCIM/BMS/SSO/EMAIL
+  name       String
+  status     String    @default("NotConfigured") // NotConfigured/Connected/Error/Disabled
+  configJson String? // free-form mock config, e.g. { "endpoint": "..." }
+  lastSyncAt DateTime?
+  updatedAt  DateTime  @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String // e.g. user.create, tenant.create, branding.update, backup.create
+  targetType String?
+  targetId   String?
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model BackupRecord {
+  id          String   @id @default(cuid())
+  fileName    String
+  storageKey  String
+  fileSizeKb  Int
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
 }

@@ -2,12 +2,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { getProviderBranding } from "@/lib/branding";
 import { updateBranding } from "@/actions/admin";
 
 export default async function BrandingPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const branding = await getProviderBranding();
 
   return (

@@ -4,12 +4,12 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Field, Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createBuilding, updateFacilityAcs } from "@/actions/admin";
 
 export default async function FacilityDetailPage({ params }: { params: { id: string } }) {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const facility = await prisma.facility.findUnique({
     where: { id: params.id },
     include: { region: true, buildings: true, siteEnrollments: { include: { enterpriseAccount: true } } },

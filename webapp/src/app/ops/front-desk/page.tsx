@@ -4,11 +4,13 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { checkInVisitor, checkOutVisitor } from "@/actions/visitors";
 import { formatDate } from "@/lib/utils";
 
 export default async function FrontDeskPage({ searchParams }: { searchParams: { q?: string } }) {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
   const q = searchParams.q?.trim();
 
   const visitors = q
@@ -21,6 +23,7 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: { 
             { verificationToken: { contains: q } },
             { company: { contains: q } },
           ],
+          ...(scopedFacilityIds ? { visitorRequest: { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } } : {}),
         },
         include: { visitorRequest: { include: { siteEnrollment: { include: { facility: true } } } } },
         take: 20,

@@ -16,7 +16,7 @@ import {
 import { ROLES, SERVICE_REQUEST_STATUSES } from "@/lib/constants";
 
 export default async function OpsServiceRequestDetailPage({ params }: { params: { id: string } }) {
-  await requireInternalUser();
+  const user = await requireInternalUser();
   const request = await prisma.serviceRequest.findUnique({
     where: { id: params.id },
     include: {
@@ -26,15 +26,17 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
     },
   });
   if (!request) notFound();
+  if (user.role === ROLES.OPS_VENDOR && request.assignedToId !== user.id) notFound();
 
   const isRemoteHands = request.category === "RemoteHands";
   const staff = await prisma.user.findMany({
     where: {
       role: {
         in: isRemoteHands
-          ? [ROLES.PROVIDER_TECHNICIAN, ROLES.PROVIDER_OPS, ROLES.SUPER_ADMIN]
-          : [ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER, ROLES.PROVIDER_OPS, ROLES.SUPER_ADMIN],
+          ? [ROLES.OPS_SITE_LEAD, ROLES.OPS_SITE_MANAGER, ROLES.OPS_VENDOR, ROLES.SYS_ADMIN]
+          : [ROLES.CS_TEAM, ROLES.SERVICE_DESK, ROLES.OPS_SITE_MANAGER, ROLES.OPS_FRONT_OFFICE_SECURITY, ROLES.SYS_ADMIN],
       },
+      isActive: true,
     },
     orderBy: { name: "asc" },
   });

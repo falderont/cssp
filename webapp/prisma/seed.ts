@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { makeSimplePdf, makePdfWithImage } from "../src/lib/pdf";
 import { saveGeneratedFile } from "../src/lib/storage";
+import { ROLES } from "../src/lib/constants";
 
 const prisma = new PrismaClient();
 
@@ -94,6 +95,10 @@ async function main() {
   console.log("Clearing existing data…");
   await prisma.$transaction([
     prisma.notification.deleteMany(),
+    prisma.auditLog.deleteMany(),
+    prisma.backupRecord.deleteMany(),
+    prisma.authorizedAccessEntry.deleteMany(),
+    prisma.systemIntegration.deleteMany(),
     prisma.engagementLog.deleteMany(),
     prisma.invoiceLineItem.deleteMany(),
     prisma.invoice.deleteMany(),
@@ -131,7 +136,21 @@ async function main() {
       supportEmail: "support@aurorapdc.com",
       supportPhone: "+62 21 5000 1234",
       address: "Jl. Data Center Raya No. 1, Jakarta, Indonesia",
+      defaultCurrency: "USD",
+      defaultTimezone: "Asia/Jakarta",
+      sessionTimeoutMinutes: 60,
     },
+  });
+
+  console.log("System integrations…");
+  await prisma.systemIntegration.createMany({
+    data: [
+      { key: "ACS", name: "Access Control System (ACS)", status: "Connected", lastSyncAt: NOW },
+      { key: "DCIM", name: "DCIM", status: "Connected", lastSyncAt: hoursFromNow(-2) },
+      { key: "BMS", name: "Building Management System (BMS)", status: "Connected", lastSyncAt: hoursFromNow(-1) },
+      { key: "SSO", name: "Single Sign-On (SSO)", status: "NotConfigured" },
+      { key: "EMAIL", name: "Email / SMTP", status: "Connected", lastSyncAt: hoursFromNow(-6) },
+    ],
   });
 
   console.log("Regions & facilities…");
@@ -199,35 +218,45 @@ async function main() {
 
   console.log("Users…");
   const pw = await hash(DEFAULT_PASSWORD);
-  const admin = await prisma.user.create({ data: { name: "Andra Wicaksono", email: "admin@aurorapdc.com", passwordHash: pw, role: "SUPER_ADMIN", title: "Platform Administrator" } });
-  const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: "PROVIDER_OPS", title: "NOC Engineer / Building Service Manager" } });
-  const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: "PROVIDER_SECURITY", title: "Security Lead" } });
-  const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: "PROVIDER_CS_MANAGER", title: "CS Manager" } });
-  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: "PROVIDER_CS", title: "Customer Success Rep" } });
-  const csRep2 = await prisma.user.create({ data: { name: "Agus Firmansyah II", email: "cs.agus@aurorapdc.com", passwordHash: pw, role: "PROVIDER_CS", title: "Customer Success Rep" } });
-  const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: "PROVIDER_TECHNICIAN", title: "Field Technician" } });
-  const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: "PROVIDER_TECHNICIAN", title: "Field Technician" } });
-  const finance = await prisma.user.create({ data: { name: "Budi Santoso", email: "finance@aurorapdc.com", passwordHash: pw, role: "PROVIDER_FINANCE", title: "Billing Manager" } });
 
+  // --- Internal / provider personas ---
+  const admin = await prisma.user.create({ data: { name: "Andra Wicaksono", email: "admin@aurorapdc.com", passwordHash: pw, role: ROLES.SYS_ADMIN, title: "Global Sys Admin" } });
+  const serviceDesk = await prisma.user.create({ data: { name: "Putri Amelia", email: "servicedesk@aurorapdc.com", passwordHash: pw, role: ROLES.SERVICE_DESK, title: "Service Desk Agent" } });
+  const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager" } });
+  const nocJkt = await prisma.user.create({ data: { name: "Yusuf Hidayat", email: "noc.jkt@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager — JKT-01", restrictedFacilityId: jkt01.id } });
+  const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_FRONT_OFFICE_SECURITY, title: "Front Office & Security Lead" } });
+  const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id } });
+  const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id } });
+  const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)" } });
+  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionID.id, title: "Customer Success Rep — Indonesia" } });
+  const csRep2 = await prisma.user.create({ data: { name: "Agus Firmansyah II", email: "cs.agus@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Site", restrictedFacilityId: jkt01.id, title: "Customer Success Rep — JKT-01" } });
+  const finance = await prisma.user.create({ data: { name: "Budi Santoso", email: "finance@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Billing", title: "Billing Manager" } });
+  const vendor = await prisma.user.create({
+    data: { name: "Made Suarjana", email: "vendor@coldchain-support.example.com", passwordHash: pw, role: ROLES.OPS_VENDOR, title: "Contract Technician — ColdChain Support", restrictedFacilityId: btm02.id },
+  });
+
+  // --- Tenant / customer personas ---
   const ditaAyu = await prisma.user.create({
-    data: { name: "Dita Ayu", email: "dita.ayu@meridianlogistics.com", passwordHash: pw, role: "CUSTOMER_ADMIN", title: "IT Infrastructure Manager", enterpriseAccountId: meridian.id },
+    data: { name: "Dita Ayu", email: "dita.ayu@meridianlogistics.com", passwordHash: pw, role: ROLES.TENANT_GLOBAL_ADMIN, title: "IT Infrastructure Manager", enterpriseAccountId: meridian.id },
   });
   const fajar = await prisma.user.create({
-    data: { name: "Fajar Nugroho", email: "fajar.nugroho@meridianlogistics.com", passwordHash: pw, role: "CUSTOMER_USER", title: "Site Contact — BTM-02", enterpriseAccountId: meridian.id, restrictedFacilityId: btm02.id },
+    data: { name: "Fajar Nugroho", email: "fajar.nugroho@meridianlogistics.com", passwordHash: pw, role: ROLES.TENANT_SITE_LEAD, title: "Site Lead — BTM-02", enterpriseAccountId: meridian.id, restrictedFacilityId: btm02.id },
+  });
+  const meridianBilling = await prisma.user.create({
+    data: { name: "Wulan Kartika", email: "billing@meridianlogistics.com", passwordHash: pw, role: ROLES.TENANT_BILLING, title: "Accounts Payable", enterpriseAccountId: meridian.id },
   });
   const rinaSaputri = await prisma.user.create({
-    data: { name: "Rina Saputri", email: "rina.saputri@nusantaracloud.io", passwordHash: pw, role: "CUSTOMER_USER", title: "Site Contact — JKT-01", enterpriseAccountId: nusantara.id, restrictedFacilityId: jkt01.id },
+    data: { name: "Rina Saputri", email: "rina.saputri@nusantaracloud.io", passwordHash: pw, role: ROLES.TENANT_TECH_USER, title: "Site Contact — JKT-01", enterpriseAccountId: nusantara.id, restrictedFacilityId: jkt01.id },
   });
   const sitiRahayu = await prisma.user.create({
-    data: { name: "Siti Rahayu", email: "siti.rahayu@nusantaracloud.io", passwordHash: pw, role: "CUSTOMER_ADMIN", title: "Head of Infrastructure", enterpriseAccountId: nusantara.id },
+    data: { name: "Siti Rahayu", email: "siti.rahayu@nusantaracloud.io", passwordHash: pw, role: ROLES.TENANT_GLOBAL_ADMIN, title: "Head of Infrastructure", enterpriseAccountId: nusantara.id },
   });
   const hendra = await prisma.user.create({
-    data: { name: "Hendra Kusuma", email: "hendra.kusuma@trisulafintech.com", passwordHash: pw, role: "CUSTOMER_ADMIN", title: "IT Manager", enterpriseAccountId: trisula.id },
+    data: { name: "Hendra Kusuma", email: "hendra.kusuma@trisulafintech.com", passwordHash: pw, role: ROLES.TENANT_GLOBAL_ADMIN, title: "IT Manager", enterpriseAccountId: trisula.id },
   });
   const michelle = await prisma.user.create({
-    data: { name: "Michelle Tan", email: "michelle.tan@horizonretail.sg", passwordHash: pw, role: "CUSTOMER_ADMIN", title: "Regional IT Director", enterpriseAccountId: horizon.id },
+    data: { name: "Michelle Tan", email: "michelle.tan@horizonretail.sg", passwordHash: pw, role: ROLES.TENANT_GLOBAL_ADMIN, title: "Regional IT Director", enterpriseAccountId: horizon.id },
   });
-  void sitiRahayu;
 
   console.log("Blacklist…");
   await prisma.blacklistEntry.create({
@@ -383,6 +412,54 @@ async function main() {
       status: "Rejected",
       notes: "Wrong recipient address on the waybill — returned to sender.",
       createdById: security.id,
+    },
+  });
+
+  console.log("Authorized Access List…");
+  await prisma.authorizedAccessEntry.create({
+    data: {
+      enterpriseAccountId: meridian.id,
+      facilityId: btm02.id,
+      fullName: "Bambang Hartawan",
+      idType: "KTP",
+      idNumber: "3201xxxxxxxxxx88",
+      company: "Meridian Logistics",
+      accessLevel: "FullAccess",
+      reason: "Permanent facilities engineer — daily rack maintenance access.",
+      status: "Active",
+      requestedById: ditaAyu.id,
+      decidedById: noc.id,
+      decidedAt: daysFromNow(-45),
+      decisionNotes: "Approved — verified employment and background check on file.",
+      createdAt: daysFromNow(-46),
+    },
+  });
+  await prisma.authorizedAccessEntry.create({
+    data: {
+      enterpriseAccountId: meridian.id,
+      facilityId: btm02.id,
+      fullName: "Cahyo Nugraha",
+      company: "Cabling Contractor Indonesia",
+      accessLevel: "Escorted",
+      reason: "Recurring cabling contractor — quarterly audits through year-end.",
+      validUntil: daysFromNow(90),
+      status: "PendingApproval",
+      requestedById: fajar.id,
+    },
+  });
+  await prisma.authorizedAccessEntry.create({
+    data: {
+      enterpriseAccountId: nusantara.id,
+      facilityId: jkt01.id,
+      fullName: "Dewa Putu Aditya",
+      company: "Nusantara Cloud",
+      accessLevel: "Standard",
+      reason: "On-site systems engineer — daily business-hours access.",
+      status: "Active",
+      requestedById: sitiRahayu.id,
+      decidedById: nocJkt.id,
+      decidedAt: daysFromNow(-10),
+      createdAt: daysFromNow(-11),
     },
   });
 
@@ -561,9 +638,10 @@ async function main() {
       category: "RFI",
       subject: "Available rack space at BTM-02 for Q4 expansion",
       description: "Could you confirm current available rack space and power headroom at BTM-02 for a possible Q4 expansion?",
-      status: "Submitted",
+      status: "Accepted",
       priority: "Low",
       createdById: ditaAyu.id,
+      assignedToId: serviceDesk.id,
     },
   });
 
@@ -603,9 +681,10 @@ async function main() {
       category: "Complaint",
       subject: "Escalating billing discrepancy",
       description: "This month's invoice doesn't match our contracted rate — please review.",
-      status: "Submitted",
+      status: "InProgress",
       priority: "High",
       createdById: hendra.id,
+      assignedToId: finance.id,
     },
   });
 
@@ -663,7 +742,7 @@ async function main() {
       status: "InProgress",
       priority: "Urgent",
       createdById: ditaAyu.id,
-      assignedToId: tech.id,
+      assignedToId: vendor.id,
       startedAt: hoursFromNow(-0.3),
     },
   });
@@ -978,22 +1057,38 @@ async function main() {
   await prisma.notification.create({ data: { userId: rinaSaputri.id, title: "Remote hands task completed", body: "\"Rack B08\" is complete — please review and sign the acceptance certificate.", category: "service_request", linkUrl: `/portal/service-requests/${rh3.id}` } });
   await prisma.notification.create({ data: { userId: csManager.id, title: "New service request assigned", body: "AC noise near Rack C14 was assigned to you.", category: "service_request", linkUrl: "/ops/service-requests" } });
   await prisma.notification.create({ data: { userId: ditaAyu.id, title: "A delivery has arrived", body: "JNE Logistics: Server chassis (3x) for Rack B08 expansion", category: "delivery", linkUrl: "/portal/deliveries" } });
+  await prisma.notification.create({ data: { userId: meridianBilling.id, title: "Invoice INV-202608-MRD1 issued", body: "A new invoice is ready for review.", category: "billing", linkUrl: "/portal/billing" } });
+
+  console.log("System logs (demo)…");
+  await prisma.auditLog.create({ data: { actorId: admin.id, action: "tenant.create", summary: "Created tenant account Horizon Retail Group.", targetType: "EnterpriseAccount", targetId: horizon.id, createdAt: daysFromNow(-200) } });
+  await prisma.auditLog.create({ data: { actorId: admin.id, action: "facility.create", summary: "Created facility SGP-01 — Singapore.", targetType: "Facility", targetId: sgp01.id, createdAt: daysFromNow(-210) } });
+  await prisma.auditLog.create({ data: { actorId: admin.id, action: "branding.update", summary: "Updated provider branding (Aurora PDC).", createdAt: daysFromNow(-90) } });
+  await prisma.auditLog.create({ data: { actorId: admin.id, action: "user.create", summary: "Created user Made Suarjana (OPS_VENDOR).", targetType: "User", targetId: vendor.id, createdAt: daysFromNow(-3) } });
+  await prisma.auditLog.create({ data: { actorId: noc.id, action: "aal.approve", summary: "Approved AAL request for Bambang Hartawan.", createdAt: daysFromNow(-45) } });
 
   console.log("\nSeed complete.\n");
   console.log("Demo logins (password for all: password123)");
-  console.log("  Provider — Super Admin:      admin@aurorapdc.com");
-  console.log("  Provider — NOC / Ops:        noc@aurorapdc.com");
-  console.log("  Provider — Security:         security@aurorapdc.com");
-  console.log("  Provider — CS Manager:       csmanager@aurorapdc.com");
-  console.log("  Provider — CS Rep:           cs.rina@aurorapdc.com");
-  console.log("  Provider — Field Technician: tech@aurorapdc.com");
-  console.log("  Provider — Finance:          finance@aurorapdc.com");
-  console.log("  Tenant — Meridian (Global Admin):     dita.ayu@meridianlogistics.com");
-  console.log("  Tenant — Meridian (Site Contact):     fajar.nugroho@meridianlogistics.com");
-  console.log("  Tenant — Nusantara Cloud (Site Contact): rina.saputri@nusantaracloud.io");
-  console.log("  Tenant — Nusantara Cloud (Global Admin): siti.rahayu@nusantaracloud.io");
-  console.log("  Tenant — Trisula Fintech (Global Admin): hendra.kusuma@trisulafintech.com");
-  console.log("  Tenant — Horizon Retail (Global Admin):  michelle.tan@horizonretail.sg");
+  console.log("  --- Internal / provider personas ---");
+  console.log("  Global Sys Admin:                 admin@aurorapdc.com");
+  console.log("  Service Desk:                      servicedesk@aurorapdc.com");
+  console.log("  Ops — Site Manager (all sites):    noc@aurorapdc.com");
+  console.log("  Ops — Site Manager (JKT-01 only):  noc.jkt@aurorapdc.com");
+  console.log("  Ops — Front Office & Security:      security@aurorapdc.com");
+  console.log("  Ops — Site Lead (BTM-02):          tech@aurorapdc.com");
+  console.log("  Ops — Site Lead (JKT-01):          tech2@aurorapdc.com");
+  console.log("  CS Team — Corporate:               csmanager@aurorapdc.com");
+  console.log("  CS Team — Region (Indonesia):       cs.rina@aurorapdc.com");
+  console.log("  CS Team — Site (JKT-01):           cs.agus@aurorapdc.com");
+  console.log("  CS Team — Billing:                  finance@aurorapdc.com");
+  console.log("  Ops — External Vendor:             vendor@coldchain-support.example.com");
+  console.log("  --- Tenant / customer personas ---");
+  console.log("  Meridian — Global Admin:            dita.ayu@meridianlogistics.com");
+  console.log("  Meridian — Site Lead (BTM-02):       fajar.nugroho@meridianlogistics.com");
+  console.log("  Meridian — Billing:                 billing@meridianlogistics.com");
+  console.log("  Nusantara Cloud — Tech User:        rina.saputri@nusantaracloud.io");
+  console.log("  Nusantara Cloud — Global Admin:      siti.rahayu@nusantaracloud.io");
+  console.log("  Trisula Fintech — Global Admin:      hendra.kusuma@trisulafintech.com");
+  console.log("  Horizon Retail — Global Admin:       michelle.tan@horizonretail.sg");
 }
 
 main()

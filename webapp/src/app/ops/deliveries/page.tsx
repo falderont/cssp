@@ -6,18 +6,21 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { logDeliveryArrival, updateDeliveryStatus } from "@/actions/deliveries";
 
 export default async function OpsDeliveriesPage() {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
   const [deliveries, facilities, accounts] = await Promise.all([
     prisma.delivery.findMany({
+      where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
       include: { facility: true, enterpriseAccount: true, receivedBy: true },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
-    prisma.facility.findMany({ orderBy: { name: "asc" } }),
+    prisma.facility.findMany({ where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined, orderBy: { name: "asc" } }),
     prisma.enterpriseAccount.findMany({ orderBy: { name: "asc" } }),
   ]);
 

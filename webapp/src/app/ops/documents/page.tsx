@@ -5,14 +5,17 @@ import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table
 import { Badge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate } from "@/lib/utils";
 import { deleteDocument } from "@/actions/documents";
 import { DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 export default async function OpsDocumentsPage() {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
   const documents = await prisma.document.findMany({
+    where: scopedFacilityIds ? { OR: [{ facilityId: null }, { facilityId: { in: scopedFacilityIds } }] } : undefined,
     include: { enterpriseAccount: true, facility: true, publishedByUser: true },
     orderBy: { publishedAt: "desc" },
     take: 200,

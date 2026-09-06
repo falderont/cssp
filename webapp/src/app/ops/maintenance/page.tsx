@@ -7,14 +7,17 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { MaintenanceCalendar } from "@/components/maintenance/calendar";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDateTime } from "@/lib/utils";
 
 export default async function OpsMaintenancePage({ searchParams }: { searchParams: { month?: string } }) {
-  await requireInternalUser();
+  const user = await requireInternalUser();
+  const scopedFacilityIds = await getOpsFacilityIds(user);
   const { year, month } = parseMonthParam(searchParams.month);
 
   const events = await prisma.maintenanceEvent.findMany({
+    where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
     include: { facility: true, building: true },
     orderBy: { startAt: "desc" },
   });

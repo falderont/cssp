@@ -14,7 +14,7 @@ import { formatDate, humanize } from "@/lib/utils";
 
 export default async function CsPerformancePage() {
   const user = await requireInternalUser();
-  const isManager = user.role === ROLES.PROVIDER_CS_MANAGER || user.role === ROLES.SUPER_ADMIN;
+  const isManager = user.role === ROLES.SYS_ADMIN || (user.role === ROLES.CS_TEAM && user.csScope === "Corporate") || user.role === ROLES.OPS_SITE_MANAGER;
 
   const [accounts, myLogs] = await Promise.all([
     prisma.enterpriseAccount.findMany({ orderBy: { name: "asc" } }),

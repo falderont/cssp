@@ -4,11 +4,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export default async function AccountsPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const accounts = await prisma.enterpriseAccount.findMany({
     include: { siteEnrollments: true, users: true },
     orderBy: { name: "asc" },

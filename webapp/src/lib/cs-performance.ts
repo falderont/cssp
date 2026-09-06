@@ -14,7 +14,7 @@ export type RepPerformance = {
 export async function getTeamPerformance(): Promise<RepPerformance[]> {
   const staff = await prisma.user.findMany({
     where: {
-      role: { in: [ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER, ROLES.PROVIDER_OPS, ROLES.PROVIDER_TECHNICIAN] },
+      role: { in: [ROLES.CS_TEAM, ROLES.OPS_SITE_MANAGER, ROLES.OPS_SITE_LEAD] },
       isActive: true,
     },
     orderBy: { name: "asc" },

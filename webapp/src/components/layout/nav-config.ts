@@ -18,7 +18,9 @@ export type IconKey =
   | "Settings"
   | "Truck"
   | "IdCard"
-  | "ShieldAlert";
+  | "ShieldAlert"
+  | "FileBarChart"
+  | "Palette";
 
 export type NavItem = {
   href: string;
@@ -27,32 +29,48 @@ export type NavItem = {
   roles: Role[];
 };
 
+const { TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER } = ROLES;
+const { SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR } = ROLES;
+
 export const PORTAL_NAV: NavItem[] = [
-  { href: "/portal", label: "Dashboard", icon: "LayoutDashboard", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
-  { href: "/portal/visitors", label: "Visitors", icon: "Users", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
-  { href: "/portal/deliveries", label: "Deliveries", icon: "Truck", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
-  { href: "/portal/incidents", label: "Incidents", icon: "Siren", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
+  {
+    href: "/portal",
+    label: "Dashboard",
+    icon: "LayoutDashboard",
+    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER],
+  },
+  { href: "/portal/visitors", label: "Visitors", icon: "Users", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER] },
+  { href: "/portal/deliveries", label: "Deliveries", icon: "Truck", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER] },
+  { href: "/portal/aal", label: "Authorized Access List", icon: "IdCard", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD] },
+  { href: "/portal/incidents", label: "Incidents", icon: "Siren", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER] },
   {
     href: "/portal/maintenance",
     label: "Maintenance",
     icon: "CalendarClock",
-    roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER],
+    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
   },
   {
     href: "/portal/service-requests",
     label: "Service Requests",
     icon: "Wrench",
-    roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER],
+    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
   },
-  { href: "/portal/telemetry", label: "Telemetry (BMS)", icon: "Gauge", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
+  {
+    href: "/portal/telemetry",
+    label: "Telemetry (BMS)",
+    icon: "Gauge",
+    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
+  },
   {
     href: "/portal/documents",
     label: "Download Center",
     icon: "FolderDown",
-    roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER],
+    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER],
   },
-  { href: "/portal/billing", label: "Billing", icon: "Receipt", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
-  { href: "/portal/settings", label: "Settings", icon: "Settings", roles: [ROLES.CUSTOMER_ADMIN] },
+  { href: "/portal/reports", label: "Reports", icon: "FileBarChart", roles: [TENANT_GLOBAL_ADMIN] },
+  { href: "/portal/billing", label: "Billing", icon: "Receipt", roles: [TENANT_GLOBAL_ADMIN, TENANT_BILLING] },
+  { href: "/portal/branding", label: "Branding", icon: "Palette", roles: [TENANT_GLOBAL_ADMIN] },
+  { href: "/portal/settings", label: "Team & Settings", icon: "Settings", roles: [TENANT_GLOBAL_ADMIN] },
 ];
 
 export const OPS_NAV: NavItem[] = [
@@ -60,53 +78,61 @@ export const OPS_NAV: NavItem[] = [
     href: "/ops",
     label: "Dashboard",
     icon: "LayoutDashboard",
-    roles: [
-      ROLES.SUPER_ADMIN,
-      ROLES.PROVIDER_OPS,
-      ROLES.PROVIDER_SECURITY,
-      ROLES.PROVIDER_TECHNICIAN,
-      ROLES.PROVIDER_CS,
-      ROLES.PROVIDER_CS_MANAGER,
-      ROLES.PROVIDER_FINANCE,
-    ],
+    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR],
   },
-  { href: "/ops/visitors", label: "Visitor Approvals", icon: "Users", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_SECURITY] },
   {
-    href: "/ops/front-desk",
-    label: "Front Desk",
-    icon: "IdCard",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_SECURITY],
+    href: "/ops/visitors",
+    label: "Visitor Approvals",
+    icon: "Users",
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
   },
-  { href: "/ops/deliveries", label: "Deliveries", icon: "Truck", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_SECURITY] },
+  { href: "/ops/front-desk", label: "Front Desk", icon: "IdCard", roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY] },
+  {
+    href: "/ops/deliveries",
+    label: "Deliveries",
+    icon: "Truck",
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
+  },
+  {
+    href: "/ops/aal",
+    label: "Authorized Access List",
+    icon: "IdCard",
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
+  },
   {
     href: "/ops/admin/blacklist",
     label: "Blacklist",
     icon: "ShieldAlert",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_SECURITY],
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
   },
-  { href: "/ops/incidents", label: "Incidents", icon: "Siren", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS] },
-  { href: "/ops/maintenance", label: "Maintenance", icon: "CalendarClock", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS] },
+  { href: "/ops/incidents", label: "Incidents", icon: "Siren", roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD] },
+  {
+    href: "/ops/maintenance",
+    label: "Maintenance",
+    icon: "CalendarClock",
+    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD],
+  },
   {
     href: "/ops/service-requests",
     label: "Service Requests",
     icon: "Wrench",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER, ROLES.PROVIDER_TECHNICIAN],
+    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, CS_TEAM, OPS_VENDOR],
   },
-  { href: "/ops/telemetry", label: "Telemetry (BMS)", icon: "Gauge", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS] },
+  { href: "/ops/telemetry", label: "Telemetry (BMS)", icon: "Gauge", roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_SITE_LEAD] },
   {
     href: "/ops/documents",
     label: "Download Center",
     icon: "FolderDown",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER, ROLES.PROVIDER_FINANCE],
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, CS_TEAM],
   },
-  { href: "/ops/billing", label: "Billing", icon: "Receipt", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_FINANCE] },
+  { href: "/ops/billing", label: "Billing", icon: "Receipt", roles: [SYS_ADMIN, CS_TEAM] },
   {
     href: "/ops/cs-performance",
     label: "CS Performance",
     icon: "Trophy",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER],
+    roles: [SYS_ADMIN, CS_TEAM, OPS_SITE_MANAGER],
   },
-  { href: "/ops/admin", label: "Admin Settings", icon: "Settings", roles: [ROLES.SUPER_ADMIN] },
+  { href: "/ops/admin", label: "Admin Settings", icon: "Settings", roles: [SYS_ADMIN] },
 ];
 
 export function navForRole(nav: NavItem[], role: string): NavItem[] {

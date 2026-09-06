@@ -7,7 +7,7 @@ import { ROLES } from "@/lib/constants";
 
 async function requireSecurityOrAdmin() {
   const user = await requireInternalUser();
-  const allowed: string[] = [ROLES.SUPER_ADMIN, ROLES.PROVIDER_SECURITY, ROLES.PROVIDER_OPS];
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_FRONT_OFFICE_SECURITY, ROLES.OPS_SITE_MANAGER];
   if (!allowed.includes(user.role)) throw new Error("You do not have permission to manage the blacklist.");
   return user;
 }

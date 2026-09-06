@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
@@ -8,10 +9,11 @@ import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCustomerSiteEnrollments } from "@/lib/scope";
 import { inviteTenantUser, toggleTenantUserActive } from "@/actions/tenant";
-import { ROLE_LABELS, ROLES, type Role } from "@/lib/constants";
+import { ROLE_LABELS, ROLES, TENANT_ROLES, type Role } from "@/lib/constants";
 
 export default async function PortalSettingsPage() {
   const user = await requireCustomerUser();
+  const isGlobalAdmin = user.role === ROLES.TENANT_GLOBAL_ADMIN;
   const [account, users, enrollments] = await Promise.all([
     prisma.enterpriseAccount.findUnique({ where: { id: user.enterpriseAccountId } }),
     prisma.user.findMany({ where: { enterpriseAccountId: user.enterpriseAccountId }, include: { restrictedFacility: true }, orderBy: { name: "asc" } }),
@@ -20,12 +22,12 @@ export default async function PortalSettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Account settings" description={account?.name} />
+      <PageHeader title="Team & settings" description={account?.name} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Team</CardTitle>
+              <CardTitle>Team ({users.length})</CardTitle>
             </CardHeader>
             <Table>
               <THead>
@@ -34,11 +36,11 @@ export default async function PortalSettingsPage() {
                   <TH>Email</TH>
                   <TH>Role</TH>
                   <TH>Status</TH>
-                  <TH>Actions</TH>
+                  {isGlobalAdmin && <TH>Actions</TH>}
                 </tr>
               </THead>
               <TBody>
-                {users.length === 0 && <EmptyRow colSpan={5} message="No users yet." />}
+                {users.length === 0 && <EmptyRow colSpan={isGlobalAdmin ? 5 : 4} message="No users yet." />}
                 {users.map((u) => {
                   const toggleBound = toggleTenantUserActive.bind(null, u.id);
                   return (
@@ -52,15 +54,22 @@ export default async function PortalSettingsPage() {
                       <TD>
                         <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "Active" : "Disabled"}</Badge>
                       </TD>
-                      <TD>
-                        {u.id !== user.id && (
-                          <form action={toggleBound}>
-                            <Button type="submit" size="sm" variant="ghost">
-                              {u.isActive ? "Disable" : "Enable"}
-                            </Button>
-                          </form>
-                        )}
-                      </TD>
+                      {isGlobalAdmin && (
+                        <TD>
+                          <div className="flex items-center gap-1.5">
+                            <Link href={`/portal/settings/users/${u.id}`} className="text-sm text-brand hover:underline">
+                              Edit
+                            </Link>
+                            {u.id !== user.id && (
+                              <form action={toggleBound}>
+                                <Button type="submit" size="sm" variant="ghost">
+                                  {u.isActive ? "Disable" : "Enable"}
+                                </Button>
+                              </form>
+                            )}
+                          </div>
+                        </TD>
+                      )}
                     </TR>
                   );
                 })}
@@ -69,43 +78,48 @@ export default async function PortalSettingsPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Invite teammate</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <form action={inviteTenantUser} className="space-y-3">
-              <Field label="Full name" htmlFor="name" required>
-                <Input id="name" name="name" required />
-              </Field>
-              <Field label="Work email" htmlFor="email" required>
-                <Input id="email" name="email" type="email" required />
-              </Field>
-              <Field label="Temporary password" htmlFor="password" required hint="At least 8 characters">
-                <Input id="password" name="password" defaultValue="password123" required minLength={8} />
-              </Field>
-              <Field label="Role" htmlFor="role" required>
-                <Select id="role" name="role" required defaultValue={ROLES.CUSTOMER_USER}>
-                  <option value={ROLES.CUSTOMER_USER}>{ROLE_LABELS.CUSTOMER_USER}</option>
-                  <option value={ROLES.CUSTOMER_ADMIN}>{ROLE_LABELS.CUSTOMER_ADMIN}</option>
-                </Select>
-              </Field>
-              <Field label="Restrict to one site (optional)" htmlFor="restrictedFacilityId">
-                <Select id="restrictedFacilityId" name="restrictedFacilityId" defaultValue="">
-                  <option value="">All enrolled sites</option>
-                  {enrollments.map((e) => (
-                    <option key={e.facilityId} value={e.facilityId}>
-                      {e.facility.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Button type="submit" className="w-full">
-                Send invite
-              </Button>
-            </form>
-          </CardBody>
-        </Card>
+        {isGlobalAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Invite teammate</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <form action={inviteTenantUser} className="space-y-3">
+                <Field label="Full name" htmlFor="name" required>
+                  <Input id="name" name="name" required />
+                </Field>
+                <Field label="Work email" htmlFor="email" required>
+                  <Input id="email" name="email" type="email" required />
+                </Field>
+                <Field label="Temporary password" htmlFor="password" required hint="At least 8 characters">
+                  <Input id="password" name="password" defaultValue="password123" required minLength={8} />
+                </Field>
+                <Field label="Role" htmlFor="role" required>
+                  <Select id="role" name="role" required defaultValue={ROLES.TENANT_TECH_USER}>
+                    {TENANT_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABELS[r]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Restrict to one site (optional)" htmlFor="restrictedFacilityId" hint="Required in practice for a Site Lead">
+                  <Select id="restrictedFacilityId" name="restrictedFacilityId" defaultValue="">
+                    <option value="">All enrolled sites</option>
+                    {enrollments.map((e) => (
+                      <option key={e.facilityId} value={e.facilityId}>
+                        {e.facility.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Button type="submit" className="w-full">
+                  Send invite
+                </Button>
+              </form>
+            </CardBody>
+          </Card>
+        )}
       </div>
     </div>
   );

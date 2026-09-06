@@ -24,10 +24,12 @@ export default async function PortalLayout({ children }: { children: React.React
       portalLabel="Tenant Portal"
       userName={user.name ?? user.email ?? "User"}
       role={user.role}
-      contextLabel={account?.logoUrl ? account.name : account?.name ?? undefined}
+      contextLabel={account?.name ?? undefined}
       unreadCount={unreadCount}
       notificationsHref="/portal/notifications"
       topbarSlot={<SiteSwitcher facilities={facilities} />}
+      tenantBrand={account ? { name: account.name, logoUrl: account.logoUrl } : null}
+      themeColor={account?.primaryColor}
     >
       {children}
     </AppShell>

@@ -3,11 +3,11 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { requireSuperAdmin } from "@/lib/session";
+import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
 export default async function FacilitiesPage() {
-  await requireSuperAdmin();
+  await requireSysAdmin();
   const facilities = await prisma.facility.findMany({
     include: { region: true, buildings: true, siteEnrollments: true },
     orderBy: { name: "asc" },
