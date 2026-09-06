@@ -8,17 +8,18 @@ import { createFacility } from "@/actions/admin";
 
 export default async function NewFacilityPage() {
   await requireMasterDataAdmin();
-  const cities = await prisma.city.findMany({
-    include: { country: { include: { region: true } } },
+  const regions = await prisma.region.findMany({
+    include: { countries: { include: { cities: true } } },
     orderBy: { name: "asc" },
   });
+  const cityCount = regions.reduce((sum, r) => sum + r.countries.reduce((s, c) => s + c.cities.length, 0), 0);
 
   return (
     <div>
       <PageHeader title="Add facility" description="Leave the ACS endpoint blank to use the built-in mock adapter for demos." />
       <Card className="max-w-2xl">
         <CardBody>
-          {cities.length === 0 ? (
+          {cityCount === 0 ? (
             <p className="text-sm text-slate-500">
               Add a region, country and city under <a href="/ops/admin/areas" className="text-brand hover:underline">Areas</a> before adding a facility.
             </p>
@@ -33,11 +34,19 @@ export default async function NewFacilityPage() {
                 </Field>
                 <Field label="City" htmlFor="cityId" required>
                   <Select id="cityId" name="cityId" required>
-                    {cities.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} — {c.country.name} ({c.country.region.name})
-                      </option>
-                    ))}
+                    {regions.map((r) =>
+                      r.countries.every((c) => c.cities.length === 0) ? null : (
+                        <optgroup key={r.id} label={r.name}>
+                          {r.countries.flatMap((c) =>
+                            c.cities.map((city) => (
+                              <option key={city.id} value={city.id}>
+                                {city.name} — {c.name}
+                              </option>
+                            ))
+                          )}
+                        </optgroup>
+                      )
+                    )}
                   </Select>
                 </Field>
                 <Field label="Timezone" htmlFor="timezone" required>

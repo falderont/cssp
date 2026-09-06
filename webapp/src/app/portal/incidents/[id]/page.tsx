@@ -8,11 +8,12 @@ import { getCustomerFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 import { parseImpactedServices } from "@/lib/constants";
 
-export default async function PortalIncidentDetailPage({ params }: { params: { id: string } }) {
+export default async function PortalIncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
   const incident = await prisma.incident.findFirst({
-    where: { id: params.id, isCustomerVisible: true, facilityId: { in: facilityIds } },
+    where: { id, isCustomerVisible: true, facilityId: { in: facilityIds } },
     include: { facility: true, building: true, updates: { orderBy: { createdAt: "asc" }, include: { createdByUser: true } } },
   });
   if (!incident) notFound();

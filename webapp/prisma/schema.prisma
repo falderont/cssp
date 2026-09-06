@@ -16,12 +16,15 @@ datasource db {
 // ---------------------------------------------------------------------------
 // Provider branding + area (location) hierarchy:
 //   Region -> Country -> City -> Facility ("Site") -> Building -> Room
-// This is the provider's master data for "where" — every facility-scoped
-// entity in the app (incidents, maintenance, telemetry, visitor requests,
-// site enrollments...) still points at Facility/Building directly; Country
-// and City exist to group facilities geographically (reporting, delegated
-// admin scope, tenant multi-location rollups) without churning every
-// existing facilityId/buildingId foreign key in the app.
+// This is the Global Sys Admin's master data for "where" (delegable to
+// Service Desk — see requireMasterDataAdmin() in lib/session.ts). A Region,
+// Country or City can exist ahead of any Site actually opening there (see
+// seed.ts for examples). Every facility-scoped entity in the app (incidents,
+// maintenance, telemetry, visitor requests, site enrollments...) still
+// points at Facility/Building directly — Country and City exist to group
+// facilities geographically (reporting, delegated admin scope, tenant
+// multi-location rollups) without churning every existing
+// facilityId/buildingId foreign key in the app.
 // ---------------------------------------------------------------------------
 
 model ProviderSettings {
@@ -53,6 +56,7 @@ model Region {
   createdAt DateTime  @default(now())
   countries Country[]
   csUsers   User[]    @relation("UserRestrictedRegion")
+  teams     Team[]    @relation("TeamRegion")
 }
 
 // Level 2 — ISO-3166-1 alpha-2 country code, grouped under a Region.
@@ -64,7 +68,9 @@ model Country {
   region    Region   @relation(fields: [regionId], references: [id])
   createdAt DateTime @default(now())
 
-  cities City[]
+  cities  City[]
+  csUsers User[] @relation("UserRestrictedCountry")
+  teams   Team[] @relation("TeamCountry")
 }
 
 // Level 3 — a city/metro area within a Country. Facilities (Sites) sit here.
@@ -104,6 +110,7 @@ model Facility {
   deliveries              Delivery[]
   restrictedUsers         User[]                  @relation("UserRestrictedFacility")
   authorizedAccessEntries AuthorizedAccessEntry[]
+  teams                   Team[]                  @relation("TeamFacility")
 }
 
 // Level 5 — a building within a Site/Facility.
@@ -209,7 +216,7 @@ model User {
   email                String             @unique
   passwordHash         String
   role                 String
-  csScope              String? // Corporate/Region/Site/Billing — only when role = CS_TEAM
+  csScope              String? // Corporate/Region/Country/Site/Billing — only when role = CS_TEAM
   title                String?
   phone                String?
   avatarUrl            String?
@@ -220,6 +227,10 @@ model User {
   restrictedFacility   Facility?          @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
   restrictedRegionId   String?
   restrictedRegion     Region?            @relation("UserRestrictedRegion", fields: [restrictedRegionId], references: [id])
+  restrictedCountryId  String?
+  restrictedCountry    Country?           @relation("UserRestrictedCountry", fields: [restrictedCountryId], references: [id])
+  teamId               String?
+  team                 Team?              @relation("TeamMembers", fields: [teamId], references: [id])
   createdAt            DateTime           @default(now())
 
   hostedVisitorRequests   VisitorRequest[]        @relation("HostUser")
@@ -632,6 +643,31 @@ model AreaChangeRequest {
   decisionNotes String?
   decidedAt     DateTime?
   createdAt     DateTime  @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Teams — the Global Sys Admin's organizational master data: a named roster
+// of internal staff scoped to exactly one level of the geography (a whole
+// region, one country, or a single facility) or left unscoped for a
+// company-wide/global team. Distinct from a user's individual facility/
+// region restriction: a team is the reporting/coverage unit a Global Sys
+// Admin defines up front, not an ad hoc grouping of whoever happens to
+// share a scope.
+// ---------------------------------------------------------------------------
+
+model Team {
+  id         String    @id @default(cuid())
+  name       String
+  function   String // Ops/NOC/Security/CustomerSuccess/ServiceDesk/Facilities/Executive — see lib/constants.ts
+  regionId   String?
+  region     Region?   @relation("TeamRegion", fields: [regionId], references: [id])
+  countryId  String?
+  country    Country?  @relation("TeamCountry", fields: [countryId], references: [id])
+  facilityId String?
+  facility   Facility? @relation("TeamFacility", fields: [facilityId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  members User[] @relation("TeamMembers")
 }
 
 // ---------------------------------------------------------------------------

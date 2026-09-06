@@ -17,10 +17,11 @@ const ACTION_TONES: Record<string, "blue" | "green" | "amber" | "red" | "slate">
   integration: "blue",
 };
 
-export default async function SystemLogsPage({ searchParams }: { searchParams: { action?: string } }) {
+export default async function SystemLogsPage({ searchParams }: { searchParams: Promise<{ action?: string }> }) {
+  const { action } = await searchParams;
   await requireSysAdmin();
   const logs = await prisma.auditLog.findMany({
-    where: searchParams.action ? { action: { startsWith: searchParams.action } } : undefined,
+    where: action ? { action: { startsWith: action } } : undefined,
     include: { actor: true },
     orderBy: { createdAt: "desc" },
     take: 300,
@@ -32,7 +33,7 @@ export default async function SystemLogsPage({ searchParams }: { searchParams: {
     <div>
       <PageHeader title="System logs" description="An audit trail of administrative actions across the platform." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="action" defaultValue={searchParams.action ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <select name="action" defaultValue={action ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c} value={c}>

@@ -20,9 +20,13 @@ For the real application:
 
 ```bash
 cd webapp
+cp .env.example .env            # defaults work out of the box
 npm install && npx prisma migrate dev && npm run seed
 npm run dev
 ```
+
+Or in one shot: `npm run setup && npm run dev` (this also creates `.env` if
+it doesn't already exist).
 
 Then open http://localhost:3000 — the login screen has one-click demo
 accounts. Full walkthrough: [`docs/installation-guide-ubuntu.md`](docs/installation-guide-ubuntu.md).

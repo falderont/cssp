@@ -60,6 +60,7 @@ export async function createRegion(formData: FormData) {
   const region = await prisma.region.create({ data: { name, code } });
   await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
   revalidatePath("/ops/admin/areas");
+  revalidatePath("/ops/admin");
 }
 
 export async function createCountry(formData: FormData) {
@@ -71,6 +72,7 @@ export async function createCountry(formData: FormData) {
   const country = await prisma.country.create({ data: { name, code, regionId } });
   await logAudit({ actorId: admin.id, action: "country.create", summary: `Created country ${name} (${code}).`, targetType: "Country", targetId: country.id });
   revalidatePath("/ops/admin/areas");
+  revalidatePath("/ops/admin");
 }
 
 export async function createCity(formData: FormData) {
@@ -118,6 +120,7 @@ export async function createFacility(formData: FormData) {
 
   await logAudit({ actorId: admin.id, action: "facility.create", summary: `Created facility ${parsed.name}.`, targetType: "Facility", targetId: facility.id });
   revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
   redirect(`/ops/admin/facilities/${facility.id}`);
 }
 
@@ -146,6 +149,53 @@ export async function createRoom(buildingId: string, formData: FormData) {
   const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId }, select: { facilityId: true } });
   revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
   return room;
+}
+
+// --- Teams --------------------------------------------------------------------
+// A team is scoped to at most one geography level — a region, a country or a
+// single facility — or left unscoped for a global/company-wide team.
+
+const teamSchema = z.object({
+  name: z.string().min(1),
+  function: z.string().min(1),
+  scopeType: z.enum(["Global", "Region", "Country", "Facility"]),
+  scopeId: z.string().optional(),
+});
+
+export async function createTeam(formData: FormData) {
+  const admin = await requireSysAdmin();
+  const parsed = teamSchema.parse({
+    name: formData.get("name"),
+    function: formData.get("function"),
+    scopeType: formData.get("scopeType"),
+    scopeId: formData.get("scopeId") || undefined,
+  });
+  if (parsed.scopeType !== "Global" && !parsed.scopeId) {
+    throw new Error("Choose a region, country or facility for this team's scope.");
+  }
+
+  const team = await prisma.team.create({
+    data: {
+      name: parsed.name,
+      function: parsed.function,
+      regionId: parsed.scopeType === "Region" ? parsed.scopeId : null,
+      countryId: parsed.scopeType === "Country" ? parsed.scopeId : null,
+      facilityId: parsed.scopeType === "Facility" ? parsed.scopeId : null,
+    },
+  });
+
+  await logAudit({ actorId: admin.id, action: "team.create", summary: `Created team ${parsed.name} (${parsed.function}).`, targetType: "Team", targetId: team.id });
+  revalidatePath("/ops/admin/teams");
+  revalidatePath("/ops/admin");
+}
+
+export async function deleteTeam(teamId: string) {
+  const admin = await requireSysAdmin();
+  const team = await prisma.team.delete({ where: { id: teamId } });
+  await logAudit({ actorId: admin.id, action: "team.delete", summary: `Deleted team ${team.name}.`, targetType: "Team", targetId: teamId });
+  revalidatePath("/ops/admin/teams");
+  revalidatePath("/ops/admin/users");
+  revalidatePath("/ops/admin");
 }
 
 // --- Enterprise accounts & site enrollments ----------------------------------
@@ -225,7 +275,9 @@ const userSchema = z.object({
   enterpriseAccountId: z.string().optional(),
   restrictedFacilityId: z.string().optional(),
   restrictedRegionId: z.string().optional(),
+  restrictedCountryId: z.string().optional(),
   csScope: z.string().optional(),
+  teamId: z.string().optional(),
 });
 
 export async function createUser(formData: FormData) {
@@ -238,7 +290,9 @@ export async function createUser(formData: FormData) {
     enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
     restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
     restrictedRegionId: formData.get("restrictedRegionId") || undefined,
+    restrictedCountryId: formData.get("restrictedCountryId") || undefined,
     csScope: formData.get("csScope") || undefined,
+    teamId: formData.get("teamId") || undefined,
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
@@ -257,12 +311,15 @@ export async function createUser(formData: FormData) {
       enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
       restrictedFacilityId: parsed.restrictedFacilityId || null,
       restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+      restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
       csScope: isCsTeam ? parsed.csScope || "Site" : null,
+      teamId: !isCustomer ? parsed.teamId || null : null,
     },
   });
 
   await logAudit({ actorId: admin.id, action: "user.create", summary: `Created user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: user.id });
   revalidatePath("/ops/admin/users");
+  revalidatePath("/ops/admin/teams");
   redirect("/ops/admin/users");
 }
 
@@ -277,7 +334,9 @@ export async function updateUser(userId: string, formData: FormData) {
     enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
     restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
     restrictedRegionId: formData.get("restrictedRegionId") || undefined,
+    restrictedCountryId: formData.get("restrictedCountryId") || undefined,
     csScope: formData.get("csScope") || undefined,
+    teamId: formData.get("teamId") || undefined,
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
@@ -295,12 +354,15 @@ export async function updateUser(userId: string, formData: FormData) {
       enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
       restrictedFacilityId: parsed.restrictedFacilityId || null,
       restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+      restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
       csScope: isCsTeam ? parsed.csScope || "Site" : null,
+      teamId: !isCustomer ? parsed.teamId || null : null,
     },
   });
 
   await logAudit({ actorId: admin.id, action: "user.update", summary: `Updated user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: userId });
   revalidatePath("/ops/admin/users");
+  revalidatePath("/ops/admin/teams");
   redirect("/ops/admin/users");
 }
 

@@ -216,6 +216,19 @@ npm run seed
 (This deletes and fully recreates the database — fine to do any time in a
 demo/dev environment.)
 
+**The browser shows a red "Unhandled Runtime Error" box mentioning
+`Environment variable not found: DATABASE_URL`** — this means Step 7 (`cp
+.env.example .env`) was skipped or the `.env` file got deleted, so the app
+has no database to connect to. Fix it by going back to the `webapp` folder
+and running:
+```bash
+cp .env.example .env
+npm run dev
+```
+Then reload the page. (Check it worked with `ls -la .env` — if that prints
+"No such file or directory", the `cp` command above didn't run from the
+right folder; confirm `pwd` ends in `.../cssp/webapp` first.)
+
 **The page loads but looks unstyled / broken** — usually means `npm install`
 didn't finish successfully. Re-run it and watch for red error text near the
 end.

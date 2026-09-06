@@ -7,11 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { getCustomerFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 
-export default async function PortalMaintenanceDetailPage({ params }: { params: { id: string } }) {
+export default async function PortalMaintenanceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
   const event = await prisma.maintenanceEvent.findFirst({
-    where: { id: params.id, facilityId: { in: facilityIds } },
+    where: { id, facilityId: { in: facilityIds } },
     include: { facility: true, building: true, notifications: { orderBy: { sentAt: "asc" } } },
   });
   if (!event) notFound();

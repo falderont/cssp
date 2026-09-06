@@ -9,10 +9,11 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 import { submitServiceRequestCsat } from "@/actions/service-requests";
 
-export default async function PortalServiceRequestDetailPage({ params }: { params: { id: string } }) {
+export default async function PortalServiceRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireCustomerUser();
   const request = await prisma.serviceRequest.findFirst({
-    where: { id: params.id, siteEnrollment: { enterpriseAccountId: user.enterpriseAccountId } },
+    where: { id, siteEnrollment: { enterpriseAccountId: user.enterpriseAccountId } },
     include: { siteEnrollment: { include: { facility: true } }, assignedToUser: true, createdByUser: true },
   });
   if (!request) notFound();

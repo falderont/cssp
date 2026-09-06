@@ -97,14 +97,31 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
 };
 
 // --- Customer Success Team scope ---------------------------------------------
-// Only meaningful when role === ROLES.CS_TEAM (see User.csScope).
-export const CS_SCOPES = ["Corporate", "Region", "Site", "Billing"] as const;
+// Only meaningful when role === ROLES.CS_TEAM (see User.csScope). Mirrors the
+// Region -> Country -> Facility geography master data (see schema.prisma).
+export const CS_SCOPES = ["Corporate", "Region", "Country", "Site", "Billing"] as const;
 export type CsScope = (typeof CS_SCOPES)[number];
 export const CS_SCOPE_LABELS: Record<CsScope, string> = {
-  Corporate: "Corporate (all accounts)",
-  Region: "Region",
+  Corporate: "Corporate (all accounts, global)",
+  Region: "Region (every country within it)",
+  Country: "Country (every site within it)",
   Site: "Site",
   Billing: "Billing",
+};
+
+// --- Teams --------------------------------------------------------------------
+// Global Sys Admin master data — a named roster of internal staff scoped to
+// a region, a country, a single facility, or left global/company-wide.
+export const TEAM_FUNCTIONS = ["Executive", "Ops", "NOC", "Security", "CustomerSuccess", "ServiceDesk", "Facilities"] as const;
+export type TeamFunction = (typeof TEAM_FUNCTIONS)[number];
+export const TEAM_FUNCTION_LABELS: Record<TeamFunction, string> = {
+  Executive: "Executive",
+  Ops: "Operations",
+  NOC: "NOC / Engineering",
+  Security: "Front Office & Security",
+  CustomerSuccess: "Customer Success",
+  ServiceDesk: "Service Desk",
+  Facilities: "Facilities & Maintenance",
 };
 
 // --- Visitor management ------------------------------------------------------

@@ -8,10 +8,11 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { checkInVisitor, checkOutVisitor } from "@/actions/visitors";
 import { formatDate } from "@/lib/utils";
 
-export default async function FrontDeskPage({ searchParams }: { searchParams: { q?: string } }) {
+export default async function FrontDeskPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const searchParamsResolved = await searchParams;
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
-  const q = searchParams.q?.trim();
+  const q = searchParamsResolved.q?.trim();
 
   const visitors = q
     ? await prisma.visitor.findMany({
