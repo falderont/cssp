@@ -24,6 +24,7 @@ export type IconKey =
   | "Palette"
   | "Globe2"
   | "Map"
+  | "MapPin"
   | "Ticket"
   | "Building2"
   | "Briefcase";
@@ -99,11 +100,17 @@ export const OPS_NAV: NavItem[] = [
   // Global Sys Admin only — the master-data control plane (regions, countries,
   // sites, tenants, users, teams) lives here, ahead of the day-to-day
   // front-line and service-delivery tools every other ops persona shares.
-  // Areas, Facilities and Area Change Requests are the exception: their
-  // access is delegable (see requireMasterDataAdmin() in lib/session.ts), so
-  // their roles list is wider than the rest of this section.
+  // Regions, Countries, Cities, Facilities and Area Change Requests are the
+  // exception: their access is delegable (see requireMasterDataAdmin() in
+  // lib/session.ts), so their roles list is wider than the rest of this
+  // section. Each geography level is its own independent page rather than
+  // one consolidated screen — Facilities (site onboarding) can also create a
+  // country/city inline when a contract calls for a new location, but the
+  // standalone pages remain the place to manage that master data on its own.
   { href: "/ops/admin", label: "Global Overview", icon: "Globe2", section: "Global administration", roles: [SYS_ADMIN] },
-  { href: "/ops/admin/areas", label: "Areas", icon: "Map", section: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
+  { href: "/ops/admin/regions", label: "Regions", icon: "Map", section: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
+  { href: "/ops/admin/countries", label: "Countries", icon: "Globe2", section: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
+  { href: "/ops/admin/cities", label: "Cities", icon: "MapPin", section: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
   { href: "/ops/admin/facilities", label: "Facilities", icon: "Building2", section: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
   {
     href: "/ops/admin/area-change-requests",

@@ -3,7 +3,9 @@ import { Fragment } from "react";
 import {
   Building2,
   Map,
+  MapPin,
   Globe2,
+  Briefcase,
   Users,
   UsersRound,
   Palette,
@@ -114,22 +116,24 @@ export default async function AdminIndexPage() {
       ],
     },
     {
+      // Each geography level is managed independently — Regions, Countries
+      // and Cities are their own pages, not one consolidated screen.
+      // Onboarding a new Site (Facilities, below) can add a country/city
+      // inline when a contract calls for a new location, but that's a
+      // convenience layered on top, not a replacement for these.
       section: "Global geography & tenants",
       items: [
-        {
-          href: "/ops/admin/areas",
-          icon: Map,
-          title: "Areas — regions, countries & cities",
-          description: `${regions.length} region(s), ${countryCount} countr${countryCount === 1 ? "y" : "ies"}, ${cityCount} cit${cityCount === 1 ? "y" : "ies"} — delegable to Service Desk.`,
-        },
-        { href: "/ops/admin/facilities", icon: Building2, title: "Sites, buildings & rooms", description: `${facilityCount} facility(ies), ${buildingCount} building(s), ${roomCount} room(s).` },
+        { href: "/ops/admin/regions", icon: Map, title: "Regions", description: `${regions.length} region(s) — delegable to Service Desk.` },
+        { href: "/ops/admin/countries", icon: Globe2, title: "Countries", description: `${countryCount} countr${countryCount === 1 ? "y" : "ies"} — delegable to Service Desk.` },
+        { href: "/ops/admin/cities", icon: MapPin, title: "Cities", description: `${cityCount} cit${cityCount === 1 ? "y" : "ies"} — delegable to Service Desk.` },
+        { href: "/ops/admin/facilities", icon: Building2, title: "Sites, buildings & rooms", description: `${facilityCount} facility(ies), ${buildingCount} building(s), ${roomCount} room(s). Onboard a new site here.` },
         {
           href: "/ops/admin/area-change-requests",
           icon: Ticket,
           title: "Area change requests",
           description: `${pendingAreaChanges} pending — internal requests for master data changes.`,
         },
-        { href: "/ops/admin/accounts", icon: Globe2, title: "Tenant management", description: `${accounts.length} tenant account(s) — master data & site enrollments.` },
+        { href: "/ops/admin/accounts", icon: Briefcase, title: "Tenant management", description: `${accounts.length} tenant account(s) — master data & site enrollments.` },
       ],
     },
     {

@@ -51,6 +51,10 @@ export async function updateBranding(formData: FormData) {
 // --- Areas: Region -> Country -> City -> Site (Facility) -> Building -> Room
 // Master data, owned by the Global Sys Admin and delegable to Service Desk —
 // every action below is gated by requireMasterDataAdmin(), not requireSysAdmin().
+// Each level is managed on its own page (Regions/Countries/Cities/Facilities)
+// rather than one consolidated screen — see createFacility below for the one
+// exception, which lets a new country/city be added inline while onboarding
+// a site, since that's when a Global Admin actually needs one.
 
 export async function createRegion(formData: FormData) {
   const admin = await requireMasterDataAdmin();
@@ -59,7 +63,9 @@ export async function createRegion(formData: FormData) {
   if (!name || !code) throw new Error("Name and code are required.");
   const region = await prisma.region.create({ data: { name, code } });
   await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
-  revalidatePath("/ops/admin/areas");
+  revalidatePath("/ops/admin/regions");
+  revalidatePath("/ops/admin/countries");
+  revalidatePath("/ops/admin/facilities/new");
   revalidatePath("/ops/admin");
 }
 
@@ -71,7 +77,9 @@ export async function createCountry(formData: FormData) {
   if (!name || !code || !regionId) throw new Error("Name, code and region are required.");
   const country = await prisma.country.create({ data: { name, code, regionId } });
   await logAudit({ actorId: admin.id, action: "country.create", summary: `Created country ${name} (${code}).`, targetType: "Country", targetId: country.id });
-  revalidatePath("/ops/admin/areas");
+  revalidatePath("/ops/admin/countries");
+  revalidatePath("/ops/admin/cities");
+  revalidatePath("/ops/admin/facilities/new");
   revalidatePath("/ops/admin");
 }
 
@@ -82,15 +90,23 @@ export async function createCity(formData: FormData) {
   if (!name || !countryId) throw new Error("Name and country are required.");
   const city = await prisma.city.create({ data: { name, countryId } });
   await logAudit({ actorId: admin.id, action: "city.create", summary: `Created city ${name}.`, targetType: "City", targetId: city.id });
-  revalidatePath("/ops/admin/areas");
+  revalidatePath("/ops/admin/cities");
+  revalidatePath("/ops/admin/facilities/new");
+  revalidatePath("/ops/admin");
 }
 
 // --- Facilities (Sites) & buildings ------------------------------------------
+// Onboarding a new site is contract-driven: the Global Sys Admin (or
+// delegated Service Desk) creates the site once a contract is signed, adding
+// the country/city it's located in right here if they don't already exist —
+// rather than requiring a separate trip to the standalone Countries/Cities
+// pages first. Those pages still exist and still work independently (e.g. to
+// fix a name, or set up geography ahead of a contract) — this is a
+// convenience on top, not a replacement for them.
 
 const facilitySchema = z.object({
   name: z.string().min(1),
   code: z.string().min(1),
-  cityId: z.string().min(1),
   address: z.string().optional(),
   timezone: z.string().min(1),
   acsEndpointUrl: z.string().optional(),
@@ -101,17 +117,52 @@ export async function createFacility(formData: FormData) {
   const parsed = facilitySchema.parse({
     name: formData.get("name"),
     code: formData.get("code"),
-    cityId: formData.get("cityId"),
     address: formData.get("address") || undefined,
     timezone: formData.get("timezone"),
     acsEndpointUrl: formData.get("acsEndpointUrl") || undefined,
   });
 
+  const countryMode = String(formData.get("countryMode") ?? "existing");
+  let countryId = String(formData.get("countryId") ?? "");
+  if (countryMode === "new") {
+    const regionId = String(formData.get("regionId") ?? "");
+    const newCountryName = String(formData.get("newCountryName") ?? "");
+    const newCountryCode = String(formData.get("newCountryCode") ?? "").toUpperCase();
+    if (!regionId || !newCountryName || !newCountryCode) throw new Error("Region, country name and code are required for a new country.");
+    const country = await prisma.country.create({ data: { name: newCountryName, code: newCountryCode, regionId } });
+    await logAudit({
+      actorId: admin.id,
+      action: "country.create",
+      summary: `Created country ${newCountryName} (${newCountryCode}) while onboarding a new site.`,
+      targetType: "Country",
+      targetId: country.id,
+    });
+    countryId = country.id;
+  }
+  if (!countryId) throw new Error("Choose or create a country.");
+
+  const cityMode = String(formData.get("cityMode") ?? "existing");
+  let cityId = String(formData.get("cityId") ?? "");
+  if (cityMode === "new") {
+    const newCityName = String(formData.get("newCityName") ?? "");
+    if (!newCityName) throw new Error("City name is required for a new city.");
+    const city = await prisma.city.create({ data: { name: newCityName, countryId } });
+    await logAudit({
+      actorId: admin.id,
+      action: "city.create",
+      summary: `Created city ${newCityName} while onboarding a new site.`,
+      targetType: "City",
+      targetId: city.id,
+    });
+    cityId = city.id;
+  }
+  if (!cityId) throw new Error("Choose or create a city.");
+
   const facility = await prisma.facility.create({
     data: {
       name: parsed.name,
       code: parsed.code.toUpperCase(),
-      cityId: parsed.cityId,
+      cityId,
       address: parsed.address || null,
       timezone: parsed.timezone,
       acsEndpointUrl: parsed.acsEndpointUrl || null,
@@ -120,6 +171,8 @@ export async function createFacility(formData: FormData) {
 
   await logAudit({ actorId: admin.id, action: "facility.create", summary: `Created facility ${parsed.name}.`, targetType: "Facility", targetId: facility.id });
   revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin/countries");
+  revalidatePath("/ops/admin/cities");
   revalidatePath("/ops/admin");
   redirect(`/ops/admin/facilities/${facility.id}`);
 }
