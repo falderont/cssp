@@ -71,7 +71,8 @@ npm run seed                    # wipes and repopulates demo data
 npm run dev                     # http://localhost:3000
 ```
 
-Or in one shot: `npm run setup && npm run dev`.
+Or in one shot: `npm run setup && npm run dev` (also creates `.env` if it
+doesn't already exist, so it's safe to run on a fresh clone).
 
 ### Demo logins
 
