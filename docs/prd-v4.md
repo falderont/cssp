@@ -1,3 +1,5 @@
+> **Superseded by `claude/prd-v5.md`.** v5 documents the build of the actual working web application (`webapp/`) and the scope decisions made along the way: Maintenance is promoted to its own first-class module (calendar + tracker, not folded into Incidents), BMS Telemetry is un-deferred and shipped as an explicitly optional per-facility integration, an invoicing/billing module is added (previously out of scope), provider branding/white-labeling is added, and the facility hierarchy gains an explicit Building level under Region → Facility. Kept here for history only.
+
 # CSSP — Product Requirements Document (v4)
 ## Consolidated Customer Interface over DCIM / CMMS / BMS, with Enterprise Multi-Site Accounts, CS Performance Tracking, and Remote/Smart Hands — MVP
 
