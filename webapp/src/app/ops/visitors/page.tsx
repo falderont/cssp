@@ -8,7 +8,8 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate } from "@/lib/utils";
 import { summarizeVisitorStatuses } from "@/lib/constants";
 
-export default async function OpsVisitorsPage({ searchParams }: { searchParams: { facility?: string; status?: string } }) {
+export default async function OpsVisitorsPage({ searchParams }: { searchParams: Promise<{ facility?: string; status?: string }> }) {
+  const { facility, status } = await searchParams;
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const facilities = await prisma.facility.findMany({
@@ -16,11 +17,11 @@ export default async function OpsVisitorsPage({ searchParams }: { searchParams: 
     orderBy: { name: "asc" },
   });
   const allowedFacilityIds = scopedFacilityIds
-    ? searchParams.facility && scopedFacilityIds.includes(searchParams.facility)
-      ? [searchParams.facility]
+    ? facility && scopedFacilityIds.includes(facility)
+      ? [facility]
       : scopedFacilityIds
-    : searchParams.facility
-      ? [searchParams.facility]
+    : facility
+      ? [facility]
       : undefined;
 
   const requests = await prisma.visitorRequest.findMany({
@@ -34,15 +35,15 @@ export default async function OpsVisitorsPage({ searchParams }: { searchParams: 
     take: 200,
   });
 
-  const filtered = searchParams.status
-    ? requests.filter((r) => summarizeVisitorStatuses(r.visitors.map((v) => v.status)) === searchParams.status)
+  const filtered = status
+    ? requests.filter((r) => summarizeVisitorStatuses(r.visitors.map((v) => v.status)) === status)
     : requests;
 
   return (
     <div>
       <PageHeader title="Visitor approvals" description="Approve, deny, check in/out, and monitor access-control sync across every site and tenant." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="facility" defaultValue={searchParams.facility ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <select name="facility" defaultValue={facility ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
           <option value="">All facilities</option>
           {facilities.map((f) => (
             <option key={f.id} value={f.id}>
@@ -50,7 +51,7 @@ export default async function OpsVisitorsPage({ searchParams }: { searchParams: 
             </option>
           ))}
         </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <select name="status" defaultValue={status ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
           <option value="">Any status</option>
           {["Pending", "Approved", "CheckedIn", "CheckedOut", "Denied", "Mixed"].map((s) => (
             <option key={s} value={s}>

@@ -15,10 +15,11 @@ import {
 } from "@/actions/service-requests";
 import { ROLES, SERVICE_REQUEST_STATUSES } from "@/lib/constants";
 
-export default async function OpsServiceRequestDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsServiceRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireInternalUser();
   const request = await prisma.serviceRequest.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       siteEnrollment: { include: { facility: true, enterpriseAccount: true } },
       assignedToUser: true,

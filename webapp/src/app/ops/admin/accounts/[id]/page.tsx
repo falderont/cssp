@@ -10,10 +10,11 @@ import { prisma } from "@/lib/prisma";
 import { createSiteEnrollment } from "@/actions/admin";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
-export default async function AccountDetailPage({ params }: { params: { id: string } }) {
+export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireSysAdmin();
   const account = await prisma.enterpriseAccount.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       siteEnrollments: { include: { facility: true } },
       users: { orderBy: { name: "asc" } },

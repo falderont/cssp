@@ -8,15 +8,16 @@ import { createFacility } from "@/actions/admin";
 
 export default async function NewFacilityPage() {
   await requireSysAdmin();
-  const regions = await prisma.region.findMany({ orderBy: { name: "asc" } });
+  const regions = await prisma.region.findMany({ include: { countries: true }, orderBy: { name: "asc" } });
+  const countryCount = regions.reduce((sum, r) => sum + r.countries.length, 0);
 
   return (
     <div>
       <PageHeader title="Add facility" description="Leave the ACS endpoint blank to use the built-in mock adapter for demos." />
       <Card className="max-w-2xl">
         <CardBody>
-          {regions.length === 0 ? (
-            <p className="text-sm text-slate-500">Create a region first before adding a facility.</p>
+          {countryCount === 0 ? (
+            <p className="text-sm text-slate-500">Create a region and a country first before adding a facility.</p>
           ) : (
             <form action={createFacility} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -26,13 +27,19 @@ export default async function NewFacilityPage() {
                 <Field label="Code" htmlFor="code" required>
                   <Input id="code" name="code" required placeholder="JKT-01" />
                 </Field>
-                <Field label="Region" htmlFor="regionId" required>
-                  <Select id="regionId" name="regionId" required>
-                    {regions.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
+                <Field label="Country" htmlFor="countryId" required>
+                  <Select id="countryId" name="countryId" required>
+                    {regions.map((r) =>
+                      r.countries.length === 0 ? null : (
+                        <optgroup key={r.id} label={r.name}>
+                          {r.countries.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )
+                    )}
                   </Select>
                 </Field>
                 <Field label="Timezone" htmlFor="timezone" required>

@@ -9,10 +9,11 @@ import { prisma } from "@/lib/prisma";
 import { updateInvoiceStatus } from "@/actions/billing";
 import { INVOICE_STATUSES } from "@/lib/constants";
 
-export default async function OpsInvoiceDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsInvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const invoice = await prisma.invoice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { lineItems: true, enterpriseAccount: true },
   });
   if (!invoice) notFound();

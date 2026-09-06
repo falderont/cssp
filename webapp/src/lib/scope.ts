@@ -10,17 +10,23 @@ type OpsScopedUser = {
   role: string;
   restrictedFacilityId: string | null;
   restrictedRegionId: string | null;
+  restrictedCountryId: string | null;
   csScope?: string | null;
 };
 
 // Facility IDs an internal/ops user's list views should be filtered to.
 // Returns undefined for roles with account-wide visibility (Sys Admin,
 // Service Desk, CS Team scoped Corporate/Billing) — meaning "no filter".
+// CS Team's scope mirrors the Region -> Country -> Facility geography.
 export async function getOpsFacilityIds(user: OpsScopedUser): Promise<string[] | undefined> {
   if (user.role === ROLES.CS_TEAM) {
     if (user.csScope === "Site" && user.restrictedFacilityId) return [user.restrictedFacilityId];
+    if (user.csScope === "Country" && user.restrictedCountryId) {
+      const facilities = await prisma.facility.findMany({ where: { countryId: user.restrictedCountryId }, select: { id: true } });
+      return facilities.map((f) => f.id);
+    }
     if (user.csScope === "Region" && user.restrictedRegionId) {
-      const facilities = await prisma.facility.findMany({ where: { regionId: user.restrictedRegionId }, select: { id: true } });
+      const facilities = await prisma.facility.findMany({ where: { country: { regionId: user.restrictedRegionId } }, select: { id: true } });
       return facilities.map((f) => f.id);
     }
     return undefined;
@@ -39,7 +45,7 @@ export async function getCustomerSiteEnrollments(user: ScopedUser) {
       enterpriseAccountId: user.enterpriseAccountId,
       ...(user.restrictedFacilityId ? { facilityId: user.restrictedFacilityId } : {}),
     },
-    include: { facility: { include: { region: true, buildings: true } } },
+    include: { facility: { include: { country: { include: { region: true } }, buildings: true } } },
     orderBy: { createdAt: "asc" },
   });
 }

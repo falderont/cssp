@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 export default async function FacilitiesPage() {
   await requireSysAdmin();
   const facilities = await prisma.facility.findMany({
-    include: { region: true, buildings: true, siteEnrollments: true },
+    include: { country: { include: { region: true } }, buildings: true, siteEnrollments: true },
     orderBy: { name: "asc" },
   });
 
@@ -29,6 +29,7 @@ export default async function FacilitiesPage() {
           <tr>
             <TH>Name</TH>
             <TH>Code</TH>
+            <TH>Country</TH>
             <TH>Region</TH>
             <TH>Buildings</TH>
             <TH>Enrolled tenants</TH>
@@ -36,7 +37,7 @@ export default async function FacilitiesPage() {
           </tr>
         </THead>
         <TBody>
-          {facilities.length === 0 && <EmptyRow colSpan={6} message="No facilities yet." />}
+          {facilities.length === 0 && <EmptyRow colSpan={7} message="No facilities yet." />}
           {facilities.map((f) => (
             <TR key={f.id}>
               <TD>
@@ -45,7 +46,8 @@ export default async function FacilitiesPage() {
                 </Link>
               </TD>
               <TD>{f.code}</TD>
-              <TD>{f.region.name}</TD>
+              <TD>{f.country.name}</TD>
+              <TD>{f.country.region.name}</TD>
               <TD>{f.buildings.length}</TD>
               <TD>{f.siteEnrollments.length}</TD>
               <TD>{f.acsEndpointUrl ? "Custom endpoint" : "Built-in mock"}</TD>

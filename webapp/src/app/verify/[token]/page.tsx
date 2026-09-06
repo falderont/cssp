@@ -9,9 +9,10 @@ import { formatDate } from "@/lib/utils";
 // front-office scan of the visitor's QR pass resolves to, ahead of badge
 // registration. No internal IDs, notes, or blacklist details are exposed
 // here regardless of status.
-export default async function VerifyVisitorPage({ params }: { params: { token: string } }) {
+export default async function VerifyVisitorPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
   const visitor = await prisma.visitor.findUnique({
-    where: { verificationToken: params.token },
+    where: { verificationToken: token },
     include: {
       visitorRequest: {
         include: { siteEnrollment: { include: { facility: true } }, building: true, hostUser: true },

@@ -24,8 +24,9 @@ This README is the technical reference.
 | **Download Center** | Documents scoped globally, per-tenant, and/or per-facility; access-controlled downloads (a tenant can only fetch what they're entitled to see). |
 | **CS Engagement & Performance** | Internal-only: reps log touchpoints; managers see a team KPI table (resolved items, avg resolution time, touchpoints, avg CSAT) aggregated from tickets, remote-hands tasks and engagement logs. |
 | **Billing** | Invoices with line items, tax, multi-currency, status lifecycle (Draft → Sent → Paid/Overdue), a demo "Pay now" action for tenants, and a print-friendly (Ctrl+P → Save as PDF) invoice layout. |
-| **Multi-region / multi-site / multi-tenant** | `Region → Facility → Building` hierarchy; `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). |
-| **Branding** | Company name, logo, accent colors and support contact, editable by a Super Admin, applied across both portals, the login screen, and printed invoices. |
+| **Multi-region / multi-country / multi-site / multi-tenant** | `Region → Country → Facility → Building` master-data hierarchy (a region or country can exist before any site opens there); `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). |
+| **Teams** | Global Sys Admin master data — a named staff roster scoped to a region, a country, a single facility, or left global/company-wide. |
+| **Branding** | Company name, logo, accent colors and support contact, editable by the Global Sys Admin, applied across both portals, the login screen, and printed invoices. |
 
 Everything above is backed by real Prisma models and server-validated actions
 — see `prisma/schema.prisma` for the full data model.
@@ -81,11 +82,12 @@ one-click buttons for the most useful ones; the full roster (also printed by
 
 | Role | Email |
 |---|---|
-| Super Admin (provider) | admin@aurorapdc.com |
+| Global Sys Admin (provider) | admin@aurorapdc.com |
 | NOC / Ops (provider) | noc@aurorapdc.com |
 | Security (provider) | security@aurorapdc.com |
-| CS Manager (provider) | csmanager@aurorapdc.com |
-| CS Rep (provider) | cs.rina@aurorapdc.com |
+| CS Manager — Corporate scope (provider) | csmanager@aurorapdc.com |
+| CS Rep — Region scope, Southeast Asia (provider) | cs.rina@aurorapdc.com |
+| CS Rep — Country scope, Indonesia (provider) | cs.putu@aurorapdc.com |
 | Field Technician (provider) | tech@aurorapdc.com |
 | Finance (provider) | finance@aurorapdc.com |
 | Tenant Global Admin — Meridian Logistics | dita.ayu@meridianlogistics.com |

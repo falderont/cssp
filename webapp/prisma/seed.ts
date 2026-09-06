@@ -116,10 +116,12 @@ async function main() {
     prisma.telemetryPoint.deleteMany(),
     prisma.telemetrySource.deleteMany(),
     prisma.siteEnrollment.deleteMany(),
+    prisma.team.deleteMany(),
     prisma.user.deleteMany(),
     prisma.enterpriseAccount.deleteMany(),
     prisma.building.deleteMany(),
     prisma.facility.deleteMany(),
+    prisma.country.deleteMany(),
     prisma.region.deleteMany(),
     prisma.providerSettings.deleteMany(),
   ]);
@@ -153,21 +155,29 @@ async function main() {
     ],
   });
 
-  console.log("Regions & facilities…");
-  const regionID = await prisma.region.create({ data: { name: "Indonesia", code: "ID" } });
-  const regionSG = await prisma.region.create({ data: { name: "Singapore", code: "SG" } });
+  console.log("Regions, countries & facilities…");
+  // Region -> Country -> Facility/site -> Building. "Greater China" / Hong
+  // Kong is deliberately seeded with zero facilities: master data a Global
+  // Sys Admin defines ahead of any site actually opening there.
+  const regionSEA = await prisma.region.create({ data: { name: "Southeast Asia", code: "SEA" } });
+  const regionGC = await prisma.region.create({ data: { name: "Greater China", code: "GC" } });
+
+  const countryID = await prisma.country.create({ data: { name: "Indonesia", code: "ID", regionId: regionSEA.id } });
+  const countrySG = await prisma.country.create({ data: { name: "Singapore", code: "SG", regionId: regionSEA.id } });
+  const countryHK = await prisma.country.create({ data: { name: "Hong Kong SAR", code: "HK", regionId: regionGC.id } });
+  void countryHK;
 
   const btm02 = await prisma.facility.create({
-    data: { name: "BTM-02 — Batam", code: "BTM-02", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Batam Free Trade Zone, Batam, Indonesia" },
+    data: { name: "BTM-02 — Batam", code: "BTM-02", countryId: countryID.id, timezone: "Asia/Jakarta", address: "Batam Free Trade Zone, Batam, Indonesia" },
   });
   const jkt01 = await prisma.facility.create({
-    data: { name: "JKT-01 — Jakarta", code: "JKT-01", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Kawasan Industri Cibitung, Jakarta, Indonesia" },
+    data: { name: "JKT-01 — Jakarta", code: "JKT-01", countryId: countryID.id, timezone: "Asia/Jakarta", address: "Kawasan Industri Cibitung, Jakarta, Indonesia" },
   });
   const sby01 = await prisma.facility.create({
-    data: { name: "SBY-01 — Surabaya", code: "SBY-01", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
+    data: { name: "SBY-01 — Surabaya", code: "SBY-01", countryId: countryID.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
   });
   const sgp01 = await prisma.facility.create({
-    data: { name: "SGP-01 — Singapore", code: "SGP-01", regionId: regionSG.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
+    data: { name: "SGP-01 — Singapore", code: "SGP-01", countryId: countrySG.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
   });
 
   const [btm02A, btm02B] = await Promise.all([
@@ -216,24 +226,41 @@ async function main() {
   void enrMeridianJkt;
   void enrNusantaraSby;
 
+  console.log("Teams…");
+  // Global Sys Admin master data — rosters scoped to a region, a country, a
+  // single facility, or left global/company-wide. Created ahead of the
+  // users below so each can be slotted straight into its team.
+  const teamServiceDesk = await prisma.team.create({ data: { name: "Global Service Desk", function: "ServiceDesk" } });
+  const teamCsGlobal = await prisma.team.create({ data: { name: "Global Customer Success", function: "CustomerSuccess" } });
+  const teamCsSEA = await prisma.team.create({ data: { name: "Southeast Asia Customer Success", function: "CustomerSuccess", regionId: regionSEA.id } });
+  const teamNocID = await prisma.team.create({ data: { name: "Indonesia NOC", function: "NOC", countryId: countryID.id } });
+  const teamSecurityID = await prisma.team.create({ data: { name: "Indonesia Front Office & Security", function: "Security", countryId: countryID.id } });
+  const teamVendorBtm = await prisma.team.create({ data: { name: "BTM-02 Vendor Support", function: "Facilities", facilityId: btm02.id } });
+
   console.log("Users…");
   const pw = await hash(DEFAULT_PASSWORD);
 
   // --- Internal / provider personas ---
   const admin = await prisma.user.create({ data: { name: "Andra Wicaksono", email: "admin@aurorapdc.com", passwordHash: pw, role: ROLES.SYS_ADMIN, title: "Global Sys Admin" } });
-  const serviceDesk = await prisma.user.create({ data: { name: "Putri Amelia", email: "servicedesk@aurorapdc.com", passwordHash: pw, role: ROLES.SERVICE_DESK, title: "Service Desk Agent" } });
-  const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager" } });
-  const nocJkt = await prisma.user.create({ data: { name: "Yusuf Hidayat", email: "noc.jkt@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager — JKT-01", restrictedFacilityId: jkt01.id } });
-  const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_FRONT_OFFICE_SECURITY, title: "Front Office & Security Lead" } });
-  const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id } });
-  const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id } });
-  const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)" } });
-  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionID.id, title: "Customer Success Rep — Indonesia" } });
+  const serviceDesk = await prisma.user.create({ data: { name: "Putri Amelia", email: "servicedesk@aurorapdc.com", passwordHash: pw, role: ROLES.SERVICE_DESK, title: "Service Desk Agent", teamId: teamServiceDesk.id } });
+  const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager", teamId: teamNocID.id } });
+  const nocJkt = await prisma.user.create({ data: { name: "Yusuf Hidayat", email: "noc.jkt@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager — JKT-01", restrictedFacilityId: jkt01.id, teamId: teamNocID.id } });
+  const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_FRONT_OFFICE_SECURITY, title: "Front Office & Security Lead", teamId: teamSecurityID.id } });
+  const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id, teamId: teamNocID.id } });
+  const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id, teamId: teamNocID.id } });
+  const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)", teamId: teamCsGlobal.id } });
+  const csRep = await prisma.user.create({
+    data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionSEA.id, title: "Customer Success Rep — Southeast Asia", teamId: teamCsSEA.id },
+  });
+  const csRepCountry = await prisma.user.create({
+    data: { name: "Putu Ardiansyah", email: "cs.putu@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Country", restrictedCountryId: countryID.id, title: "Customer Success Rep — Indonesia" },
+  });
   const csRep2 = await prisma.user.create({ data: { name: "Agus Firmansyah II", email: "cs.agus@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Site", restrictedFacilityId: jkt01.id, title: "Customer Success Rep — JKT-01" } });
   const finance = await prisma.user.create({ data: { name: "Budi Santoso", email: "finance@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Billing", title: "Billing Manager" } });
   const vendor = await prisma.user.create({
-    data: { name: "Made Suarjana", email: "vendor@coldchain-support.example.com", passwordHash: pw, role: ROLES.OPS_VENDOR, title: "Contract Technician — ColdChain Support", restrictedFacilityId: btm02.id },
+    data: { name: "Made Suarjana", email: "vendor@coldchain-support.example.com", passwordHash: pw, role: ROLES.OPS_VENDOR, title: "Contract Technician — ColdChain Support", restrictedFacilityId: btm02.id, teamId: teamVendorBtm.id },
   });
+  void csRepCountry;
 
   // --- Tenant / customer personas ---
   const ditaAyu = await prisma.user.create({
@@ -1077,7 +1104,8 @@ async function main() {
   console.log("  Ops — Site Lead (BTM-02):          tech@aurorapdc.com");
   console.log("  Ops — Site Lead (JKT-01):          tech2@aurorapdc.com");
   console.log("  CS Team — Corporate:               csmanager@aurorapdc.com");
-  console.log("  CS Team — Region (Indonesia):       cs.rina@aurorapdc.com");
+  console.log("  CS Team — Region (Southeast Asia):  cs.rina@aurorapdc.com");
+  console.log("  CS Team — Country (Indonesia):      cs.putu@aurorapdc.com");
   console.log("  CS Team — Site (JKT-01):           cs.agus@aurorapdc.com");
   console.log("  CS Team — Billing:                  finance@aurorapdc.com");
   console.log("  Ops — External Vendor:             vendor@coldchain-support.example.com");

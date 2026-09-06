@@ -8,12 +8,16 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createBuilding, updateFacilityAcs } from "@/actions/admin";
 
-export default async function FacilityDetailPage({ params }: { params: { id: string } }) {
+export default async function FacilityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireSysAdmin();
-  const facility = await prisma.facility.findUnique({
-    where: { id: params.id },
-    include: { region: true, buildings: true, siteEnrollments: { include: { enterpriseAccount: true } } },
-  });
+  const [facility, teams] = await Promise.all([
+    prisma.facility.findUnique({
+      where: { id },
+      include: { country: { include: { region: true } }, buildings: true, siteEnrollments: { include: { enterpriseAccount: true } } },
+    }),
+    prisma.team.findMany({ where: { facilityId: id }, include: { members: true } }),
+  ]);
   if (!facility) notFound();
 
   const addBuildingBound = createBuilding.bind(null, facility.id);
@@ -21,7 +25,7 @@ export default async function FacilityDetailPage({ params }: { params: { id: str
 
   return (
     <div>
-      <PageHeader title={facility.name} description={`${facility.region.name} · ${facility.code}`} />
+      <PageHeader title={facility.name} description={`${facility.country.name} · ${facility.country.region.name} · ${facility.code}`} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
@@ -88,25 +92,44 @@ export default async function FacilityDetailPage({ params }: { params: { id: str
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Access control integration</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <form action={updateAcsBound} className="space-y-3">
-              <Field
-                label="ACS endpoint"
-                htmlFor="acsEndpointUrl"
-                hint="Leave blank to use the built-in mock adapter for demos"
-              >
-                <Input id="acsEndpointUrl" name="acsEndpointUrl" defaultValue={facility.acsEndpointUrl ?? ""} placeholder="https://acs.example.com/api/badges" />
-              </Field>
-              <Button type="submit" className="w-full" variant="secondary">
-                Save
-              </Button>
-            </form>
-          </CardBody>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Access control integration</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <form action={updateAcsBound} className="space-y-3">
+                <Field
+                  label="ACS endpoint"
+                  htmlFor="acsEndpointUrl"
+                  hint="Leave blank to use the built-in mock adapter for demos"
+                >
+                  <Input id="acsEndpointUrl" name="acsEndpointUrl" defaultValue={facility.acsEndpointUrl ?? ""} placeholder="https://acs.example.com/api/badges" />
+                </Field>
+                <Button type="submit" className="w-full" variant="secondary">
+                  Save
+                </Button>
+              </form>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Teams stationed here</CardTitle>
+            </CardHeader>
+            <CardBody className="space-y-2">
+              {teams.length === 0 && <p className="text-sm text-slate-500">No team scoped to this facility yet — see Teams in master data.</p>}
+              {teams.map((t) => (
+                <div key={t.id} className="rounded-lg border border-slate-200 px-3 py-2">
+                  <p className="text-sm font-medium text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {t.function} · {t.members.length} member(s)
+                  </p>
+                </div>
+              ))}
+            </CardBody>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -10,10 +10,11 @@ import { formatDateTime } from "@/lib/utils";
 import { postIncidentUpdate, toggleIncidentVisibility, uploadIncidentReport } from "@/actions/incidents";
 import { INCIDENT_STATUSES, parseImpactedServices } from "@/lib/constants";
 
-export default async function OpsIncidentDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsIncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const incident = await prisma.incident.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { facility: true, building: true, updates: { orderBy: { createdAt: "asc" }, include: { createdByUser: true } } },
   });
   if (!incident) notFound();
