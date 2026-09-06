@@ -10,13 +10,15 @@ export type IconKey =
   | "Users"
   | "Siren"
   | "CalendarClock"
-  | "Ticket"
   | "Wrench"
   | "Gauge"
   | "FolderDown"
   | "Receipt"
   | "Trophy"
-  | "Settings";
+  | "Settings"
+  | "Truck"
+  | "IdCard"
+  | "ShieldAlert";
 
 export type NavItem = {
   href: string;
@@ -28,6 +30,7 @@ export type NavItem = {
 export const PORTAL_NAV: NavItem[] = [
   { href: "/portal", label: "Dashboard", icon: "LayoutDashboard", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
   { href: "/portal/visitors", label: "Visitors", icon: "Users", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
+  { href: "/portal/deliveries", label: "Deliveries", icon: "Truck", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
   { href: "/portal/incidents", label: "Incidents", icon: "Siren", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
   {
     href: "/portal/maintenance",
@@ -35,10 +38,9 @@ export const PORTAL_NAV: NavItem[] = [
     icon: "CalendarClock",
     roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER],
   },
-  { href: "/portal/tickets", label: "Tickets", icon: "Ticket", roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER] },
   {
-    href: "/portal/remote-hands",
-    label: "Remote Hands",
+    href: "/portal/service-requests",
+    label: "Service Requests",
     icon: "Wrench",
     roles: [ROLES.CUSTOMER_ADMIN, ROLES.CUSTOMER_USER],
   },
@@ -69,19 +71,26 @@ export const OPS_NAV: NavItem[] = [
     ],
   },
   { href: "/ops/visitors", label: "Visitor Approvals", icon: "Users", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_SECURITY] },
+  {
+    href: "/ops/front-desk",
+    label: "Front Desk",
+    icon: "IdCard",
+    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_SECURITY],
+  },
+  { href: "/ops/deliveries", label: "Deliveries", icon: "Truck", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_SECURITY] },
+  {
+    href: "/ops/admin/blacklist",
+    label: "Blacklist",
+    icon: "ShieldAlert",
+    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_SECURITY],
+  },
   { href: "/ops/incidents", label: "Incidents", icon: "Siren", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS] },
   { href: "/ops/maintenance", label: "Maintenance", icon: "CalendarClock", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS] },
   {
-    href: "/ops/tickets",
-    label: "Ticket Queue",
-    icon: "Ticket",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER],
-  },
-  {
-    href: "/ops/remote-hands",
-    label: "Remote Hands",
+    href: "/ops/service-requests",
+    label: "Service Requests",
     icon: "Wrench",
-    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_TECHNICIAN],
+    roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS, ROLES.PROVIDER_CS, ROLES.PROVIDER_CS_MANAGER, ROLES.PROVIDER_TECHNICIAN],
   },
   { href: "/ops/telemetry", label: "Telemetry (BMS)", icon: "Gauge", roles: [ROLES.SUPER_ADMIN, ROLES.PROVIDER_OPS] },
   {

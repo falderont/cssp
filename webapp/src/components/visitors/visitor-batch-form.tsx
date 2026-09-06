@@ -61,22 +61,22 @@ export function VisitorBatchForm({ enrollments }: { enrollments: Enrollment[] })
         <Textarea id="purpose" name="purpose" placeholder="e.g. Contractor crew — quarterly cabling audit" />
       </Field>
       <Field
-        label="Visitor list (CSV)"
-        htmlFor="csvFile"
+        label="Visitor list (Excel or CSV)"
+        htmlFor="visitorFile"
         required
-        hint="Header row required: fullName, company, idType, idNumber, email, phone"
+        hint="Header row required: fullName, company, idType, idNumber, email, phone. Each name is screened against the blacklist automatically."
       >
         <input
-          id="csvFile"
-          name="csvFile"
+          id="visitorFile"
+          name="visitorFile"
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.xlsm,.csv,text/csv"
           required
           className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20"
         />
       </Field>
       <Link href="/api/visitors/template" className="inline-flex items-center gap-1 text-sm text-brand hover:underline">
-        <Download className="h-3.5 w-3.5" /> Download CSV template
+        <Download className="h-3.5 w-3.5" /> Download Excel template
       </Link>
       <div>
         <Button type="submit">Upload and create visit request</Button>

@@ -25,6 +25,15 @@ export async function readStoredFile(key: string): Promise<Buffer> {
   return readFile(path.join(STORAGE_ROOT, key));
 }
 
+// For server-generated files (PDFs, etc.) that don't come from an <input
+// type="file">, so there's no File object to hash a name from.
+export async function saveGeneratedFile(buffer: Buffer, key: string): Promise<string> {
+  const fullPath = path.join(STORAGE_ROOT, key);
+  await mkdir(path.dirname(fullPath), { recursive: true });
+  await writeFile(fullPath, buffer);
+  return key;
+}
+
 // Branding assets (the provider's logo) are served directly by Next's static
 // file handler, unlike everything else in this module, because they need to
 // render on the public login screen before anyone is authenticated.

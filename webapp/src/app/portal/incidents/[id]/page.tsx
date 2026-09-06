@@ -6,6 +6,7 @@ import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
+import { parseImpactedServices } from "@/lib/constants";
 
 export default async function PortalIncidentDetailPage({ params }: { params: { id: string } }) {
   const user = await requireCustomerUser();
@@ -15,6 +16,7 @@ export default async function PortalIncidentDetailPage({ params }: { params: { i
     include: { facility: true, building: true, updates: { orderBy: { createdAt: "asc" }, include: { createdByUser: true } } },
   });
   if (!incident) notFound();
+  const impactedServices = parseImpactedServices(incident.impactedServices);
 
   return (
     <div>
@@ -24,12 +26,27 @@ export default async function PortalIncidentDetailPage({ params }: { params: { i
           <CardHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Badge tone={incident.severity === "P1" || incident.severity === "P2" ? "red" : "amber"}>{incident.severity}</Badge>
+              <Badge tone="slate">{incident.category}</Badge>
               <StatusBadge status={incident.status} />
             </div>
             <span className="text-xs text-slate-400">Started {formatDateTime(incident.startedAt)}</span>
           </CardHeader>
-          <CardBody>
+          <CardBody className="space-y-3">
             <p className="text-sm text-slate-700">{incident.description}</p>
+            {incident.locationDetail && (
+              <p className="text-xs text-slate-500">
+                <span className="font-medium text-slate-600">Location:</span> {incident.locationDetail}
+              </p>
+            )}
+            {impactedServices.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {impactedServices.map((s) => (
+                  <Badge key={s} tone="blue">
+                    {s}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </CardBody>
         </Card>
 
@@ -52,6 +69,24 @@ export default async function PortalIncidentDetailPage({ params }: { params: { i
             )}
           </CardBody>
         </Card>
+
+        {incident.reportStorageKey && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Closure report</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <a
+                href={`/api/incidents/${incident.id}/report`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-brand hover:underline"
+              >
+                Download {incident.reportFileName}
+              </a>
+            </CardBody>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -38,6 +38,7 @@ export default async function PortalIncidentsPage({ searchParams }: { searchPara
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge tone={inc.severity === "P1" || inc.severity === "P2" ? "red" : "amber"}>{inc.severity}</Badge>
+                      <Badge tone="slate">{inc.category}</Badge>
                       <p className="font-medium text-slate-900">{inc.title}</p>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">

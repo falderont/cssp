@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Map, Users, Palette, ArrowRight } from "lucide-react";
+import { Building2, Map, Users, Palette, ArrowRight, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { requireSuperAdmin } from "@/lib/session";
@@ -7,11 +7,12 @@ import { prisma } from "@/lib/prisma";
 
 export default async function AdminIndexPage() {
   await requireSuperAdmin();
-  const [regions, facilities, accounts, users] = await Promise.all([
+  const [regions, facilities, accounts, users, blacklistCount] = await Promise.all([
     prisma.region.count(),
     prisma.facility.count(),
     prisma.enterpriseAccount.count(),
     prisma.user.count(),
+    prisma.blacklistEntry.count(),
   ]);
 
   const sections = [
@@ -20,6 +21,7 @@ export default async function AdminIndexPage() {
     { href: "/ops/admin/facilities", icon: Building2, title: "Facilities & buildings", description: `${facilities} facility(ies) across all regions.` },
     { href: "/ops/admin/accounts", icon: Users, title: "Tenant accounts & site enrollments", description: `${accounts} enterprise account(s).` },
     { href: "/ops/admin/users", icon: Users, title: "Users", description: `${users} user(s), internal and tenant.` },
+    { href: "/ops/admin/blacklist", icon: ShieldAlert, title: "Visitor blacklist", description: `${blacklistCount} entry(ies) — checked automatically before visitor approval.` },
   ];
 
   return (

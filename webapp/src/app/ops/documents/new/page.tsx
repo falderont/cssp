@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { publishDocument } from "@/actions/documents";
-import { DOCUMENT_CATEGORIES } from "@/lib/constants";
-import { humanize } from "@/lib/utils";
+import { DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
 
 export default async function NewDocumentPage() {
   await requireInternalUser();
@@ -29,7 +28,7 @@ export default async function NewDocumentPage() {
                 <Select id="category" name="category" required defaultValue="Other">
                   {DOCUMENT_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {humanize(c)}
+                      {DOCUMENT_CATEGORY_LABELS[c] ?? c}
                     </option>
                   ))}
                 </Select>

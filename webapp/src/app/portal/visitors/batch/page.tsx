@@ -10,7 +10,7 @@ export default async function BatchVisitorRequestPage() {
 
   return (
     <div>
-      <PageHeader title="Batch visitor upload" description="Upload a CSV to register a group of visitors in one go — a contractor crew, an audit team, and so on." />
+      <PageHeader title="Batch visitor upload" description="Upload an Excel (or CSV) list to register a group of visitors in one go — a contractor crew, an audit team, and so on." />
       <Card className="max-w-3xl">
         <CardBody>
           <VisitorBatchForm enrollments={enrollments} />

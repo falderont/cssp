@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
-import { postIncidentUpdate, toggleIncidentVisibility } from "@/actions/incidents";
-import { INCIDENT_STATUSES } from "@/lib/constants";
+import { postIncidentUpdate, toggleIncidentVisibility, uploadIncidentReport } from "@/actions/incidents";
+import { INCIDENT_STATUSES, parseImpactedServices } from "@/lib/constants";
 
 export default async function OpsIncidentDetailPage({ params }: { params: { id: string } }) {
   await requireInternalUser();
@@ -21,6 +21,8 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
   const returnPath = `/ops/incidents/${incident.id}`;
   const postUpdateBound = postIncidentUpdate.bind(null, incident.id, returnPath);
   const toggleVisibilityBound = toggleIncidentVisibility.bind(null, incident.id, returnPath);
+  const uploadReportBound = uploadIncidentReport.bind(null, incident.id, returnPath);
+  const impactedServices = parseImpactedServices(incident.impactedServices);
 
   return (
     <div>
@@ -31,12 +33,27 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
             <CardHeader className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Badge tone={incident.severity === "P1" || incident.severity === "P2" ? "red" : "amber"}>{incident.severity}</Badge>
+                <Badge tone="slate">{incident.category}</Badge>
                 <StatusBadge status={incident.status} />
               </div>
               <span className="text-xs text-slate-400">Started {formatDateTime(incident.startedAt)}</span>
             </CardHeader>
-            <CardBody>
+            <CardBody className="space-y-3">
               <p className="text-sm text-slate-700">{incident.description}</p>
+              {incident.locationDetail && (
+                <p className="text-xs text-slate-500">
+                  <span className="font-medium text-slate-600">Location:</span> {incident.locationDetail}
+                </p>
+              )}
+              {impactedServices.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {impactedServices.map((s) => (
+                    <Badge key={s} tone="blue">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </CardBody>
           </Card>
 
@@ -102,6 +119,41 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
               </form>
             </CardBody>
           </Card>
+
+          {incident.status === "Resolved" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Incident report</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-3">
+                {incident.reportStorageKey ? (
+                  <a
+                    href={`/api/incidents/${incident.id}/report`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-brand hover:underline"
+                  >
+                    Download {incident.reportFileName}
+                  </a>
+                ) : (
+                  <form action={uploadReportBound} className="space-y-3">
+                    <Field label="Upload report (from DCIM)" htmlFor="report" required>
+                      <input
+                        id="report"
+                        name="report"
+                        type="file"
+                        required
+                        className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20"
+                      />
+                    </Field>
+                    <Button type="submit" className="w-full" variant="secondary">
+                      Attach to closure
+                    </Button>
+                  </form>
+                )}
+              </CardBody>
+            </Card>
+          )}
         </div>
       </div>
     </div>

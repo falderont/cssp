@@ -5,8 +5,9 @@ import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table
 import { Badge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { formatDate, humanize } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { deleteDocument } from "@/actions/documents";
+import { DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
 export default async function OpsDocumentsPage() {
@@ -47,7 +48,7 @@ export default async function OpsDocumentsPage() {
               <TR key={doc.id}>
                 <TD className="font-medium text-slate-900">{doc.title}</TD>
                 <TD>
-                  <Badge>{humanize(doc.category)}</Badge>
+                  <Badge>{DOCUMENT_CATEGORY_LABELS[doc.category] ?? doc.category}</Badge>
                 </TD>
                 <TD>
                   {doc.enterpriseAccount?.name ?? "All tenants"}

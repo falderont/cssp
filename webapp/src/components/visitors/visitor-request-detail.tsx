@@ -1,14 +1,17 @@
+import Link from "next/link";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TR, TD } from "@/components/ui/table";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { generateQrDataUrl } from "@/lib/qr";
 import {
   approveAllVisitors,
   approveVisitor,
   checkInVisitor,
   checkOutVisitor,
   denyVisitor,
+  overrideApproveBlacklistedVisitor,
   retrySyncAcs,
 } from "@/actions/visitors";
 import type { AcsIntegrationLog, Building, Facility, SiteEnrollment, User, Visitor, VisitorRequest } from "@prisma/client";
@@ -22,7 +25,9 @@ type FullVisitorRequest = VisitorRequest & {
   siteEnrollment: SiteEnrollment & { facility: Facility };
 };
 
-export function VisitorRequestDetailView({
+const QR_ELIGIBLE_STATUSES = ["Approved", "CheckedIn", "CheckedOut"];
+
+export async function VisitorRequestDetailView({
   visitorRequest,
   mode,
   returnPath,
@@ -35,6 +40,15 @@ export function VisitorRequestDetailView({
   const approveAllBound = approveAllVisitors.bind(null, vr.id, returnPath);
   const retrySyncBound = retrySyncAcs.bind(null, vr.id, returnPath);
   const hasPending = vr.visitors.some((v) => v.status === "Pending");
+  const hasBlacklisted = vr.visitors.some((v) => v.status === "Blacklisted");
+
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const visitorRows = await Promise.all(
+    vr.visitors.map(async (v) => ({
+      v,
+      qrDataUrl: QR_ELIGIBLE_STATUSES.includes(v.status) ? await generateQrDataUrl(`${baseUrl}/verify/${v.verificationToken}`) : null,
+    }))
+  );
 
   return (
     <div className="space-y-6">
@@ -55,6 +69,15 @@ export function VisitorRequestDetailView({
         </CardBody>
       </Card>
 
+      {hasBlacklisted && (
+        <Card className="border-red-200 bg-red-50/40">
+          <CardBody className="text-sm text-red-800">
+            One or more visitors on this request matched the blacklist and are held pending{" "}
+            {mode === "ops" ? "your override" : "review by the operations team"}.
+          </CardBody>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex items-center justify-between">
           <CardTitle>Visitors ({vr.visitors.length})</CardTitle>
@@ -73,37 +96,77 @@ export function VisitorRequestDetailView({
               <TH>Company</TH>
               <TH>ID</TH>
               <TH>Badge</TH>
+              <TH>QR pass</TH>
               <TH>Status</TH>
               {mode === "ops" && <TH>Actions</TH>}
             </tr>
           </THead>
           <TBody>
-            {vr.visitors.map((v) => {
+            {visitorRows.map(({ v, qrDataUrl }) => {
               const approveBound = approveVisitor.bind(null, v.id, returnPath);
               const denyBound = denyVisitor.bind(null, v.id, returnPath);
               const checkInBound = checkInVisitor.bind(null, v.id, returnPath);
               const checkOutBound = checkOutVisitor.bind(null, v.id, returnPath);
+              const overrideBound = overrideApproveBlacklistedVisitor.bind(null, v.id, returnPath);
               return (
                 <TR key={v.id}>
                   <TD className="font-medium text-slate-900">{v.fullName}</TD>
                   <TD>{v.company ?? "—"}</TD>
-                  <TD>
-                    {v.idType || v.idNumber ? `${v.idType ?? ""} ${v.idNumber ?? ""}`.trim() : "—"}
-                  </TD>
+                  <TD>{v.idType || v.idNumber ? `${v.idType ?? ""} ${v.idNumber ?? ""}`.trim() : "—"}</TD>
                   <TD>{v.badgeCode ?? "—"}</TD>
                   <TD>
+                    {qrDataUrl ? (
+                      <Link href={`/verify/${v.verificationToken}`} target="_blank">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrDataUrl} alt="Verification QR code" className="h-12 w-12 rounded border border-slate-200" />
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </TD>
+                  <TD>
                     <StatusBadge status={v.status} />
+                    {mode === "ops" && v.blacklistReason && (
+                      <p
+                        className={`mt-0.5 max-w-[16rem] text-xs ${
+                          v.status === "Blacklisted" ? "text-red-600" : "text-amber-600"
+                        }`}
+                      >
+                        {v.blacklistReason}
+                      </p>
+                    )}
                     {v.checkedInAt && <p className="mt-0.5 text-xs text-slate-400">In: {formatDateTime(v.checkedInAt)}</p>}
                     {v.checkedOutAt && <p className="text-xs text-slate-400">Out: {formatDateTime(v.checkedOutAt)}</p>}
                   </TD>
                   {mode === "ops" && (
                     <TD>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {v.status === "Pending" && (
                           <>
                             <form action={approveBound}>
                               <Button type="submit" size="sm" variant="secondary">
                                 Approve
+                              </Button>
+                            </form>
+                            <form action={denyBound}>
+                              <Button type="submit" size="sm" variant="danger">
+                                Deny
+                              </Button>
+                            </form>
+                          </>
+                        )}
+                        {v.status === "Blacklisted" && (
+                          <>
+                            <form action={overrideBound} className="flex flex-wrap items-center gap-1.5">
+                              <input
+                                type="text"
+                                name="overrideReason"
+                                required
+                                placeholder="Override justification"
+                                className="w-40 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                              />
+                              <Button type="submit" size="sm" variant="secondary">
+                                Override &amp; approve
                               </Button>
                             </form>
                             <form action={denyBound}>

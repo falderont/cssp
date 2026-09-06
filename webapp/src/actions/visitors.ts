@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import Papa from "papaparse";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +8,8 @@ import { requireCustomerUser, requireInternalUser } from "@/lib/session";
 import { assertSiteEnrollmentAccess } from "@/lib/scope";
 import { pushVisitorRequestToAcs } from "@/lib/acs";
 import { notifyFacilityTenantUsers } from "@/lib/notify";
+import { checkBlacklist } from "@/lib/blacklist";
+import { parseVisitorRowsFromFile, type VisitorImportRow } from "@/lib/visitor-import";
 
 const visitorRowSchema = z.object({
   fullName: z.string().min(1, "Name is required"),
@@ -30,6 +31,24 @@ const requestSchema = z.object({
   visitors: z.array(visitorRowSchema).min(1, "Add at least one visitor"),
 });
 
+// The blacklist is the automated first layer, checked for every row before a
+// visitor ever reaches the ops approval queue — see BlacklistEntry in
+// prisma/schema.prisma.
+async function screenRow(row: VisitorImportRow | z.infer<typeof visitorRowSchema>) {
+  const match = await checkBlacklist(row.fullName, row.idNumber || undefined);
+  return {
+    fullName: row.fullName,
+    idType: row.idType || null,
+    idNumber: row.idNumber || null,
+    company: row.company || null,
+    email: row.email || null,
+    phone: row.phone || null,
+    status: match ? "Blacklisted" : "Pending",
+    isBlacklistMatch: !!match,
+    blacklistReason: match?.reason ?? null,
+  };
+}
+
 export async function createVisitorRequest(formData: FormData) {
   const user = await requireCustomerUser();
 
@@ -49,6 +68,8 @@ export async function createVisitorRequest(formData: FormData) {
   const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
   if (!hasAccess) throw new Error("You do not have access to that site.");
 
+  const screenedVisitors = await Promise.all(parsed.visitors.map(screenRow));
+
   const visitorRequest = await prisma.visitorRequest.create({
     data: {
       siteEnrollmentId: parsed.siteEnrollmentId,
@@ -61,16 +82,7 @@ export async function createVisitorRequest(formData: FormData) {
       isGroup: parsed.visitors.length > 1,
       source: "Single",
       createdById: user.id,
-      visitors: {
-        create: parsed.visitors.map((v) => ({
-          fullName: v.fullName,
-          idType: v.idType || null,
-          idNumber: v.idNumber || null,
-          company: v.company || null,
-          email: v.email || null,
-          phone: v.phone || null,
-        })),
-      },
+      visitors: { create: screenedVisitors },
     },
   });
 
@@ -87,31 +99,21 @@ export async function createVisitorRequestBatch(formData: FormData) {
   const visitDate = String(formData.get("visitDate") ?? "");
   const windowStart = String(formData.get("windowStart") ?? "");
   const windowEnd = String(formData.get("windowEnd") ?? "");
-  const file = formData.get("csvFile");
+  const file = formData.get("visitorFile");
 
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error("Attach a CSV file with your visitor list.");
+    throw new Error("Attach an Excel (.xlsx) or CSV file with your visitor list.");
   }
 
   const hasAccess = await assertSiteEnrollmentAccess(user, siteEnrollmentId);
   if (!hasAccess) throw new Error("You do not have access to that site.");
 
-  const text = await file.text();
-  const parsedCsv = Papa.parse<Record<string, string>>(text, { header: true, skipEmptyLines: true });
-  const rows = parsedCsv.data
-    .map((r) => ({
-      fullName: (r.fullName || r.name || "").trim(),
-      idType: (r.idType || "").trim(),
-      idNumber: (r.idNumber || "").trim(),
-      company: (r.company || "").trim(),
-      email: (r.email || "").trim(),
-      phone: (r.phone || "").trim(),
-    }))
-    .filter((r) => r.fullName.length > 0);
-
+  const rows = await parseVisitorRowsFromFile(file);
   if (rows.length === 0) {
-    throw new Error("No valid rows found in the CSV — check the fullName column is populated.");
+    throw new Error("No valid rows found — check the fullName column is populated using the provided template.");
   }
+
+  const screenedVisitors = await Promise.all(rows.map(screenRow));
 
   const visitorRequest = await prisma.visitorRequest.create({
     data: {
@@ -124,16 +126,7 @@ export async function createVisitorRequestBatch(formData: FormData) {
       isGroup: true,
       source: "Batch",
       createdById: user.id,
-      visitors: {
-        create: rows.map((v) => ({
-          fullName: v.fullName,
-          idType: v.idType || null,
-          idNumber: v.idNumber || null,
-          company: v.company || null,
-          email: v.email || null,
-          phone: v.phone || null,
-        })),
-      },
+      visitors: { create: screenedVisitors },
     },
   });
 
@@ -143,9 +136,31 @@ export async function createVisitorRequestBatch(formData: FormData) {
 
 export async function approveVisitor(visitorId: string, returnPath: string) {
   await requireInternalUser();
+  const existing = await prisma.visitor.findUniqueOrThrow({ where: { id: visitorId } });
+  if (existing.status === "Blacklisted") {
+    throw new Error("This visitor is blacklisted — use the override action with a justification instead.");
+  }
   const visitor = await prisma.visitor.update({ where: { id: visitorId }, data: { status: "Approved" } });
   await pushVisitorRequestToAcs(visitor.visitorRequestId);
   await notifyRequestOwner(visitor.visitorRequestId, "Visitor approved", `${visitor.fullName} was approved and synced to access control.`);
+  revalidatePath(returnPath);
+}
+
+export async function overrideApproveBlacklistedVisitor(visitorId: string, returnPath: string, formData: FormData) {
+  const user = await requireInternalUser();
+  const overrideReason = String(formData.get("overrideReason") ?? "").trim();
+  if (!overrideReason) throw new Error("An override justification is required.");
+
+  const existing = await prisma.visitor.findUniqueOrThrow({ where: { id: visitorId } });
+  const visitor = await prisma.visitor.update({
+    where: { id: visitorId },
+    data: {
+      status: "Approved",
+      blacklistReason: `${existing.blacklistReason ?? "Blacklist match"} — overridden by ${user.name ?? user.email}: ${overrideReason}`,
+    },
+  });
+  await pushVisitorRequestToAcs(visitor.visitorRequestId);
+  await notifyRequestOwner(visitor.visitorRequestId, "Visitor approved (override)", `${visitor.fullName} was approved despite a blacklist match, with justification on file.`);
   revalidatePath(returnPath);
 }
 

@@ -30,23 +30,23 @@ model ProviderSettings {
 }
 
 model Region {
-  id        String     @id @default(cuid())
-  name      String
-  code      String     @unique
-  createdAt DateTime   @default(now())
+  id         String     @id @default(cuid())
+  name       String
+  code       String     @unique
+  createdAt  DateTime   @default(now())
   facilities Facility[]
 }
 
 model Facility {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  address   String?
-  timezone  String   @default("UTC")
+  id             String   @id @default(cuid())
+  name           String
+  code           String   @unique
+  address        String?
+  timezone       String   @default("UTC")
   acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
-  regionId  String
-  region    Region   @relation(fields: [regionId], references: [id])
-  createdAt DateTime @default(now())
+  regionId       String
+  region         Region   @relation(fields: [regionId], references: [id])
+  createdAt      DateTime @default(now())
 
   buildings         Building[]
   siteEnrollments   SiteEnrollment[]
@@ -55,6 +55,7 @@ model Facility {
   telemetrySource   TelemetrySource?
   telemetryPoints   TelemetryPoint[]
   documents         Document[]
+  deliveries        Delivery[]
   restrictedUsers   User[]             @relation("UserRestrictedFacility")
 }
 
@@ -94,53 +95,55 @@ model EnterpriseAccount {
   documents       Document[]
   invoices        Invoice[]
   engagementLogs  EngagementLog[]
+  deliveries      Delivery[]
 }
 
 model SiteEnrollment {
-  id                   String   @id @default(cuid())
-  enterpriseAccountId  String
-  enterpriseAccount    EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
-  facilityId           String
-  facility             Facility @relation(fields: [facilityId], references: [id])
-  status               String   @default("Active")
-  spaceRef             String?
-  createdAt            DateTime @default(now())
+  id                  String            @id @default(cuid())
+  enterpriseAccountId String
+  enterpriseAccount   EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
+  facilityId          String
+  facility            Facility          @relation(fields: [facilityId], references: [id])
+  status              String            @default("Active")
+  spaceRef            String?
+  createdAt           DateTime          @default(now())
 
-  visitorRequests  VisitorRequest[]
-  remoteHandsTasks RemoteHandsTask[]
-  tickets          Ticket[]
+  visitorRequests VisitorRequest[]
+  serviceRequests ServiceRequest[]
 
   @@unique([enterpriseAccountId, facilityId])
 }
 
 model User {
-  id                   String   @id @default(cuid())
+  id                   String             @id @default(cuid())
   name                 String
-  email                String   @unique
+  email                String             @unique
   passwordHash         String
   role                 String
   title                String?
   phone                String?
   avatarUrl            String?
-  isActive             Boolean  @default(true)
+  isActive             Boolean            @default(true)
   enterpriseAccountId  String?
   enterpriseAccount    EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
   restrictedFacilityId String?
-  restrictedFacility   Facility? @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
-  createdAt            DateTime @default(now())
+  restrictedFacility   Facility?          @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
+  createdAt            DateTime           @default(now())
 
-  hostedVisitorRequests  VisitorRequest[]    @relation("HostUser")
-  createdVisitorRequests VisitorRequest[]    @relation("CreatedByUser")
-  createdIncidents       Incident[]          @relation("IncidentCreatedBy")
-  incidentUpdates        IncidentUpdate[]
-  createdMaintenance     MaintenanceEvent[]  @relation("MaintenanceCreatedBy")
-  createdTickets         Ticket[]            @relation("TicketCreatedBy")
-  assignedTickets        Ticket[]            @relation("TicketAssignedTo")
-  createdRemoteHands     RemoteHandsTask[]   @relation("RHCreatedBy")
-  assignedRemoteHands    RemoteHandsTask[]   @relation("RHAssignedTechnician")
-  publishedDocuments     Document[]          @relation("DocPublishedBy")
-  engagementLogs         EngagementLog[]     @relation("EngagementRep")
-  notifications          Notification[]
+  hostedVisitorRequests   VisitorRequest[]   @relation("HostUser")
+  createdVisitorRequests  VisitorRequest[]   @relation("CreatedByUser")
+  createdIncidents        Incident[]         @relation("IncidentCreatedBy")
+  incidentUpdates         IncidentUpdate[]
+  uploadedIncidentReports Incident[]         @relation("IncidentReportUploadedBy")
+  createdMaintenance      MaintenanceEvent[] @relation("MaintenanceCreatedBy")
+  createdServiceRequests  ServiceRequest[]   @relation("SRCreatedBy")
+  assignedServiceRequests ServiceRequest[]   @relation("SRAssignedTo")
+  publishedDocuments      Document[]         @relation("DocPublishedBy")
+  engagementLogs          EngagementLog[]    @relation("EngagementRep")
+  notifications           Notification[]
+  createdBlacklistEntries BlacklistEntry[]   @relation("BlacklistCreatedBy")
+  loggedDeliveries        Delivery[]         @relation("DeliveryLoggedBy")
+  receivedDeliveries      Delivery[]         @relation("DeliveryReceivedBy")
 }
 
 // ---------------------------------------------------------------------------
@@ -148,54 +151,95 @@ model User {
 // ---------------------------------------------------------------------------
 
 model VisitorRequest {
-  id               String   @id @default(cuid())
+  id               String         @id @default(cuid())
   siteEnrollmentId String
   siteEnrollment   SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
   buildingId       String?
-  building         Building? @relation(fields: [buildingId], references: [id])
+  building         Building?      @relation(fields: [buildingId], references: [id])
   purpose          String
   visitDate        DateTime
   windowStart      String
   windowEnd        String
-  isGroup          Boolean  @default(false)
-  source           String   @default("Single") // Single/Batch
+  isGroup          Boolean        @default(false)
+  source           String         @default("Single") // Single/Batch
   hostUserId       String?
-  hostUser         User?    @relation("HostUser", fields: [hostUserId], references: [id])
+  hostUser         User?          @relation("HostUser", fields: [hostUserId], references: [id])
   createdById      String
-  createdByUser    User     @relation("CreatedByUser", fields: [createdById], references: [id])
-  acsSyncStatus    String   @default("NotSynced") // NotSynced/Synced/Failed
-  createdAt        DateTime @default(now())
+  createdByUser    User           @relation("CreatedByUser", fields: [createdById], references: [id])
+  acsSyncStatus    String         @default("NotSynced") // NotSynced/Synced/Failed
+  createdAt        DateTime       @default(now())
 
   visitors Visitor[]
   acsLogs  AcsIntegrationLog[]
 }
 
 model Visitor {
-  id               String   @id @default(cuid())
-  visitorRequestId String
-  visitorRequest   VisitorRequest @relation(fields: [visitorRequestId], references: [id])
-  fullName         String
-  idType           String?
-  idNumber         String?
-  company          String?
-  email            String?
-  phone            String?
-  status           String   @default("Pending") // Pending/Approved/Denied/CheckedIn/CheckedOut
-  badgeCode        String?
-  checkedInAt      DateTime?
-  checkedOutAt     DateTime?
-  createdAt        DateTime @default(now())
+  id                String         @id @default(cuid())
+  visitorRequestId  String
+  visitorRequest    VisitorRequest @relation(fields: [visitorRequestId], references: [id])
+  fullName          String
+  idType            String?
+  idNumber          String?
+  company           String?
+  email             String?
+  phone             String?
+  status            String         @default("Pending") // Pending/Blacklisted/Approved/Denied/CheckedIn/CheckedOut
+  badgeCode         String?
+  checkedInAt       DateTime?
+  checkedOutAt      DateTime?
+  verificationToken String         @unique @default(cuid())
+  isBlacklistMatch  Boolean        @default(false)
+  blacklistReason   String?
+  createdAt         DateTime       @default(now())
+}
+
+// Provider-maintained watchlist checked automatically against every incoming
+// visitor (by name and/or ID number) before it reaches the ops approval
+// queue — the "first layer" ahead of manual review.
+model BlacklistEntry {
+  id          String   @id @default(cuid())
+  fullName    String
+  idNumber    String?
+  company     String?
+  reason      String
+  createdById String
+  createdBy   User     @relation("BlacklistCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+// Incoming logistics / courier deliveries — a lighter-weight sibling of
+// visitor management for front-desk/dock traffic that isn't a person visit.
+model Delivery {
+  id                  String             @id @default(cuid())
+  facilityId          String
+  facility            Facility           @relation(fields: [facilityId], references: [id])
+  enterpriseAccountId String?
+  enterpriseAccount   EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  courierName         String
+  trackingNumber      String?
+  description         String
+  recipientName       String?
+  expectedAt          DateTime?
+  status              String             @default("Expected") // Expected/Arrived/Received/Rejected
+  arrivedAt           DateTime?
+  receivedAt          DateTime?
+  receivedById        String?
+  receivedBy          User?              @relation("DeliveryReceivedBy", fields: [receivedById], references: [id])
+  notes               String?
+  createdById         String
+  createdBy           User               @relation("DeliveryLoggedBy", fields: [createdById], references: [id])
+  createdAt           DateTime           @default(now())
 }
 
 model AcsIntegrationLog {
-  id               String   @id @default(cuid())
+  id               String         @id @default(cuid())
   visitorRequestId String
   visitorRequest   VisitorRequest @relation(fields: [visitorRequestId], references: [id])
   endpointUrl      String
   requestPayload   String
   responseStatus   Int
   responseBody     String
-  createdAt        DateTime @default(now())
+  createdAt        DateTime       @default(now())
 }
 
 // ---------------------------------------------------------------------------
@@ -203,21 +247,30 @@ model AcsIntegrationLog {
 // ---------------------------------------------------------------------------
 
 model Incident {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   facilityId        String
-  facility          Facility @relation(fields: [facilityId], references: [id])
+  facility          Facility  @relation(fields: [facilityId], references: [id])
   buildingId        String?
   building          Building? @relation(fields: [buildingId], references: [id])
   title             String
   description       String
-  severity          String   @default("P3") // P1/P2/P3/P4
-  status            String   @default("Investigating") // Investigating/Identified/Monitoring/Resolved
-  isCustomerVisible Boolean  @default(true)
+  category          String    @default("Other") // Electrical/Mechanical/Building/Fire/Security/Network/Other
+  impactedServices  String    @default("[]") // JSON string array, e.g. ["Power","Cooling"] - see lib/constants.ts
+  locationDetail    String? // free-text granular location, e.g. "Floor 2, Server Hall B, Row 12"
+  severity          String    @default("P3") // P1/P2/P3/P4
+  status            String    @default("Investigating") // Investigating/Identified/Monitoring/Resolved
+  isCustomerVisible Boolean   @default(true)
   startedAt         DateTime
   resolvedAt        DateTime?
   createdById       String
-  createdByUser     User     @relation("IncidentCreatedBy", fields: [createdById], references: [id])
-  createdAt         DateTime @default(now())
+  createdByUser     User      @relation("IncidentCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime  @default(now())
+
+  reportFileName     String?
+  reportStorageKey   String?
+  reportUploadedById String?
+  reportUploadedBy   User?     @relation("IncidentReportUploadedBy", fields: [reportUploadedById], references: [id])
+  reportUploadedAt   DateTime?
 
   updates IncidentUpdate[]
 }
@@ -233,78 +286,85 @@ model IncidentUpdate {
 }
 
 model MaintenanceEvent {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   facilityId    String
-  facility      Facility @relation(fields: [facilityId], references: [id])
+  facility      Facility  @relation(fields: [facilityId], references: [id])
   buildingId    String?
   building      Building? @relation(fields: [buildingId], references: [id])
   title         String
   description   String
-  maintType     String   @default("Planned") // Planned/Emergency
-  impact        String   @default("NoImpact") // NoImpact/RedundancyReduced/FullOutage
+  maintType     String    @default("Planned") // Planned/Emergency
+  impact        String    @default("NoImpact") // NoImpact/RedundancyReduced/FullOutage
   startAt       DateTime
   endAt         DateTime
-  status        String   @default("Scheduled") // Scheduled/InProgress/Completed/Cancelled
+  status        String    @default("Scheduled") // Scheduled/InProgress/Completed/Cancelled
   createdById   String
-  createdByUser User     @relation("MaintenanceCreatedBy", fields: [createdById], references: [id])
-  createdAt     DateTime @default(now())
+  createdByUser User      @relation("MaintenanceCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
 
   notifications MaintenanceNotification[]
 }
 
 model MaintenanceNotification {
-  id                  String   @id @default(cuid())
-  maintenanceEventId  String
-  maintenanceEvent    MaintenanceEvent @relation(fields: [maintenanceEventId], references: [id])
-  channel             String   @default("IN_APP") // IN_APP/EMAIL
-  audience            String
-  message             String
-  sentAt              DateTime @default(now())
+  id                 String           @id @default(cuid())
+  maintenanceEventId String
+  maintenanceEvent   MaintenanceEvent @relation(fields: [maintenanceEventId], references: [id])
+  channel            String           @default("IN_APP") // IN_APP/EMAIL
+  audience           String
+  message            String
+  sentAt             DateTime         @default(now())
 }
 
 // ---------------------------------------------------------------------------
-// Tickets (Complaint/RFI/Service Request) + Remote/Smart Hands
+// Service Requests — the single unified module for Complaints, RFIs, general
+// service requests (site walk/escort, meetings, etc.) AND Remote/Smart Hands.
+// Remote Hands is a *category* here, not a separate entity: it shares the
+// same queue, assignment and status lifecycle as every other request, and
+// only uses the remote-hands-specific fields (assetRef, taskType, time
+// tracking, billable minutes, completion proof, sign-off) when relevant.
 // ---------------------------------------------------------------------------
 
-model Ticket {
-  id               String   @id @default(cuid())
+model ServiceRequest {
+  id               String         @id @default(cuid())
   siteEnrollmentId String
   siteEnrollment   SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
-  category         String   // Complaint/RFI/ServiceRequest
-  subject          String
-  description      String
-  status           String   @default("Submitted") // Submitted/InProgress/Done
-  priority         String   @default("Normal") // Low/Normal/High/Urgent
-  createdById      String
-  createdByUser    User     @relation("TicketCreatedBy", fields: [createdById], references: [id])
-  assignedToId     String?
-  assignedToUser   User?    @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
-  createdAt        DateTime @default(now())
-  resolvedAt       DateTime?
-  csatRating       String?
-}
 
-model RemoteHandsTask {
-  id                   String   @id @default(cuid())
-  siteEnrollmentId     String
-  siteEnrollment       SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
-  taskType             String
-  assetRef             String
-  description          String
-  requestedWindowStart DateTime?
-  requestedWindowEnd   DateTime?
-  status               String   @default("Submitted") // Submitted/Accepted/InProgress/Completed/Cancelled
-  createdById          String
-  createdByUser        User     @relation("RHCreatedBy", fields: [createdById], references: [id])
-  assignedTechnicianId String?
-  assignedTechnician   User?    @relation("RHAssignedTechnician", fields: [assignedTechnicianId], references: [id])
-  startedAt            DateTime?
-  completedAt          DateTime?
-  billableMinutes      Int?
-  completionNotes      String?
-  completionPhotoUrl   String?
-  csatRating           String?
-  createdAt            DateTime @default(now())
+  category    String // Complaint/RFI/RemoteHands/SiteWalkEscort/GeneralMeeting/Other
+  subject     String
+  description String
+  priority    String @default("Normal") // Low/Normal/High/Urgent
+  status      String @default("Submitted") // Submitted/Accepted/InProgress/Done/Cancelled
+
+  createdById    String
+  createdByUser  User    @relation("SRCreatedBy", fields: [createdById], references: [id])
+  assignedToId   String?
+  assignedToUser User?   @relation("SRAssignedTo", fields: [assignedToId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  // Scheduling — used by SiteWalkEscort/GeneralMeeting (a calendar entry to
+  // export to Outlook) and as the requested window for RemoteHands.
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+
+  // Remote / Smart Hands fields (only populated when category = RemoteHands)
+  taskType           String?
+  assetRef           String?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  billableMinutes    Int?
+  completionNotes    String?
+  completionPhotoUrl String?
+
+  // Customer sign-off / acceptance (captured once a RemoteHands request is
+  // Done) — the generated PDF doubles as the document attached for billing.
+  signOffName          String?
+  signOffTitle         String?
+  signOffSignedAt      DateTime?
+  signOffPdfStorageKey String?
+
+  csatRating String?
 }
 
 // ---------------------------------------------------------------------------
@@ -321,12 +381,12 @@ model TelemetrySource {
 }
 
 model TelemetryPoint {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   facilityId String
-  facility   Facility @relation(fields: [facilityId], references: [id])
+  facility   Facility  @relation(fields: [facilityId], references: [id])
   buildingId String?
   building   Building? @relation(fields: [buildingId], references: [id])
-  metric     String   // TEMP_C/HUMIDITY_PCT/POWER_KW/PUE
+  metric     String // TEMP_C/HUMIDITY_PCT/POWER_KW/PUE
   value      Float
   recordedAt DateTime
 
@@ -338,20 +398,20 @@ model TelemetryPoint {
 // ---------------------------------------------------------------------------
 
 model Document {
-  id                  String   @id @default(cuid())
+  id                  String             @id @default(cuid())
   enterpriseAccountId String?
   enterpriseAccount   EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
   facilityId          String?
-  facility            Facility? @relation(fields: [facilityId], references: [id])
+  facility            Facility?          @relation(fields: [facilityId], references: [id])
   title               String
-  category            String   // SLAReport/Invoice/Compliance/Contract/Other
+  category            String // SLAReport/Invoice/Compliance/Contract/SiteIntroduction/TermsConditions/Other
   fileName            String
   storageKey          String
   mimeType            String
   fileSizeKb          Int
   publishedById       String
-  publishedByUser     User     @relation("DocPublishedBy", fields: [publishedById], references: [id])
-  publishedAt         DateTime @default(now())
+  publishedByUser     User               @relation("DocPublishedBy", fields: [publishedById], references: [id])
+  publishedAt         DateTime           @default(now())
 }
 
 // ---------------------------------------------------------------------------
@@ -359,21 +419,21 @@ model Document {
 // ---------------------------------------------------------------------------
 
 model Invoice {
-  id                  String   @id @default(cuid())
+  id                  String            @id @default(cuid())
   enterpriseAccountId String
   enterpriseAccount   EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
-  invoiceNumber       String   @unique
+  invoiceNumber       String            @unique
   periodStart         DateTime
   periodEnd           DateTime
   issueDate           DateTime
   dueDate             DateTime
-  status              String   @default("Draft") // Draft/Sent/Paid/Overdue
-  currency            String   @default("USD")
+  status              String            @default("Draft") // Draft/Sent/Paid/Overdue
+  currency            String            @default("USD")
   subtotal            Float
   tax                 Float
   total               Float
   notes               String?
-  createdAt           DateTime @default(now())
+  createdAt           DateTime          @default(now())
 
   lineItems InvoiceLineItem[]
 }
@@ -383,27 +443,26 @@ model InvoiceLineItem {
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id])
   description String
-  category    String  // Space/Power/CrossConnect/RemoteHands/Other
+  category    String // Space/Power/CrossConnect/RemoteHands/Other
   quantity    Float   @default(1)
   unitPrice   Float
   amount      Float
 }
 
 // ---------------------------------------------------------------------------
-// Internal CS engagement + team performance (computed from this + tickets/RH)
+// Internal CS engagement + team performance (computed from this + ServiceRequest)
 // ---------------------------------------------------------------------------
 
 model EngagementLog {
-  id                      String   @id @default(cuid())
-  enterpriseAccountId     String
-  enterpriseAccount       EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
-  repId                   String
-  rep                     User     @relation("EngagementRep", fields: [repId], references: [id])
-  type                    String   // call/email/meeting/site_visit/ticket/remote_hands
-  notes                   String
-  occurredAt              DateTime @default(now())
-  linkedTicketId          String?
-  linkedRemoteHandsTaskId String?
+  id                     String            @id @default(cuid())
+  enterpriseAccountId    String
+  enterpriseAccount      EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
+  repId                  String
+  rep                    User              @relation("EngagementRep", fields: [repId], references: [id])
+  type                   String // call/email/meeting/site_visit/service_request
+  notes                  String
+  occurredAt             DateTime          @default(now())
+  linkedServiceRequestId String?
 }
 
 model Notification {
@@ -412,7 +471,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   title     String
   body      String
-  category  String   // incident/maintenance/visitor/ticket/remote_hands/billing
+  category  String // incident/maintenance/visitor/service_request/billing/delivery
   linkUrl   String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())

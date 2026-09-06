@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Siren, CalendarClock, Wrench, Receipt, Ticket } from "lucide-react";
+import { Users, Siren, CalendarClock, Wrench, Receipt } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,18 +13,17 @@ export default async function PortalDashboardPage() {
   const facilityIds = await getCustomerFacilityIds(user);
   const accountId = user.enterpriseAccountId;
 
-  const [openTickets, pendingVisitors, activeIncidents, upcomingMaintenance, openRemoteHands, invoices, recentNotifications] =
+  const [openServiceRequests, pendingVisitors, activeIncidents, upcomingMaintenance, invoices, recentNotifications] =
     await Promise.all([
-      prisma.ticket.count({ where: { siteEnrollment: { enterpriseAccountId: accountId }, status: { not: "Done" } } }),
+      prisma.serviceRequest.count({
+        where: { siteEnrollment: { enterpriseAccountId: accountId }, status: { notIn: ["Done", "Cancelled"] } },
+      }),
       prisma.visitor.count({
         where: { status: "Pending", visitorRequest: { siteEnrollment: { enterpriseAccountId: accountId } } },
       }),
       prisma.incident.count({ where: { facilityId: { in: facilityIds }, isCustomerVisible: true, status: { not: "Resolved" } } }),
       prisma.maintenanceEvent.count({
         where: { facilityId: { in: facilityIds }, status: { in: ["Scheduled", "InProgress"] } },
-      }),
-      prisma.remoteHandsTask.count({
-        where: { siteEnrollment: { enterpriseAccountId: accountId }, status: { notIn: ["Completed", "Cancelled"] } },
       }),
       prisma.invoice.findMany({ where: { enterpriseAccountId: accountId, status: { in: ["Sent", "Overdue"] } } }),
       prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 5 }),
@@ -35,12 +34,11 @@ export default async function PortalDashboardPage() {
   return (
     <div>
       <PageHeader title="Dashboard" description="Everything across your sites, in one place." />
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatTile label="Open tickets" value={openTickets} icon={Ticket} tone="blue" />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <StatTile label="Open service requests" value={openServiceRequests} icon={Wrench} tone="blue" />
         <StatTile label="Pending visitors" value={pendingVisitors} icon={Users} tone="amber" />
         <StatTile label="Active incidents" value={activeIncidents} icon={Siren} tone={activeIncidents ? "red" : "slate"} />
         <StatTile label="Upcoming maintenance" value={upcomingMaintenance} icon={CalendarClock} tone="slate" />
-        <StatTile label="Open remote hands" value={openRemoteHands} icon={Wrench} tone="blue" />
         <StatTile label="Outstanding balance" value={formatMoney(outstandingTotal)} icon={Receipt} tone={outstandingTotal ? "amber" : "slate"} />
       </div>
 
@@ -52,8 +50,8 @@ export default async function PortalDashboardPage() {
           <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {[
               { href: "/portal/visitors/new", label: "Register a visitor" },
-              { href: "/portal/tickets/new", label: "Raise a ticket" },
-              { href: "/portal/remote-hands/new", label: "Request remote hands" },
+              { href: "/portal/deliveries/new", label: "Expect a delivery" },
+              { href: "/portal/service-requests/new", label: "New service request" },
               { href: "/portal/documents", label: "Download Center" },
               { href: "/portal/billing", label: "View invoices" },
               { href: "/portal/telemetry", label: "BMS telemetry" },

@@ -33,6 +33,16 @@ export async function requireSuperAdmin() {
   return user;
 }
 
+// Blacklist management is delegated to Security/Ops day-to-day, not
+// restricted to the Super Admin like the rest of /ops/admin — must match
+// the role check in actions/blacklist.ts.
+export async function requireBlacklistManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SUPER_ADMIN, ROLES.PROVIDER_SECURITY, ROLES.PROVIDER_OPS];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
 export async function getCurrentUserRecord() {
   const user = await requireUser();
   return prisma.user.findUniqueOrThrow({

@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFacilityIds, documentVisibilityWhere } from "@/lib/scope";
-import { formatDate, humanize } from "@/lib/utils";
-import { DOCUMENT_CATEGORIES } from "@/lib/constants";
+import { formatDate } from "@/lib/utils";
+import { DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
 
 export default async function PortalDocumentsPage({ searchParams }: { searchParams: { category?: string } }) {
   const user = await requireCustomerUser();
@@ -36,7 +36,7 @@ export default async function PortalDocumentsPage({ searchParams }: { searchPara
             href={`/portal/documents?category=${c}`}
             className={`rounded-full px-3 py-1 text-xs font-medium ${searchParams.category === c ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
           >
-            {humanize(c)}
+            {DOCUMENT_CATEGORY_LABELS[c] ?? c}
           </a>
         ))}
       </form>
@@ -61,7 +61,7 @@ export default async function PortalDocumentsPage({ searchParams }: { searchPara
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <Badge>{humanize(doc.category)}</Badge>
+                <Badge>{DOCUMENT_CATEGORY_LABELS[doc.category] ?? doc.category}</Badge>
                 <a
                   href={`/api/documents/${doc.id}`}
                   className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"

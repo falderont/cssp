@@ -2,10 +2,11 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { makeSimplePdf, makePdfWithImage } from "../src/lib/pdf";
+import { saveGeneratedFile } from "../src/lib/storage";
 
 const prisma = new PrismaClient();
 
-const STORAGE_ROOT = path.join(process.cwd(), "storage");
 const PUBLIC_ROOT = path.join(process.cwd(), "public");
 const NOW = new Date();
 const DEFAULT_PASSWORD = "password123";
@@ -21,68 +22,36 @@ async function hash(pw: string) {
   return bcrypt.hash(pw, 10);
 }
 
-// --- Minimal, dependency-free PDF generator for seeded demo documents ------
-
-function escapePdfText(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-}
-
-function makeSimplePdf(title: string, lines: string[]): Buffer {
-  const allLines = [title, "", ...lines];
-  const streamParts: string[] = ["BT", "/F1 16 Tf", "50 760 Td"];
-  allLines.forEach((line, i) => {
-    if (i === 1) streamParts.push("/F1 11 Tf");
-    if (i > 0) streamParts.push("0 -20 Td");
-    streamParts.push(`(${escapePdfText(line)}) Tj`);
-  });
-  streamParts.push("ET");
-  const stream = streamParts.join("\n");
-
-  const bufferParts: string[] = ["%PDF-1.4\n"];
-  const offsets: number[] = [];
-
-  function addObj(index: number, body: string) {
-    offsets[index] = Buffer.byteLength(bufferParts.join(""), "latin1");
-    bufferParts.push(`${index} 0 obj\n${body}\nendobj\n`);
-  }
-
-  addObj(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  addObj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  addObj(
-    3,
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
-  );
-  addObj(4, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-  addObj(5, `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`);
-
-  const xrefOffset = Buffer.byteLength(bufferParts.join(""), "latin1");
-  let xref = "xref\n0 6\n0000000000 65535 f \n";
-  for (let i = 1; i <= 5; i++) xref += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-  bufferParts.push(xref);
-  bufferParts.push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
-
-  return Buffer.from(bufferParts.join(""), "latin1");
-}
-
 // A 1x1 white pixel — just enough to be a valid, renderable JPEG for demo
-// "completion photo" records without shipping a binary asset in the repo.
+// "completion photo" and "signature" records without shipping a binary
+// asset in the repo.
 const TINY_JPEG_BASE64 =
   "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=";
 
 async function saveDocumentPdf(subpath: string, title: string, lines: string[]) {
-  const full = path.join(STORAGE_ROOT, "documents", subpath);
-  await mkdir(path.dirname(full), { recursive: true });
   const pdf = makeSimplePdf(title, lines);
-  await writeFile(full, pdf);
-  return { storageKey: `documents/${subpath}`, fileSizeKb: Math.max(1, Math.round(pdf.byteLength / 1024)) };
+  const storageKey = await saveGeneratedFile(pdf, `documents/${subpath}`);
+  return { storageKey, fileSizeKb: Math.max(1, Math.round(pdf.byteLength / 1024)) };
 }
 
 async function saveCompletionPhoto(subpath: string) {
-  const full = path.join(STORAGE_ROOT, "photos", subpath);
-  await mkdir(path.dirname(full), { recursive: true });
   const buf = Buffer.from(TINY_JPEG_BASE64, "base64");
-  await writeFile(full, buf);
-  return `photos/${subpath}`;
+  return saveGeneratedFile(buf, `photos/${subpath}`);
+}
+
+async function saveIncidentReport(subpath: string, title: string, lines: string[]) {
+  const pdf = makeSimplePdf(title, lines);
+  const storageKey = await saveGeneratedFile(pdf, `incident-reports/${subpath}`);
+  return { storageKey, fileSizeKb: Math.max(1, Math.round(pdf.byteLength / 1024)) };
+}
+
+async function saveSignOffPdf(subpath: string, title: string, lines: string[]) {
+  const pdf = makePdfWithImage(title, lines, {
+    jpegBuffer: Buffer.from(TINY_JPEG_BASE64, "base64"),
+    widthPx: 400,
+    heightPx: 140,
+  });
+  return saveGeneratedFile(pdf, `signoffs/${subpath}`);
 }
 
 async function saveLogo() {
@@ -129,8 +98,8 @@ async function main() {
     prisma.invoiceLineItem.deleteMany(),
     prisma.invoice.deleteMany(),
     prisma.document.deleteMany(),
-    prisma.remoteHandsTask.deleteMany(),
-    prisma.ticket.deleteMany(),
+    prisma.serviceRequest.deleteMany(),
+    prisma.delivery.deleteMany(),
     prisma.maintenanceNotification.deleteMany(),
     prisma.maintenanceEvent.deleteMany(),
     prisma.incidentUpdate.deleteMany(),
@@ -138,6 +107,7 @@ async function main() {
     prisma.acsIntegrationLog.deleteMany(),
     prisma.visitor.deleteMany(),
     prisma.visitorRequest.deleteMany(),
+    prisma.blacklistEntry.deleteMany(),
     prisma.telemetryPoint.deleteMany(),
     prisma.telemetrySource.deleteMany(),
     prisma.siteEnrollment.deleteMany(),
@@ -191,6 +161,9 @@ async function main() {
   ]);
   const sby01A = await prisma.building.create({ data: { facilityId: sby01.id, name: "Main Hall", code: "MH" } });
   await prisma.building.create({ data: { facilityId: sgp01.id, name: "Main Hall", code: "MH" } });
+  void jkt01A;
+  void jkt01B;
+  void sby01A;
 
   console.log("Telemetry…");
   await prisma.telemetrySource.create({ data: { facilityId: btm02.id, vendor: "Schneider EcoStruxure", status: "Connected", lastSyncAt: NOW } });
@@ -221,11 +194,13 @@ async function main() {
   const enrNusantaraSby = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: nusantara.id, facilityId: sby01.id, spaceRef: "Racks A02–A04" } });
   const enrTrisulaSby = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: trisula.id, facilityId: sby01.id, spaceRef: "Rack D11" } });
   const enrHorizonSgp = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: horizon.id, facilityId: sgp01.id, spaceRef: "Suite 2" } });
+  void enrMeridianJkt;
+  void enrNusantaraSby;
 
   console.log("Users…");
   const pw = await hash(DEFAULT_PASSWORD);
   const admin = await prisma.user.create({ data: { name: "Andra Wicaksono", email: "admin@aurorapdc.com", passwordHash: pw, role: "SUPER_ADMIN", title: "Platform Administrator" } });
-  const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: "PROVIDER_OPS", title: "NOC Engineer" } });
+  const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: "PROVIDER_OPS", title: "NOC Engineer / Building Service Manager" } });
   const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: "PROVIDER_SECURITY", title: "Security Lead" } });
   const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: "PROVIDER_CS_MANAGER", title: "CS Manager" } });
   const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: "PROVIDER_CS", title: "Customer Success Rep" } });
@@ -252,6 +227,25 @@ async function main() {
   const michelle = await prisma.user.create({
     data: { name: "Michelle Tan", email: "michelle.tan@horizonretail.sg", passwordHash: pw, role: "CUSTOMER_ADMIN", title: "Regional IT Director", enterpriseAccountId: horizon.id },
   });
+  void sitiRahayu;
+
+  console.log("Blacklist…");
+  await prisma.blacklistEntry.create({
+    data: {
+      fullName: "Rudi Hartono",
+      reason: "Previous unauthorized access attempt at BTM-02 during a contractor visit — flagged by security.",
+      createdById: security.id,
+    },
+  });
+  await prisma.blacklistEntry.create({
+    data: {
+      fullName: "Joko Susilo",
+      idNumber: "3201999999999999",
+      company: "Unlisted Vendor",
+      reason: "Repeated safety-procedure violations during previous site visits.",
+      createdById: security.id,
+    },
+  });
 
   console.log("Visitors…");
   const vr1 = await prisma.visitorRequest.create({
@@ -274,6 +268,9 @@ async function main() {
     data: { visitorRequestId: vr1.id, endpointUrl: "http://localhost:3000/api/integrations/acs/mock", requestPayload: JSON.stringify({ facilityCode: "BTM-02", visitors: 1 }), responseStatus: 200, responseBody: JSON.stringify({ status: "GRANTED" }) },
   });
 
+  // This batch upload deliberately includes a blacklisted name so the
+  // "first layer" screening has something real to demo — Rudi Hartono
+  // above is flagged automatically, the other two are ordinary Pending rows.
   const vr2 = await prisma.visitorRequest.create({
     data: {
       siteEnrollmentId: enrMeridianBtm.id,
@@ -289,7 +286,13 @@ async function main() {
       acsSyncStatus: "NotSynced",
       visitors: {
         create: [
-          { fullName: "Rudi Hartono", company: "Cabling Contractor Indonesia", status: "Pending" },
+          {
+            fullName: "Rudi Hartono",
+            company: "Cabling Contractor Indonesia",
+            status: "Blacklisted",
+            isBlacklistMatch: true,
+            blacklistReason: "Previous unauthorized access attempt at BTM-02 during a contractor visit — flagged by security.",
+          },
           { fullName: "Bayu Setiadi", company: "Cabling Contractor Indonesia", status: "Pending" },
           { fullName: "Eko Prabowo", company: "Cabling Contractor Indonesia", status: "Pending" },
         ],
@@ -332,6 +335,57 @@ async function main() {
     },
   });
 
+  console.log("Deliveries…");
+  await prisma.delivery.create({
+    data: {
+      facilityId: btm02.id,
+      enterpriseAccountId: meridian.id,
+      courierName: "DHL Express",
+      trackingNumber: "DHL8827301",
+      description: "Replacement PDU unit",
+      status: "Received",
+      arrivedAt: daysFromNow(-2),
+      receivedAt: daysFromNow(-2),
+      receivedById: security.id,
+      createdById: noc.id,
+    },
+  });
+  await prisma.delivery.create({
+    data: {
+      facilityId: jkt01.id,
+      enterpriseAccountId: nusantara.id,
+      courierName: "JNE Logistics",
+      trackingNumber: "JNE5591204",
+      description: "Server chassis (3x) for Rack B08 expansion",
+      status: "Arrived",
+      arrivedAt: hoursFromNow(-5),
+      createdById: noc.id,
+    },
+  });
+  await prisma.delivery.create({
+    data: {
+      facilityId: btm02.id,
+      enterpriseAccountId: meridian.id,
+      courierName: "Internal fleet",
+      description: "Networking cable spools",
+      status: "Expected",
+      expectedAt: daysFromNow(2),
+      recipientName: "Dita Ayu",
+      createdById: ditaAyu.id,
+    },
+  });
+  await prisma.delivery.create({
+    data: {
+      facilityId: sby01.id,
+      enterpriseAccountId: trisula.id,
+      courierName: "Grab Express",
+      description: "Confidential document pickup",
+      status: "Rejected",
+      notes: "Wrong recipient address on the waybill — returned to sender.",
+      createdById: security.id,
+    },
+  });
+
   console.log("Incidents…");
   const inc1 = await prisma.incident.create({
     data: {
@@ -339,6 +393,9 @@ async function main() {
       buildingId: btm02B.id,
       title: "Power distribution event",
       description: "A PDU on the B-side power feed tripped during routine load balancing. Facility is running normally on the A-side feed; no customer impact expected.",
+      category: "Electrical",
+      impactedServices: JSON.stringify(["Power"]),
+      locationDetail: "Building B, PDU B-3",
       severity: "P2",
       status: "Monitoring",
       startedAt: hoursFromNow(-30),
@@ -354,16 +411,35 @@ async function main() {
   });
   void inc1;
 
+  const networkReport = await saveIncidentReport(
+    "network-firmware-incident-jkt01.pdf",
+    "Incident Closure Report — Network Switch Firmware Update",
+    [
+      "Facility: JKT-01 — Jakarta",
+      "Severity: P3",
+      "Root cause: firmware regression on core switch redundant-uplink negotiation.",
+      "Resolution: rolled back to prior firmware version; redundant uplink restored.",
+      "Customer impact: none reported — automatic failover to secondary path.",
+      "Prepared by: NOC Engineering, exported from DCIM incident log.",
+    ]
+  );
   await prisma.incident.create({
     data: {
       facilityId: jkt01.id,
       title: "Network switch firmware update issue",
       description: "A firmware update on a core switch caused a brief loss of redundant uplink. Traffic failed over to the secondary path automatically.",
+      category: "Network",
+      impactedServices: JSON.stringify(["Network"]),
+      locationDetail: "Core network room",
       severity: "P3",
       status: "Resolved",
       startedAt: daysFromNow(-6),
       resolvedAt: daysFromNow(-6),
       createdById: noc.id,
+      reportFileName: "Network-Firmware-Incident-JKT01.pdf",
+      reportStorageKey: networkReport.storageKey,
+      reportUploadedById: noc.id,
+      reportUploadedAt: daysFromNow(-6),
       updates: { create: [{ message: "Rolled back firmware; redundant uplink restored. No customer-reported downtime.", createdById: noc.id, createdAt: daysFromNow(-6) }] },
     },
   });
@@ -373,6 +449,9 @@ async function main() {
       facilityId: sby01.id,
       title: "Fire suppression system inspection alarm",
       description: "A routine fire suppression inspection triggered a false alarm on Floor 2. No suppression discharge occurred.",
+      category: "Fire",
+      impactedServices: JSON.stringify(["Fire Suppression"]),
+      locationDetail: "Floor 2",
       severity: "P4",
       status: "Resolved",
       startedAt: daysFromNow(-14),
@@ -387,6 +466,9 @@ async function main() {
       facilityId: sgp01.id,
       title: "Cooling unit alarm — Building Main Hall",
       description: "One of four CRAC units flagged a high-pressure alarm. Remaining units are covering the load with no temperature deviation.",
+      category: "Mechanical",
+      impactedServices: JSON.stringify(["Cooling"]),
+      locationDetail: "Main Hall, CRAC-04",
       severity: "P3",
       status: "Investigating",
       startedAt: hoursFromNow(-3),
@@ -458,8 +540,8 @@ async function main() {
     },
   });
 
-  console.log("Tickets…");
-  const t1 = await prisma.ticket.create({
+  console.log("Service requests…");
+  const sr1 = await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrMeridianBtm.id,
       category: "Complaint",
@@ -471,9 +553,9 @@ async function main() {
       assignedToId: csManager.id,
     },
   });
-  void t1;
+  void sr1;
 
-  await prisma.ticket.create({
+  await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrMeridianBtm.id,
       category: "RFI",
@@ -485,10 +567,10 @@ async function main() {
     },
   });
 
-  const t3 = await prisma.ticket.create({
+  const sr3 = await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrMeridianBtm.id,
-      category: "ServiceRequest",
+      category: "Other",
       subject: "New cross-connect to ISP carrier room",
       description: "Please provision a new cross-connect from Cage 7 to the meet-me room for our secondary ISP.",
       status: "Done",
@@ -500,10 +582,10 @@ async function main() {
     },
   });
 
-  const t4 = await prisma.ticket.create({
+  const sr4 = await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrNusantaraJkt.id,
-      category: "ServiceRequest",
+      category: "Other",
       subject: "Power draw report request",
       description: "Please send our current power draw report for the last billing cycle.",
       status: "Done",
@@ -515,7 +597,7 @@ async function main() {
     },
   });
 
-  await prisma.ticket.create({
+  await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrTrisulaSby.id,
       category: "Complaint",
@@ -527,7 +609,7 @@ async function main() {
     },
   });
 
-  await prisma.ticket.create({
+  await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrHorizonSgp.id,
       category: "RFI",
@@ -540,103 +622,159 @@ async function main() {
     },
   });
 
-  // Mirror the app's auto-logging behavior for tickets resolved during seeding.
-  for (const t of [t3, t4]) {
-    await prisma.engagementLog.create({
-      data: {
-        enterpriseAccountId: t.id === t3.id ? meridian.id : nusantara.id,
-        repId: t.assignedToId!,
-        type: "ticket",
-        notes: `Auto-logged from resolved ticket "${t.subject}".`,
-        linkedTicketId: t.id,
-        occurredAt: t.resolvedAt ?? NOW,
-      },
-    });
-  }
-
-  console.log("Remote / smart hands…");
-  const rh1 = await prisma.remoteHandsTask.create({
+  await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrMeridianBtm.id,
+      category: "SiteWalkEscort",
+      subject: "Escort for auditor site walk",
+      description: "Our compliance auditor needs an escorted walk-through of Cage 7 and the shared corridor.",
+      status: "Accepted",
+      priority: "Normal",
+      createdById: ditaAyu.id,
+      assignedToId: security.id,
+      scheduledStart: daysFromNow(4.4),
+      scheduledEnd: daysFromNow(4.5),
+    },
+  });
+
+  await prisma.serviceRequest.create({
+    data: {
+      siteEnrollmentId: enrNusantaraJkt.id,
+      category: "GeneralMeeting",
+      subject: "Quarterly business review",
+      description: "Quarterly business review — capacity roadmap and SLA performance.",
+      status: "Submitted",
+      priority: "Normal",
+      createdById: rinaSaputri.id,
+      scheduledStart: daysFromNow(10.6),
+      scheduledEnd: daysFromNow(10.7),
+    },
+  });
+
+  console.log("Remote / smart hands (a Service Request category)…");
+  const rh1 = await prisma.serviceRequest.create({
+    data: {
+      siteEnrollmentId: enrMeridianBtm.id,
+      category: "RemoteHands",
       taskType: "PowerCycle",
       assetRef: "Rack C14 — Switch SW-C14-02",
+      subject: "Power-cycle unresponsive switch",
       description: "Please power-cycle the top-of-rack switch — it's unresponsive to ping but shows link lights.",
       status: "InProgress",
+      priority: "Urgent",
       createdById: ditaAyu.id,
-      assignedTechnicianId: tech.id,
+      assignedToId: tech.id,
       startedAt: hoursFromNow(-0.3),
     },
   });
   void rh1;
 
   const rh2Photo = await saveCompletionPhoto("rh-112-inspection.jpg");
-  const rh2 = await prisma.remoteHandsTask.create({
+  const rh2SignOffKey = await saveSignOffPdf(
+    "rh-112-signoff.pdf",
+    "Remote Hands — Sign-off / Acceptance Certificate",
+    [
+      "Tenant: Meridian Logistics",
+      "Facility: BTM-02 — Batam",
+      "Task: Visual Inspection",
+      "Asset / rack: Cage 7 — patch cabling",
+      "Description: Routine visual check on patch cable dressing in Cage 7 ahead of next week's audit.",
+      "Completion notes: All patch cables secure, no visible wear. No action needed.",
+      "Billable minutes: 18",
+      "",
+      "Customer acceptance:",
+      "Signed by: Dita Ayu",
+      "Title: IT Infrastructure Manager",
+      `Date: ${daysFromNow(-7).toLocaleString()}`,
+    ]
+  );
+  const rh2 = await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrMeridianBtm.id,
+      category: "RemoteHands",
       taskType: "VisualInspection",
       assetRef: "Cage 7 — patch cabling",
+      subject: "Visual inspection ahead of audit",
       description: "Routine visual check on patch cable dressing in Cage 7 ahead of next week's audit.",
-      status: "Completed",
+      status: "Done",
+      priority: "Normal",
       createdById: ditaAyu.id,
-      assignedTechnicianId: tech.id,
+      assignedToId: tech.id,
       startedAt: daysFromNow(-7),
       completedAt: daysFromNow(-7),
+      resolvedAt: daysFromNow(-7),
       billableMinutes: 18,
       completionNotes: "All patch cables secure, no visible wear. No action needed.",
       completionPhotoUrl: rh2Photo,
       csatRating: "up",
+      signOffName: "Dita Ayu",
+      signOffTitle: "IT Infrastructure Manager",
+      signOffSignedAt: daysFromNow(-7),
+      signOffPdfStorageKey: rh2SignOffKey,
     },
   });
 
-  const rh3 = await prisma.remoteHandsTask.create({
+  // Deliberately left without a sign-off yet, so logging in as Nusantara
+  // shows the live "sign here" flow rather than only the completed state.
+  const rh3 = await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrNusantaraJkt.id,
+      category: "RemoteHands",
       taskType: "MountUnmountHardware",
       assetRef: "Rack B08",
+      subject: "Mount replacement server",
       description: "Mount replacement 1U server in Rack B08, decommission the old unit.",
-      status: "Completed",
+      status: "Done",
+      priority: "Normal",
       createdById: rinaSaputri.id,
-      assignedTechnicianId: tech2.id,
+      assignedToId: tech2.id,
       startedAt: daysFromNow(-15),
       completedAt: daysFromNow(-15),
+      resolvedAt: daysFromNow(-15),
       billableMinutes: 42,
       completionNotes: "New unit racked and cabled per diagram; old unit staged for pickup.",
-      csatRating: "up",
     },
   });
 
-  await prisma.remoteHandsTask.create({
+  await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrTrisulaSby.id,
+      category: "RemoteHands",
       taskType: "KVMConsoleAccess",
       assetRef: "Rack D11 — Server 3",
+      subject: "Temporary KVM console access",
       description: "Need temporary KVM console access to recover a server that failed to boot after a patch.",
       status: "Accepted",
+      priority: "High",
       createdById: hendra.id,
-      assignedTechnicianId: tech.id,
+      assignedToId: tech.id,
     },
   });
 
-  await prisma.remoteHandsTask.create({
+  await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: enrHorizonSgp.id,
+      category: "RemoteHands",
       taskType: "CablePatch",
       assetRef: "Suite 2 — Meet-me room",
+      subject: "New cross-connect patch",
       description: "Patch a new cross-connect from our suite to Provider X's meet-me room panel.",
       status: "Submitted",
+      priority: "Normal",
       createdById: michelle.id,
     },
   });
 
-  for (const t of [rh2, rh3]) {
+  // Mirror the app's auto-logging behavior for requests resolved during seeding.
+  for (const sr of [sr3, sr4, rh2, rh3]) {
     await prisma.engagementLog.create({
       data: {
-        enterpriseAccountId: t.id === rh2.id ? meridian.id : nusantara.id,
-        repId: t.assignedTechnicianId!,
-        type: "remote_hands",
-        notes: `Completed remote hands task: ${t.taskType} — ${t.assetRef} (${t.billableMinutes} billable min).`,
-        linkedRemoteHandsTaskId: t.id,
-        occurredAt: t.completedAt ?? NOW,
+        enterpriseAccountId: sr.id === sr4.id || sr.id === rh3.id ? nusantara.id : meridian.id,
+        repId: sr.assignedToId!,
+        type: "service_request",
+        notes: `Auto-logged from completed request "${sr.subject}".`,
+        linkedServiceRequestId: sr.id,
+        occurredAt: sr.resolvedAt ?? NOW,
       },
     });
   }
@@ -665,19 +803,66 @@ async function main() {
     data: { title: "August 2026 SLA & Uptime Report", category: "SLAReport", enterpriseAccountId: meridian.id, facilityId: btm02.id, fileName: "SLA-Report-Aug2026-Meridian.pdf", storageKey: slaMeridian.storageKey, mimeType: "application/pdf", fileSizeKb: slaMeridian.fileSizeKb, publishedById: csManager.id, publishedAt: daysFromNow(-5) },
   });
 
-  const contractNusantara = await saveDocumentPdf(
-    "msa-nusantara.pdf",
-    "Master Services Agreement — Nusantara Cloud",
-    ["Effective date: 2025-01-01", "Term: 3 years"]
-  );
-  await prisma.document.create({
-    data: { title: "Master Services Agreement", category: "Contract", enterpriseAccountId: nusantara.id, fileName: "MSA-Nusantara-Cloud.pdf", storageKey: contractNusantara.storageKey, mimeType: "application/pdf", fileSizeKb: contractNusantara.fileSizeKb, publishedById: admin.id, publishedAt: daysFromNow(-200) },
-  });
-
   const legacyInvoiceDoc = await saveDocumentPdf("invoice-meridian-aug2026.pdf", "Invoice — August 2026 — Meridian Logistics", ["Amount due: USD 18,420.00", "Due date: 2026-09-15"]);
   await prisma.document.create({
     data: { title: "Invoice — August 2026", category: "Invoice", enterpriseAccountId: meridian.id, fileName: "Invoice-Aug2026-Meridian.pdf", storageKey: legacyInvoiceDoc.storageKey, mimeType: "application/pdf", fileSizeKb: legacyInvoiceDoc.fileSizeKb, publishedById: finance.id, publishedAt: daysFromNow(-6) },
   });
+
+  const termsDoc = await saveDocumentPdf(
+    "terms-and-conditions.pdf",
+    "Aurora PDC — Colocation Terms & Conditions",
+    ["Applies to all colocation and service agreements.", "Effective date: 2025-01-01", "See your Master Services Agreement for account-specific terms."]
+  );
+  await prisma.document.create({
+    data: { title: "Terms & Conditions", category: "TermsConditions", fileName: "Aurora-PDC-Terms-and-Conditions.pdf", storageKey: termsDoc.storageKey, mimeType: "application/pdf", fileSizeKb: termsDoc.fileSizeKb, publishedById: admin.id, publishedAt: daysFromNow(-365) },
+  });
+
+  for (const f of [btm02, jkt01, sby01, sgp01]) {
+    const siteIntro = await saveDocumentPdf(
+      `site-introduction-${f.code.toLowerCase()}.pdf`,
+      `Site Introduction — ${f.name}`,
+      [
+        `Facility code: ${f.code}`,
+        `Address: ${f.address ?? "—"}`,
+        "Access hours, loading dock procedures, and emergency contacts are covered in this pack.",
+        "Please review before your first on-site visit.",
+      ]
+    );
+    await prisma.document.create({
+      data: {
+        title: `Site Introduction — ${f.name}`,
+        category: "SiteIntroduction",
+        facilityId: f.id,
+        fileName: `Site-Introduction-${f.code}.pdf`,
+        storageKey: siteIntro.storageKey,
+        mimeType: "application/pdf",
+        fileSizeKb: siteIntro.fileSizeKb,
+        publishedById: admin.id,
+        publishedAt: daysFromNow(-180),
+      },
+    });
+  }
+
+  for (const account of [meridian, nusantara, trisula, horizon]) {
+    const contract = await saveDocumentPdf(
+      `msa-${account.id}.pdf`,
+      `Master Services Agreement — ${account.name}`,
+      ["Effective date: 2025-01-01", "Term: 3 years", "Governed by Aurora PDC's standard Terms & Conditions."]
+    );
+    await prisma.document.create({
+      data: {
+        title: "Master Services Agreement",
+        category: "Contract",
+        enterpriseAccountId: account.id,
+        fileName: `MSA-${account.name.replace(/\s+/g, "-")}.pdf`,
+        storageKey: contract.storageKey,
+        mimeType: "application/pdf",
+        fileSizeKb: contract.fileSizeKb,
+        publishedById: admin.id,
+        publishedAt: daysFromNow(-200),
+      },
+    });
+  }
 
   console.log("Invoices…");
   async function makeInvoice(opts: {
@@ -736,7 +921,7 @@ async function main() {
     lines: [
       { description: "Cage 7 — 20kW colocation space", category: "Space", quantity: 1, unitPrice: 14000 },
       { description: "Power — metered usage", category: "Power", quantity: 1, unitPrice: 3400 },
-      { description: "Remote hands — visual inspection", category: "RemoteHands", quantity: 0.3, unitPrice: 150 },
+      { description: "Remote hands — visual inspection (signed off, see Download Center)", category: "RemoteHands", quantity: 0.3, unitPrice: 150 },
     ],
   });
 
@@ -789,8 +974,10 @@ async function main() {
   await prisma.notification.create({ data: { userId: ditaAyu.id, title: "Update: Power distribution event", body: "B-side feed restored and validated. Continuing to monitor for 24 hours before closing.", category: "incident", linkUrl: "/portal/incidents" } });
   await prisma.notification.create({ data: { userId: ditaAyu.id, title: "Maintenance scheduled: Quarterly CRAC unit servicing", body: "Planned maintenance scheduled: Quarterly CRAC unit servicing (NoImpact).", category: "maintenance", linkUrl: "/portal/maintenance" } });
   await prisma.notification.create({ data: { userId: rinaSaputri.id, title: "Invoice INV-202608-NSC1 issued", body: "A new invoice for 6402.00 USD is ready for review.", category: "billing", linkUrl: "/portal/billing", isRead: true } });
-  await prisma.notification.create({ data: { userId: ditaAyu.id, title: "Remote hands task completed", body: "\"Cage 7 — patch cabling\" is complete. View the technician's notes and completion proof.", category: "remote_hands", linkUrl: "/portal/remote-hands", isRead: true } });
-  await prisma.notification.create({ data: { userId: csManager.id, title: "New ticket assigned", body: "AC noise near Rack C14 was assigned to you.", category: "ticket", linkUrl: "/ops/tickets" } });
+  await prisma.notification.create({ data: { userId: ditaAyu.id, title: "Remote hands task completed", body: "\"Cage 7 — patch cabling\" is complete. View the technician's notes, completion proof, and sign your acceptance.", category: "service_request", linkUrl: `/portal/service-requests/${rh2.id}`, isRead: true } });
+  await prisma.notification.create({ data: { userId: rinaSaputri.id, title: "Remote hands task completed", body: "\"Rack B08\" is complete — please review and sign the acceptance certificate.", category: "service_request", linkUrl: `/portal/service-requests/${rh3.id}` } });
+  await prisma.notification.create({ data: { userId: csManager.id, title: "New service request assigned", body: "AC noise near Rack C14 was assigned to you.", category: "service_request", linkUrl: "/ops/service-requests" } });
+  await prisma.notification.create({ data: { userId: ditaAyu.id, title: "A delivery has arrived", body: "JNE Logistics: Server chassis (3x) for Rack B08 expansion", category: "delivery", linkUrl: "/portal/deliveries" } });
 
   console.log("\nSeed complete.\n");
   console.log("Demo logins (password for all: password123)");

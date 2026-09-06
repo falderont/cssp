@@ -8,13 +8,15 @@ import {
   Users,
   Siren,
   CalendarClock,
-  Ticket,
   Wrench,
   Gauge,
   FolderDown,
   Receipt,
   Trophy,
   Settings,
+  Truck,
+  IdCard,
+  ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,13 +27,15 @@ const ICONS: Record<IconKey, LucideIcon> = {
   Users,
   Siren,
   CalendarClock,
-  Ticket,
   Wrench,
   Gauge,
   FolderDown,
   Receipt,
   Trophy,
   Settings,
+  Truck,
+  IdCard,
+  ShieldAlert,
 };
 
 export function Sidebar({
