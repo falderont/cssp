@@ -2,35 +2,40 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { requireSysAdmin } from "@/lib/session";
+import { requireMasterDataAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createFacility } from "@/actions/admin";
 
 export default async function NewFacilityPage() {
-  await requireSysAdmin();
-  const regions = await prisma.region.findMany({ orderBy: { name: "asc" } });
+  await requireMasterDataAdmin();
+  const cities = await prisma.city.findMany({
+    include: { country: { include: { region: true } } },
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div>
       <PageHeader title="Add facility" description="Leave the ACS endpoint blank to use the built-in mock adapter for demos." />
       <Card className="max-w-2xl">
         <CardBody>
-          {regions.length === 0 ? (
-            <p className="text-sm text-slate-500">Create a region first before adding a facility.</p>
+          {cities.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Add a region, country and city under <a href="/ops/admin/areas" className="text-brand hover:underline">Areas</a> before adding a facility.
+            </p>
           ) : (
             <form action={createFacility} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Name" htmlFor="name" required>
-                  <Input id="name" name="name" required placeholder="e.g. JKT-01 — Jakarta" />
+                  <Input id="name" name="name" required placeholder="e.g. NDP — Batam" />
                 </Field>
                 <Field label="Code" htmlFor="code" required>
-                  <Input id="code" name="code" required placeholder="JKT-01" />
+                  <Input id="code" name="code" required placeholder="NDP" />
                 </Field>
-                <Field label="Region" htmlFor="regionId" required>
-                  <Select id="regionId" name="regionId" required>
-                    {regions.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
+                <Field label="City" htmlFor="cityId" required>
+                  <Select id="cityId" name="cityId" required>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} — {c.country.name} ({c.country.region.name})
                       </option>
                     ))}
                   </Select>

@@ -130,11 +130,13 @@ separate database server needed.
 npm run seed
 ```
 
-This wipes and fills the database with a realistic demo: 4 data center
-facilities across 2 regions, 4 tenant companies, ~15 users across every
-role, and populated visitors, incidents, maintenance windows, tickets,
-remote-hands requests, telemetry charts, documents, and invoices. It prints
-a list of demo login emails at the end — you'll use those in a moment.
+This wipes and fills the database with a realistic demo: 9 data center
+sites across 4 regions, 8 countries and 10 cities, 4 tenant companies (one
+spanning two countries), ~15 users across every role, and populated
+visitors, incidents, maintenance windows, tickets, remote-hands requests,
+telemetry charts, documents, invoices, and area change request tickets. It
+prints a list of demo login emails at the end — you'll use those in a
+moment.
 
 You can re-run this command at any time to reset back to a clean demo state
 (useful after you've clicked around and created test records).

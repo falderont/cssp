@@ -20,7 +20,10 @@ export async function getOpsFacilityIds(user: OpsScopedUser): Promise<string[] |
   if (user.role === ROLES.CS_TEAM) {
     if (user.csScope === "Site" && user.restrictedFacilityId) return [user.restrictedFacilityId];
     if (user.csScope === "Region" && user.restrictedRegionId) {
-      const facilities = await prisma.facility.findMany({ where: { regionId: user.restrictedRegionId }, select: { id: true } });
+      const facilities = await prisma.facility.findMany({
+        where: { city: { country: { regionId: user.restrictedRegionId } } },
+        select: { id: true },
+      });
       return facilities.map((f) => f.id);
     }
     return undefined;
@@ -39,7 +42,7 @@ export async function getCustomerSiteEnrollments(user: ScopedUser) {
       enterpriseAccountId: user.enterpriseAccountId,
       ...(user.restrictedFacilityId ? { facilityId: user.restrictedFacilityId } : {}),
     },
-    include: { facility: { include: { region: true, buildings: true } } },
+    include: { facility: { include: { city: { include: { country: { include: { region: true } } } }, buildings: true } } },
     orderBy: { createdAt: "asc" },
   });
 }

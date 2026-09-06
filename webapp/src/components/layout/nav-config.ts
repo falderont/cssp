@@ -20,7 +20,10 @@ export type IconKey =
   | "IdCard"
   | "ShieldAlert"
   | "FileBarChart"
-  | "Palette";
+  | "Palette"
+  | "Map"
+  | "Ticket"
+  | "Building2";
 
 export type NavItem = {
   href: string;
@@ -131,6 +134,24 @@ export const OPS_NAV: NavItem[] = [
     label: "CS Performance",
     icon: "Trophy",
     roles: [SYS_ADMIN, CS_TEAM, OPS_SITE_MANAGER],
+  },
+  {
+    href: "/ops/admin/areas",
+    label: "Areas",
+    icon: "Map",
+    roles: [SYS_ADMIN, SERVICE_DESK],
+  },
+  {
+    href: "/ops/admin/facilities",
+    label: "Facilities",
+    icon: "Building2",
+    roles: [SYS_ADMIN, SERVICE_DESK],
+  },
+  {
+    href: "/ops/admin/area-change-requests",
+    label: "Area Change Requests",
+    icon: "Ticket",
+    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR],
   },
   { href: "/ops/admin", label: "Admin Settings", icon: "Settings", roles: [SYS_ADMIN] },
 ];

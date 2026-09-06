@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   DatabaseBackup,
   IdCard,
+  Ticket,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
@@ -20,20 +21,34 @@ import { prisma } from "@/lib/prisma";
 
 export default async function AdminIndexPage() {
   await requireSysAdmin();
-  const [regions, facilities, accounts, users, blacklistCount, pendingAal] = await Promise.all([
+  const [regions, countries, cities, facilities, accounts, users, blacklistCount, pendingAal, pendingAreaChanges] = await Promise.all([
     prisma.region.count(),
+    prisma.country.count(),
+    prisma.city.count(),
     prisma.facility.count(),
     prisma.enterpriseAccount.count(),
     prisma.user.count(),
     prisma.blacklistEntry.count(),
     prisma.authorizedAccessEntry.count({ where: { status: "PendingApproval" } }),
+    prisma.areaChangeRequest.count({ where: { status: { in: ["Submitted", "InReview"] } } }),
   ]);
 
   const sections = [
     { href: "/ops/admin/users", icon: Users, title: "User management", description: `${users} user(s) — every persona, internal and tenant.` },
     { href: "/ops/admin/accounts", icon: Building2, title: "Tenant management", description: `${accounts} tenant account(s) — master data & site enrollments.` },
-    { href: "/ops/admin/regions", icon: Map, title: "Site management — regions", description: `${regions} region(s) configured.` },
-    { href: "/ops/admin/facilities", icon: Building2, title: "Site management — facilities", description: `${facilities} facility(ies) across all regions.` },
+    {
+      href: "/ops/admin/areas",
+      icon: Map,
+      title: "Areas — regions, countries & cities",
+      description: `${regions} region(s), ${countries} countr${countries === 1 ? "y" : "ies"}, ${cities} cit${cities === 1 ? "y" : "ies"} — delegable to Service Desk.`,
+    },
+    { href: "/ops/admin/facilities", icon: Building2, title: "Sites, buildings & rooms", description: `${facilities} facility(ies) across all cities.` },
+    {
+      href: "/ops/admin/area-change-requests",
+      icon: Ticket,
+      title: "Area change requests",
+      description: `${pendingAreaChanges} pending — internal requests for master data changes.`,
+    },
     { href: "/ops/admin/integrations", icon: Plug, title: "System integrations", description: "ACS, DCIM, BMS, SSO and email connections." },
     { href: "/ops/admin/stats", icon: BarChart3, title: "System statistics & infographics", description: "Platform-wide charts and KPIs." },
     { href: "/ops/admin/logs", icon: ScrollText, title: "System logs", description: "Audit trail of administrative actions." },

@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireSysAdmin } from "@/lib/session";
+import { requireSysAdmin, requireMasterDataAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
 import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES } from "@/lib/constants";
@@ -48,35 +48,58 @@ export async function updateBranding(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-// --- Regions ----------------------------------------------------------------
+// --- Areas: Region -> Country -> City -> Site (Facility) -> Building -> Room
+// Master data, owned by the Global Sys Admin and delegable to Service Desk —
+// every action below is gated by requireMasterDataAdmin(), not requireSysAdmin().
 
 export async function createRegion(formData: FormData) {
-  const admin = await requireSysAdmin();
+  const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
   const region = await prisma.region.create({ data: { name, code } });
   await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
-  revalidatePath("/ops/admin/regions");
+  revalidatePath("/ops/admin/areas");
 }
 
-// --- Facilities & buildings --------------------------------------------------
+export async function createCountry(formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  const regionId = String(formData.get("regionId") ?? "");
+  if (!name || !code || !regionId) throw new Error("Name, code and region are required.");
+  const country = await prisma.country.create({ data: { name, code, regionId } });
+  await logAudit({ actorId: admin.id, action: "country.create", summary: `Created country ${name} (${code}).`, targetType: "Country", targetId: country.id });
+  revalidatePath("/ops/admin/areas");
+}
+
+export async function createCity(formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const countryId = String(formData.get("countryId") ?? "");
+  if (!name || !countryId) throw new Error("Name and country are required.");
+  const city = await prisma.city.create({ data: { name, countryId } });
+  await logAudit({ actorId: admin.id, action: "city.create", summary: `Created city ${name}.`, targetType: "City", targetId: city.id });
+  revalidatePath("/ops/admin/areas");
+}
+
+// --- Facilities (Sites) & buildings ------------------------------------------
 
 const facilitySchema = z.object({
   name: z.string().min(1),
   code: z.string().min(1),
-  regionId: z.string().min(1),
+  cityId: z.string().min(1),
   address: z.string().optional(),
   timezone: z.string().min(1),
   acsEndpointUrl: z.string().optional(),
 });
 
 export async function createFacility(formData: FormData) {
-  const admin = await requireSysAdmin();
+  const admin = await requireMasterDataAdmin();
   const parsed = facilitySchema.parse({
     name: formData.get("name"),
     code: formData.get("code"),
-    regionId: formData.get("regionId"),
+    cityId: formData.get("cityId"),
     address: formData.get("address") || undefined,
     timezone: formData.get("timezone"),
     acsEndpointUrl: formData.get("acsEndpointUrl") || undefined,
@@ -86,7 +109,7 @@ export async function createFacility(formData: FormData) {
     data: {
       name: parsed.name,
       code: parsed.code.toUpperCase(),
-      regionId: parsed.regionId,
+      cityId: parsed.cityId,
       address: parsed.address || null,
       timezone: parsed.timezone,
       acsEndpointUrl: parsed.acsEndpointUrl || null,
@@ -99,19 +122,30 @@ export async function createFacility(formData: FormData) {
 }
 
 export async function updateFacilityAcs(facilityId: string, formData: FormData) {
-  await requireSysAdmin();
+  await requireMasterDataAdmin();
   const acsEndpointUrl = String(formData.get("acsEndpointUrl") ?? "") || null;
   await prisma.facility.update({ where: { id: facilityId }, data: { acsEndpointUrl } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
 export async function createBuilding(facilityId: string, formData: FormData) {
-  await requireSysAdmin();
+  await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
   await prisma.building.create({ data: { facilityId, name, code } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+export async function createRoom(buildingId: string, formData: FormData) {
+  await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  if (!name || !code) throw new Error("Name and code are required.");
+  const room = await prisma.room.create({ data: { buildingId, name, code } });
+  const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId }, select: { facilityId: true } });
+  revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
+  return room;
 }
 
 // --- Enterprise accounts & site enrollments ----------------------------------
@@ -152,6 +186,32 @@ export async function createSiteEnrollment(enterpriseAccountId: string, formData
   const spaceRef = String(formData.get("spaceRef") ?? "") || null;
   if (!facilityId) throw new Error("Choose a facility.");
   await prisma.siteEnrollment.create({ data: { enterpriseAccountId, facilityId, spaceRef } });
+  revalidatePath(`/ops/admin/accounts/${enterpriseAccountId}`);
+}
+
+// A tenant's controlled/leased area within one enrolled site — as granular as
+// a Room, or as broad as a whole Building (see ControlledArea in the schema).
+// The site enrollment is derived from the chosen building (a facility can
+// only be enrolled once per account — see SiteEnrollment's unique constraint).
+export async function createControlledArea(enterpriseAccountId: string, formData: FormData) {
+  await requireSysAdmin();
+  let buildingId = String(formData.get("buildingId") ?? "") || null;
+  const roomId = String(formData.get("roomId") ?? "") || null;
+  const label = String(formData.get("label") ?? "");
+  const accessNotes = String(formData.get("accessNotes") ?? "") || null;
+  if (!label || (!buildingId && !roomId)) throw new Error("A label and either a building or a room are required.");
+
+  // A room pins the building too — the room selection wins if both are set.
+  if (roomId) {
+    const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { buildingId: true } });
+    buildingId = room.buildingId;
+  }
+  const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId! }, select: { facilityId: true } });
+  const enrollment = await prisma.siteEnrollment.findUniqueOrThrow({
+    where: { enterpriseAccountId_facilityId: { enterpriseAccountId, facilityId: building.facilityId } },
+  });
+
+  await prisma.controlledArea.create({ data: { siteEnrollmentId: enrollment.id, label, buildingId, roomId, accessNotes } });
   revalidatePath(`/ops/admin/accounts/${enterpriseAccountId}`);
 }
 

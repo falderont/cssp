@@ -19,6 +19,8 @@ import {
   ShieldAlert,
   FileBarChart,
   Palette,
+  Map,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,6 +42,9 @@ const ICONS: Record<IconKey, LucideIcon> = {
   ShieldAlert,
   FileBarChart,
   Palette,
+  Map,
+  Ticket,
+  Building2,
 };
 
 export function Sidebar({

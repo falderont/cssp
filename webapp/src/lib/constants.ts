@@ -319,3 +319,15 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
 
 export const CURRENCIES = ["USD", "EUR", "SGD", "IDR", "GBP"] as const;
 export const TIMEZONES = ["UTC", "Asia/Jakarta", "Asia/Singapore", "America/New_York", "Europe/London"] as const;
+
+// --- Area (location) master data ---------------------------------------------
+// Region -> Country -> City -> Site (Facility) -> Building -> Room. Master
+// data is owned by the Global Sys Admin and may be delegated to Service Desk
+// (see requireMasterDataAdmin() in lib/session.ts). Any other internal role
+// raises an AreaChangeRequest ticket instead of editing it directly.
+
+export const AREA_LEVELS = ["Region", "Country", "City", "Site", "Building", "Room"] as const;
+export type AreaLevel = (typeof AREA_LEVELS)[number];
+
+export const AREA_CHANGE_ACTIONS = ["Add", "Update", "Deactivate"] as const;
+export const AREA_CHANGE_STATUSES = ["Submitted", "InReview", "Approved", "Rejected", "Applied"] as const;

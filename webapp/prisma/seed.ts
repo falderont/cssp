@@ -115,11 +115,16 @@ async function main() {
     prisma.blacklistEntry.deleteMany(),
     prisma.telemetryPoint.deleteMany(),
     prisma.telemetrySource.deleteMany(),
+    prisma.controlledArea.deleteMany(),
     prisma.siteEnrollment.deleteMany(),
+    prisma.areaChangeRequest.deleteMany(),
     prisma.user.deleteMany(),
     prisma.enterpriseAccount.deleteMany(),
+    prisma.room.deleteMany(),
     prisma.building.deleteMany(),
     prisma.facility.deleteMany(),
+    prisma.city.deleteMany(),
+    prisma.country.deleteMany(),
     prisma.region.deleteMany(),
     prisma.providerSettings.deleteMany(),
   ]);
@@ -153,23 +158,71 @@ async function main() {
     ],
   });
 
-  console.log("Regions & facilities…");
-  const regionID = await prisma.region.create({ data: { name: "Indonesia", code: "ID" } });
-  const regionSG = await prisma.region.create({ data: { name: "Singapore", code: "SG" } });
+  console.log("Areas: regions, countries & cities…");
+  // Level 1 — Region
+  const regionAPAC = await prisma.region.create({ data: { name: "Asia Pacific", code: "APAC" } });
+  const regionANZ = await prisma.region.create({ data: { name: "Australia & New Zealand", code: "ANZ" } });
+  const regionEMEA = await prisma.region.create({ data: { name: "Europe, Middle East & Africa", code: "EMEA" } });
+  const regionLATAM = await prisma.region.create({ data: { name: "Latin America", code: "LATAM" } });
+  void regionANZ; // seeded as master data — no live sites/countries there yet
+  void regionLATAM;
 
+  // Level 2 — Country (ISO 3166-1 alpha-2 codes)
+  const countryID = await prisma.country.create({ data: { name: "Indonesia", code: "ID", regionId: regionAPAC.id } });
+  const countryMY = await prisma.country.create({ data: { name: "Malaysia", code: "MY", regionId: regionAPAC.id } });
+  const countrySG = await prisma.country.create({ data: { name: "Singapore", code: "SG", regionId: regionAPAC.id } });
+  const countryTH = await prisma.country.create({ data: { name: "Thailand", code: "TH", regionId: regionAPAC.id } });
+  const countryJP = await prisma.country.create({ data: { name: "Japan", code: "JP", regionId: regionAPAC.id } });
+  const countryHK = await prisma.country.create({ data: { name: "Hong Kong", code: "HK", regionId: regionAPAC.id } });
+  const countryFI = await prisma.country.create({ data: { name: "Finland", code: "FI", regionId: regionEMEA.id } });
+  const countryES = await prisma.country.create({ data: { name: "Spain", code: "ES", regionId: regionEMEA.id } });
+
+  // Level 3 — City
+  const cityBatam = await prisma.city.create({ data: { name: "Batam", countryId: countryID.id } });
+  const cityJakarta = await prisma.city.create({ data: { name: "Jakarta", countryId: countryID.id } });
+  const citySurabaya = await prisma.city.create({ data: { name: "Surabaya", countryId: countryID.id } });
+  const cityJohorBahru = await prisma.city.create({ data: { name: "Johor Bahru", countryId: countryMY.id } });
+  const citySingapore = await prisma.city.create({ data: { name: "Singapore", countryId: countrySG.id } });
+  const cityBangkok = await prisma.city.create({ data: { name: "Bangkok", countryId: countryTH.id } });
+  const cityTokyo = await prisma.city.create({ data: { name: "Tokyo", countryId: countryJP.id } });
+  const cityHongKong = await prisma.city.create({ data: { name: "Hong Kong", countryId: countryHK.id } });
+  const cityLahti = await prisma.city.create({ data: { name: "Lahti", countryId: countryFI.id } });
+  // Madrid is master data only — no site there yet, see the AreaChangeRequest
+  // ticket below requesting one (demonstrates the internal change-request flow).
+  const cityMadrid = await prisma.city.create({ data: { name: "Madrid", countryId: countryES.id } });
+  void cityMadrid;
+
+  console.log("Facilities (sites), buildings & rooms…");
+  // Level 4 — Facility ("Site")
   const btm02 = await prisma.facility.create({
-    data: { name: "BTM-02 — Batam", code: "BTM-02", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Batam Free Trade Zone, Batam, Indonesia" },
+    data: { name: "BTM-02 — Batam", code: "BTM-02", cityId: cityBatam.id, timezone: "Asia/Jakarta", address: "Batam Free Trade Zone, Batam, Indonesia" },
   });
   const jkt01 = await prisma.facility.create({
-    data: { name: "JKT-01 — Jakarta", code: "JKT-01", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Kawasan Industri Cibitung, Jakarta, Indonesia" },
+    data: { name: "JKT-01 — Jakarta", code: "JKT-01", cityId: cityJakarta.id, timezone: "Asia/Jakarta", address: "Kawasan Industri Cibitung, Jakarta, Indonesia" },
   });
   const sby01 = await prisma.facility.create({
-    data: { name: "SBY-01 — Surabaya", code: "SBY-01", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
+    data: { name: "SBY-01 — Surabaya", code: "SBY-01", cityId: citySurabaya.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
   });
   const sgp01 = await prisma.facility.create({
-    data: { name: "SGP-01 — Singapore", code: "SGP-01", regionId: regionSG.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
+    data: { name: "SGP-01 — Singapore", code: "SGP-01", cityId: citySingapore.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
+  });
+  const ndp = await prisma.facility.create({
+    data: { name: "NDP — Johor Bahru", code: "NDP", cityId: cityJohorBahru.id, timezone: "Asia/Kuala_Lumpur", address: "Iskandar Puteri, Johor Bahru, Malaysia" },
+  });
+  const ktp = await prisma.facility.create({
+    data: { name: "KTP — Bangkok", code: "KTP", cityId: cityBangkok.id, timezone: "Asia/Bangkok", address: "Bang Na, Bangkok, Thailand" },
+  });
+  const ctp = await prisma.facility.create({
+    data: { name: "CTP — Tokyo", code: "CTP", cityId: cityTokyo.id, timezone: "Asia/Tokyo", address: "Koto City, Tokyo, Japan" },
+  });
+  const ntp = await prisma.facility.create({
+    data: { name: "NTP — Hong Kong", code: "NTP", cityId: cityHongKong.id, timezone: "Asia/Hong_Kong", address: "Tseung Kwan O, Hong Kong" },
+  });
+  const kvtp = await prisma.facility.create({
+    data: { name: "KVTP — Lahti", code: "KVTP", cityId: cityLahti.id, timezone: "Europe/Helsinki", address: "Kujalankatu, Lahti, Finland" },
   });
 
+  // Level 5 — Building
   const [btm02A, btm02B] = await Promise.all([
     prisma.building.create({ data: { facilityId: btm02.id, name: "Building A", code: "A" } }),
     prisma.building.create({ data: { facilityId: btm02.id, name: "Building B", code: "B" } }),
@@ -180,9 +233,19 @@ async function main() {
   ]);
   const sby01A = await prisma.building.create({ data: { facilityId: sby01.id, name: "Main Hall", code: "MH" } });
   await prisma.building.create({ data: { facilityId: sgp01.id, name: "Main Hall", code: "MH" } });
+  const ndpA = await prisma.building.create({ data: { facilityId: ndp.id, name: "Building A", code: "NDP-A" } });
+  const ktpJ = await prisma.building.create({ data: { facilityId: ktp.id, name: "Building J", code: "KTP-J" } });
+  const ctpB = await prisma.building.create({ data: { facilityId: ctp.id, name: "Building B", code: "CTP-B" } });
+  const ntpA = await prisma.building.create({ data: { facilityId: ntp.id, name: "Building A", code: "NTP-A" } });
   void jkt01A;
   void jkt01B;
   void sby01A;
+
+  // Level 6 — Room
+  const roomDh001 = await prisma.room.create({ data: { buildingId: ndpA.id, name: "Data Hall 001", code: "DH001" } });
+  await prisma.room.create({ data: { buildingId: ktpJ.id, name: "Data Hall 103", code: "DH103" } });
+  await prisma.room.create({ data: { buildingId: ctpB.id, name: "Mechanical & Meter Room", code: "MMR" } });
+  await prisma.room.create({ data: { buildingId: ntpA.id, name: "Visitor Center Meeting Room", code: "VCMR" } });
 
   console.log("Telemetry…");
   await prisma.telemetrySource.create({ data: { facilityId: btm02.id, vendor: "Schneider EcoStruxure", status: "Connected", lastSyncAt: NOW } });
@@ -213,6 +276,11 @@ async function main() {
   const enrNusantaraSby = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: nusantara.id, facilityId: sby01.id, spaceRef: "Racks A02–A04" } });
   const enrTrisulaSby = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: trisula.id, facilityId: sby01.id, spaceRef: "Rack D11" } });
   const enrHorizonSgp = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: horizon.id, facilityId: sgp01.id, spaceRef: "Suite 2" } });
+  // A second country for Nusantara Cloud — one tenant, multiple locations.
+  const enrNusantaraNdp = await prisma.siteEnrollment.create({ data: { enterpriseAccountId: nusantara.id, facilityId: ndp.id, spaceRef: "Data Hall 001, Rack Row 5" } });
+  await prisma.controlledArea.create({
+    data: { siteEnrollmentId: enrNusantaraNdp.id, buildingId: ndpA.id, roomId: roomDh001.id, label: "Rack Row 5", accessNotes: "Escorted access only outside business hours." },
+  });
   void enrMeridianJkt;
   void enrNusantaraSby;
 
@@ -228,7 +296,7 @@ async function main() {
   const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id } });
   const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id } });
   const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)" } });
-  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionID.id, title: "Customer Success Rep — Indonesia" } });
+  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionAPAC.id, title: "Customer Success Rep — APAC" } });
   const csRep2 = await prisma.user.create({ data: { name: "Agus Firmansyah II", email: "cs.agus@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Site", restrictedFacilityId: jkt01.id, title: "Customer Success Rep — JKT-01" } });
   const finance = await prisma.user.create({ data: { name: "Budi Santoso", email: "finance@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Billing", title: "Billing Manager" } });
   const vendor = await prisma.user.create({
@@ -1066,6 +1134,40 @@ async function main() {
   await prisma.auditLog.create({ data: { actorId: admin.id, action: "user.create", summary: "Created user Made Suarjana (OPS_VENDOR).", targetType: "User", targetId: vendor.id, createdAt: daysFromNow(-3) } });
   await prisma.auditLog.create({ data: { actorId: noc.id, action: "aal.approve", summary: "Approved AAL request for Bambang Hartawan.", createdAt: daysFromNow(-45) } });
 
+  console.log("Area change requests…");
+  // Master data (Region/Country/City/Site/Building/Room) is owned by the
+  // Global Sys Admin and delegable to Service Desk — everyone else raises a
+  // ticket instead of editing it directly. Madrid exists as a City with no
+  // Site yet, so this is exactly the kind of request that would precede one.
+  await prisma.areaChangeRequest.create({
+    data: {
+      level: "Site",
+      action: "Add",
+      context: "EMEA > Spain > Madrid",
+      proposedName: "MDP — Madrid",
+      proposedCode: "MDP",
+      notes: "New pilot customer wants a Madrid presence next quarter — need the site created before we can start site enrollment.",
+      requestedById: csManager.id,
+      status: "Submitted",
+    },
+  });
+  await prisma.areaChangeRequest.create({
+    data: {
+      level: "Room",
+      action: "Add",
+      context: "APAC > Malaysia > Johor Bahru > NDP > Building A",
+      proposedName: "Data Hall 002",
+      proposedCode: "DH002",
+      notes: "NDP Building A is expanding — need a second data hall room added ahead of the Q2 capacity increase.",
+      requestedById: tech.id,
+      status: "Approved",
+      assignedToId: serviceDesk.id,
+      decidedById: serviceDesk.id,
+      decidedAt: daysFromNow(-2),
+      decisionNotes: "Approved — will apply once the fit-out is confirmed complete.",
+    },
+  });
+
   console.log("\nSeed complete.\n");
   console.log("Demo logins (password for all: password123)");
   console.log("  --- Internal / provider personas ---");
@@ -1077,7 +1179,7 @@ async function main() {
   console.log("  Ops — Site Lead (BTM-02):          tech@aurorapdc.com");
   console.log("  Ops — Site Lead (JKT-01):          tech2@aurorapdc.com");
   console.log("  CS Team — Corporate:               csmanager@aurorapdc.com");
-  console.log("  CS Team — Region (Indonesia):       cs.rina@aurorapdc.com");
+  console.log("  CS Team — Region (APAC):            cs.rina@aurorapdc.com");
   console.log("  CS Team — Site (JKT-01):           cs.agus@aurorapdc.com");
   console.log("  CS Team — Billing:                  finance@aurorapdc.com");
   console.log("  Ops — External Vendor:             vendor@coldchain-support.example.com");

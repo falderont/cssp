@@ -14,7 +14,14 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Provider branding + facility hierarchy (Region -> Facility -> Building)
+// Provider branding + area (location) hierarchy:
+//   Region -> Country -> City -> Facility ("Site") -> Building -> Room
+// This is the provider's master data for "where" — every facility-scoped
+// entity in the app (incidents, maintenance, telemetry, visitor requests,
+// site enrollments...) still points at Facility/Building directly; Country
+// and City exist to group facilities geographically (reporting, delegated
+// admin scope, tenant multi-location rollups) without churning every
+// existing facilityId/buildingId foreign key in the app.
 // ---------------------------------------------------------------------------
 
 model ProviderSettings {
@@ -37,15 +44,45 @@ model ProviderSettings {
   updatedAt DateTime @updatedAt
 }
 
+// Level 1 — broad geography grouping used for reporting and delegated scope
+// (e.g. a CS Team member or Service Desk agent scoped to "APAC").
 model Region {
-  id         String     @id @default(cuid())
-  name       String
-  code       String     @unique
-  createdAt  DateTime   @default(now())
-  facilities Facility[]
-  csUsers    User[]     @relation("UserRestrictedRegion")
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  countries Country[]
+  csUsers   User[]    @relation("UserRestrictedRegion")
 }
 
+// Level 2 — ISO-3166-1 alpha-2 country code, grouped under a Region.
+model Country {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique // e.g. ID, MY, SG, TH, JP, HK, FI, ES
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id])
+  createdAt DateTime @default(now())
+
+  cities City[]
+}
+
+// Level 3 — a city/metro area within a Country. Facilities (Sites) sit here.
+model City {
+  id        String   @id @default(cuid())
+  name      String
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id])
+  createdAt DateTime @default(now())
+
+  facilities Facility[]
+
+  @@unique([countryId, name])
+}
+
+// Level 4 — a "Site" in provider/tenant terminology (data center, office,
+// campus). Modeled as Facility for historical reasons — see SiteEnrollment,
+// which is where "site" as a tenant-facing concept is used throughout the app.
 model Facility {
   id             String   @id @default(cuid())
   name           String
@@ -53,8 +90,8 @@ model Facility {
   address        String?
   timezone       String   @default("UTC")
   acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
-  regionId       String
-  region         Region   @relation(fields: [regionId], references: [id])
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id])
   createdAt      DateTime @default(now())
 
   buildings               Building[]
@@ -69,6 +106,7 @@ model Facility {
   authorizedAccessEntries AuthorizedAccessEntry[]
 }
 
+// Level 5 — a building within a Site/Facility.
 model Building {
   id         String   @id @default(cuid())
   name       String
@@ -77,12 +115,29 @@ model Building {
   facility   Facility @relation(fields: [facilityId], references: [id])
   createdAt  DateTime @default(now())
 
+  rooms             Room[]
   incidents         Incident[]
   maintenanceEvents MaintenanceEvent[]
   telemetryPoints   TelemetryPoint[]
   visitorRequests   VisitorRequest[]
+  controlledAreas   ControlledArea[]
 
   @@unique([facilityId, code])
+}
+
+// Level 6 — the most granular area: a room/hall/suite within a Building
+// (e.g. a data hall "DH001", a mechanical/meter room "MMR", a meeting room).
+model Room {
+  id         String   @id @default(cuid())
+  name       String
+  code       String
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  createdAt  DateTime @default(now())
+
+  controlledAreas ControlledArea[]
+
+  @@unique([buildingId, code])
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +165,11 @@ model EnterpriseAccount {
   authorizedAccessEntries AuthorizedAccessEntry[]
 }
 
+// One row per facility a tenant occupies — an account with several
+// SiteEnrollments is a tenant with multiple locations. `spaceRef` remains a
+// free-text summary (e.g. "Suite 4, Rack Row 12"); ControlledArea below adds
+// the structured version, scoping the enrollment down to specific
+// buildings/rooms when the tenant's contractual footprint needs that detail.
 model SiteEnrollment {
   id                  String            @id @default(cuid())
   enterpriseAccountId String
@@ -122,8 +182,25 @@ model SiteEnrollment {
 
   visitorRequests VisitorRequest[]
   serviceRequests ServiceRequest[]
+  controlledAreas ControlledArea[]
 
   @@unique([enterpriseAccountId, facilityId])
+}
+
+// A tenant's controlled/leased area within one enrolled site — as granular
+// as a single Room, or as broad as a whole Building. A SiteEnrollment can
+// have several (e.g. a cage in Building A plus a dedicated meeting room).
+model ControlledArea {
+  id               String         @id @default(cuid())
+  siteEnrollmentId String
+  siteEnrollment   SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
+  buildingId       String?
+  building         Building?      @relation(fields: [buildingId], references: [id])
+  roomId           String?
+  room             Room?          @relation(fields: [roomId], references: [id])
+  label            String // e.g. "Suite 4B" — shown even when building/room aren't set
+  accessNotes      String?
+  createdAt        DateTime       @default(now())
 }
 
 model User {
@@ -163,6 +240,9 @@ model User {
   decidedAalEntries       AuthorizedAccessEntry[] @relation("AalDecidedBy")
   auditLogs               AuditLog[]
   backups                 BackupRecord[]
+  requestedAreaChanges    AreaChangeRequest[]     @relation("AreaChangeRequestedBy")
+  assignedAreaChanges     AreaChangeRequest[]     @relation("AreaChangeAssignedTo")
+  decidedAreaChanges      AreaChangeRequest[]     @relation("AreaChangeDecidedBy")
 }
 
 // ---------------------------------------------------------------------------
@@ -524,6 +604,34 @@ model AuthorizedAccessEntry {
   decidedAt           DateTime?
   decisionNotes       String?
   createdAt           DateTime          @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Area (location) master data is owned by the Global Sys Admin and may be
+// delegated to Service Desk (see requireMasterDataAdmin() in lib/session.ts).
+// Any other internal staff who need a change (new site, renamed building,
+// new room, etc.) raise one of these instead of editing master data
+// directly — the ticket a Sys Admin/Service Desk agent triages and applies.
+// ---------------------------------------------------------------------------
+
+model AreaChangeRequest {
+  id            String    @id @default(cuid())
+  level         String // Region/Country/City/Site/Building/Room
+  action        String    @default("Add") // Add/Update/Deactivate
+  context       String // free-text location, e.g. "Indonesia > Batam > NDP > Building A"
+  proposedName  String?
+  proposedCode  String?
+  notes         String
+  status        String    @default("Submitted") // Submitted/InReview/Approved/Rejected/Applied
+  requestedById String
+  requestedBy   User      @relation("AreaChangeRequestedBy", fields: [requestedById], references: [id])
+  assignedToId  String?
+  assignedTo    User?     @relation("AreaChangeAssignedTo", fields: [assignedToId], references: [id])
+  decidedById   String?
+  decidedBy     User?     @relation("AreaChangeDecidedBy", fields: [decidedById], references: [id])
+  decisionNotes String?
+  decidedAt     DateTime?
+  createdAt     DateTime  @default(now())
 }
 
 // ---------------------------------------------------------------------------
