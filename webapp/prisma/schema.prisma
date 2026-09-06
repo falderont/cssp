@@ -1,0 +1,527 @@
+// CSSP data model — see docs/prd-v4.md (Section 8) and docs/prd-v5.md (Sections 1-2)
+// for the product rationale behind these entities. Every tenant-scoped table carries
+// organizationId directly (denormalized even on child rows) so a single Postgres RLS
+// policy pattern (organization_id = current_setting('app.organization_id')) covers
+// every table with no exceptions — see prisma/rls.sql.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER_GLOBAL
+  CUSTOMER_SITE
+  PROVIDER_ADMIN
+  PROVIDER_CS
+  PROVIDER_CS_MANAGER
+  PROVIDER_OPS
+  PROVIDER_SECURITY
+  PROVIDER_TECHNICIAN
+}
+
+enum SiteEnrollmentStatus {
+  ACTIVE
+  PENDING
+  ENDED
+}
+
+enum VisitorStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum IncidentType {
+  INCIDENT
+  MAINTENANCE
+}
+
+enum IncidentStatus {
+  SCHEDULED
+  IN_PROGRESS
+  MONITORING
+  RESOLVED
+}
+
+enum IncidentSource {
+  MANUAL
+  DCIM
+  CMMS
+}
+
+enum DocumentCategory {
+  SLA_REPORT
+  COMPLIANCE_CERTIFICATE
+  INVOICE_BACKUP
+  RUNBOOK
+  OTHER
+}
+
+enum TicketCategory {
+  COMPLAINT
+  RFI
+  SERVICE_REQUEST
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum RemoteHandsTaskType {
+  POWER_CYCLE
+  VISUAL_INSPECTION
+  CABLE_PATCH
+  MOUNT_UNMOUNT
+  KVM_ACCESS
+  OTHER
+}
+
+enum RemoteHandsStatus {
+  SUBMITTED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum EngagementType {
+  CALL
+  EMAIL
+  MEETING
+  SITE_VISIT
+  TICKET
+  REMOTE_HANDS
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+}
+
+enum InvoiceLineCategory {
+  RECURRING
+  REMOTE_HANDS
+  ONE_TIME
+  OTHER
+}
+
+enum IntegrationKind {
+  ACCESS_CONTROL
+  DCIM
+  CMMS
+  BMS
+  BILLING
+}
+
+enum IntegrationMode {
+  MOCK
+  LIVE
+}
+
+/// The tenant. Every other model below is scoped to exactly one Organization,
+/// with no cross-tenant visibility — enforced by Postgres RLS, not just app code.
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  tier      String   @default("standard")
+  createdAt DateTime @default(now())
+
+  regions            Region[]
+  facilities         Facility[]
+  enterpriseAccounts EnterpriseAccount[]
+  users              User[]
+  visitors           Visitor[]
+  incidents          IncidentOrMaintenance[]
+  documents          Document[]
+  tickets            Ticket[]
+  remoteHandsTasks   RemoteHandsTask[]
+  engagementLogs     EngagementLog[]
+  invoices           Invoice[]
+  invoiceLineItems   InvoiceLineItem[]
+  bmsReadings        BmsTelemetryReading[]
+  buildings          Building[]
+  integrationConfigs IntegrationConfig[]
+  siteEnrollments    SiteEnrollment[]
+
+  @@map("organizations")
+}
+
+/// Geographic grouping of a provider's facilities. Roll-up convenience only —
+/// see docs/prd-v5.md Section 1. Does not gate access on its own.
+model Region {
+  id             String @id @default(uuid())
+  organizationId String
+  name           String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  facilities   Facility[]
+
+  @@index([organizationId])
+  @@map("regions")
+}
+
+/// A data center site.
+model Facility {
+  id             String  @id @default(uuid())
+  organizationId String
+  regionId       String?
+  name           String
+  address        String
+  timezone       String  @default("UTC")
+
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  region          Region?                 @relation(fields: [regionId], references: [id])
+  buildings       Building[]
+  siteEnrollments SiteEnrollment[]
+  incidents       IncidentOrMaintenance[]
+  documents       Document[]
+  invoices        Invoice[]
+  bmsReadings     BmsTelemetryReading[]
+
+  @@index([organizationId])
+  @@index([regionId])
+  @@map("facilities")
+}
+
+/// A physical building on a site with more than one — see docs/prd-v5.md Section 1.
+/// A sub-reference on entities that need it, not a new access-scoping boundary.
+model Building {
+  id             String @id @default(uuid())
+  organizationId String
+  facilityId     String
+  name           String
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  facility     Facility              @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  visitors     Visitor[]
+  bmsReadings  BmsTelemetryReading[]
+
+  @@index([organizationId])
+  @@index([facilityId])
+  @@map("buildings")
+}
+
+/// A customer enrolled with the provider, possibly across multiple facilities.
+model EnterpriseAccount {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  createdAt      DateTime @default(now())
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  siteEnrollments SiteEnrollment[]
+  users           User[]
+  documents       Document[]
+  engagementLogs  EngagementLog[]
+  invoices        Invoice[]
+
+  @@index([organizationId])
+  @@map("enterprise_accounts")
+}
+
+/// Join entity: one enterprise account enrolled at one facility.
+model SiteEnrollment {
+  id                  String               @id @default(uuid())
+  organizationId      String
+  enterpriseAccountId String
+  facilityId          String
+  status              SiteEnrollmentStatus @default(ACTIVE)
+  startedAt           DateTime             @default(now())
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterpriseAccount EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id], onDelete: Cascade)
+  facility          Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  users             User[]
+  visitors          Visitor[]
+  tickets           Ticket[]
+  remoteHandsTasks  RemoteHandsTask[]
+  engagementLogs    EngagementLog[]
+
+  @@unique([enterpriseAccountId, facilityId])
+  @@index([organizationId])
+  @@index([facilityId])
+  @@map("site_enrollments")
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  organizationId      String
+  enterpriseAccountId String?
+  siteEnrollmentId    String?
+  name                String
+  email               String   @unique
+  passwordHash        String
+  role                Role
+  createdAt           DateTime @default(now())
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterpriseAccount EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  siteEnrollment    SiteEnrollment?    @relation(fields: [siteEnrollmentId], references: [id])
+
+  hostedVisitors      Visitor[]         @relation("VisitorHost")
+  publishedDocuments  Document[]        @relation("DocumentPublisher")
+  createdTickets      Ticket[]          @relation("TicketCreator")
+  assignedTickets     Ticket[]          @relation("TicketAssignee")
+  createdRemoteHands  RemoteHandsTask[] @relation("RemoteHandsCreator")
+  assignedRemoteHands RemoteHandsTask[] @relation("RemoteHandsTechnician")
+  engagementLogs      EngagementLog[]   @relation("EngagementLogger")
+
+  @@index([organizationId])
+  @@index([enterpriseAccountId])
+  @@index([siteEnrollmentId])
+  @@map("users")
+}
+
+/// A visitor registered against one site enrollment. Provisioning a physical
+/// access credential goes through AccessControlAdapter — see lib/adapters.
+model Visitor {
+  id                  String        @id @default(uuid())
+  organizationId      String
+  siteEnrollmentId    String
+  buildingId          String?
+  visitorName         String
+  visitorCompany      String?
+  hostUserId          String
+  visitStart          DateTime
+  visitEnd            DateTime
+  status              VisitorStatus @default(PENDING)
+  accessCredentialRef String?
+  createdAt           DateTime      @default(now())
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  siteEnrollment SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id], onDelete: Cascade)
+  building       Building?      @relation(fields: [buildingId], references: [id])
+  host           User           @relation("VisitorHost", fields: [hostUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([siteEnrollmentId])
+  @@map("visitors")
+}
+
+/// Published by provider staff today (the "Manual Adapter" per docs/prd-v2.md
+/// Section 8); IncidentSourceAdapter models the normalized shape a future
+/// DCIM/CMMS webhook would produce instead — see docs/prd-v5.md Section 3.
+model IncidentOrMaintenance {
+  id             String         @id @default(uuid())
+  organizationId String
+  facilityId     String
+  type           IncidentType
+  status         IncidentStatus @default(SCHEDULED)
+  title          String
+  description    String
+  source         IncidentSource @default(MANUAL)
+  startAt        DateTime
+  endAt          DateTime?
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  facility     Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([facilityId])
+  @@map("incidents_and_maintenance")
+}
+
+/// Site- or enterprise-level (facilityId nullable = enterprise-wide).
+model Document {
+  id                  String           @id @default(uuid())
+  organizationId      String
+  enterpriseAccountId String
+  facilityId          String?
+  title               String
+  category            DocumentCategory
+  fileRef             String
+  fileName            String
+  fileSize            Int
+  publishedByUserId   String
+  publishedAt         DateTime         @default(now())
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterpriseAccount EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id], onDelete: Cascade)
+  facility          Facility?         @relation(fields: [facilityId], references: [id])
+  publishedBy       User              @relation("DocumentPublisher", fields: [publishedByUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([enterpriseAccountId])
+  @@map("documents")
+}
+
+model Ticket {
+  id               String         @id @default(uuid())
+  organizationId   String
+  siteEnrollmentId String
+  category         TicketCategory
+  subtype          String?
+  subject          String
+  description      String
+  status           TicketStatus   @default(OPEN)
+  createdByUserId  String
+  assignedToUserId String?
+  createdAt        DateTime       @default(now())
+  resolvedAt       DateTime?
+  csatRating       Int?
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  siteEnrollment SiteEnrollment  @relation(fields: [siteEnrollmentId], references: [id], onDelete: Cascade)
+  createdBy      User            @relation("TicketCreator", fields: [createdByUserId], references: [id])
+  assignedTo     User?           @relation("TicketAssignee", fields: [assignedToUserId], references: [id])
+  engagementLogs EngagementLog[]
+
+  @@index([organizationId])
+  @@index([siteEnrollmentId])
+  @@map("tickets")
+}
+
+/// Deliberately mirrors Ticket's shape plus the fields fulfillment/billing need —
+/// see docs/prd-v4.md Section 6.
+model RemoteHandsTask {
+  id                   String              @id @default(uuid())
+  organizationId       String
+  siteEnrollmentId     String
+  taskType             RemoteHandsTaskType
+  assetOrRackRef       String
+  description          String
+  requestedWindowStart DateTime?
+  requestedWindowEnd   DateTime?
+  status               RemoteHandsStatus   @default(SUBMITTED)
+  createdByUserId      String
+  assignedTechnicianId String?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  billableMinutes      Int?
+  completionNotes      String?
+  completionPhotoRef   String?
+  csatRating           Int?
+  createdAt            DateTime            @default(now())
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  siteEnrollment   SiteEnrollment    @relation(fields: [siteEnrollmentId], references: [id], onDelete: Cascade)
+  createdBy        User              @relation("RemoteHandsCreator", fields: [createdByUserId], references: [id])
+  technician       User?             @relation("RemoteHandsTechnician", fields: [assignedTechnicianId], references: [id])
+  engagementLogs   EngagementLog[]
+  invoiceLineItems InvoiceLineItem[]
+
+  @@index([organizationId])
+  @@index([siteEnrollmentId])
+  @@map("remote_hands_tasks")
+}
+
+/// Internal-only — see docs/prd-v3.md Section 5. Never visible to customers.
+model EngagementLog {
+  id                      String         @id @default(uuid())
+  organizationId          String
+  enterpriseAccountId     String
+  siteEnrollmentId        String?
+  loggedByUserId          String
+  type                    EngagementType
+  notes                   String
+  occurredAt              DateTime       @default(now())
+  linkedTicketId          String?
+  linkedRemoteHandsTaskId String?
+
+  organization          Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterpriseAccount     EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id], onDelete: Cascade)
+  siteEnrollment        SiteEnrollment?   @relation(fields: [siteEnrollmentId], references: [id])
+  loggedBy              User              @relation("EngagementLogger", fields: [loggedByUserId], references: [id])
+  linkedTicket          Ticket?           @relation(fields: [linkedTicketId], references: [id])
+  linkedRemoteHandsTask RemoteHandsTask?  @relation(fields: [linkedRemoteHandsTaskId], references: [id])
+
+  @@index([organizationId])
+  @@index([enterpriseAccountId])
+  @@map("engagement_logs")
+}
+
+/// Read-only surface over the provider's external billing system — see
+/// docs/prd-v5.md Section 2. Never generated/reconciled here.
+model Invoice {
+  id                  String        @id @default(uuid())
+  organizationId      String
+  enterpriseAccountId String
+  facilityId          String?
+  periodStart         DateTime
+  periodEnd           DateTime
+  status              InvoiceStatus @default(DRAFT)
+  totalAmount         Int
+  currency            String        @default("USD")
+  issuedAt            DateTime?
+  dueAt               DateTime?
+  externalRef         String?
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enterpriseAccount EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id], onDelete: Cascade)
+  facility          Facility?         @relation(fields: [facilityId], references: [id])
+  lineItems         InvoiceLineItem[]
+
+  @@index([organizationId])
+  @@index([enterpriseAccountId])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id                      String              @id @default(uuid())
+  organizationId          String
+  invoiceId               String
+  description             String
+  category                InvoiceLineCategory
+  quantity                Int                 @default(1)
+  unitAmount              Int
+  amount                  Int
+  linkedRemoteHandsTaskId String?
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  remoteHandsTask RemoteHandsTask? @relation(fields: [linkedRemoteHandsTaskId], references: [id])
+
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+/// Optional/stretch per docs/prd-v3.md and v4 — normalized readings from
+/// BmsAdapter, seeded for demo purposes rather than a live feed.
+model BmsTelemetryReading {
+  id             String   @id @default(uuid())
+  organizationId String
+  facilityId     String
+  buildingId     String?
+  metric         String
+  value          Float
+  unit           String
+  recordedAt     DateTime
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  facility     Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  building     Building?    @relation(fields: [buildingId], references: [id])
+
+  @@index([organizationId])
+  @@index([facilityId, metric, recordedAt])
+  @@map("bms_telemetry_readings")
+}
+
+/// Per-tenant record of which adapters run in MOCK vs LIVE mode — see
+/// docs/prd-v5.md Section 3.
+model IntegrationConfig {
+  id             String          @id @default(uuid())
+  organizationId String
+  kind           IntegrationKind
+  mode           IntegrationMode @default(MOCK)
+  config         Json            @default("{}")
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, kind])
+  @@map("integration_configs")
+}
