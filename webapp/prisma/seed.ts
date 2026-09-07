@@ -121,6 +121,7 @@ async function main() {
     prisma.team.deleteMany(),
     prisma.user.deleteMany(),
     prisma.enterpriseAccount.deleteMany(),
+    prisma.rack.deleteMany(),
     prisma.room.deleteMany(),
     prisma.building.deleteMany(),
     prisma.facility.deleteMany(),
@@ -205,7 +206,16 @@ async function main() {
     data: { name: "SBY-01 — Surabaya", code: "SBY-01", cityId: citySurabaya.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
   });
   const sgp01 = await prisma.facility.create({
-    data: { name: "SGP-01 — Singapore", code: "SGP-01", cityId: citySingapore.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
+    // Whole-suite tenant (Horizon Retail leases "Suite 2" outright) — this
+    // site leases rooms only, no rack-level colocation.
+    data: {
+      name: "SGP-01 — Singapore",
+      code: "SGP-01",
+      cityId: citySingapore.id,
+      timezone: "Asia/Singapore",
+      address: "Tai Seng, Singapore",
+      offersColoRacks: false,
+    },
   });
   const ndp = await prisma.facility.create({
     data: { name: "NDP — Johor Bahru", code: "NDP", cityId: cityJohorBahru.id, timezone: "Asia/Kuala_Lumpur", address: "Iskandar Puteri, Johor Bahru, Malaysia" },
@@ -233,20 +243,46 @@ async function main() {
     prisma.building.create({ data: { facilityId: jkt01.id, name: "Building B", code: "B" } }),
   ]);
   const sby01A = await prisma.building.create({ data: { facilityId: sby01.id, name: "Main Hall", code: "MH" } });
-  await prisma.building.create({ data: { facilityId: sgp01.id, name: "Main Hall", code: "MH" } });
+  const sgp01MH = await prisma.building.create({ data: { facilityId: sgp01.id, name: "Main Hall", code: "MH" } });
   const ndpA = await prisma.building.create({ data: { facilityId: ndp.id, name: "Building A", code: "NDP-A" } });
   const ktpJ = await prisma.building.create({ data: { facilityId: ktp.id, name: "Building J", code: "KTP-J" } });
   const ctpB = await prisma.building.create({ data: { facilityId: ctp.id, name: "Building B", code: "CTP-B" } });
   const ntpA = await prisma.building.create({ data: { facilityId: ntp.id, name: "Building A", code: "NTP-A" } });
-  void jkt01A;
   void jkt01B;
-  void sby01A;
 
-  // Level 6 — Room
-  const roomDh001 = await prisma.room.create({ data: { buildingId: ndpA.id, name: "Data Hall 001", code: "DH001" } });
-  await prisma.room.create({ data: { buildingId: ktpJ.id, name: "Data Hall 103", code: "DH103" } });
-  await prisma.room.create({ data: { buildingId: ctpB.id, name: "Mechanical & Meter Room", code: "MMR" } });
-  await prisma.room.create({ data: { buildingId: ntpA.id, name: "Visitor Center Meeting Room", code: "VCMR" } });
+  // Level 6 — Room. `type` distinguishes a Data Hall (can be broken down
+  // into numbered Racks when its site offers colo racks) from an
+  // Office/Storage/Meet-Me/Other room, which stops at the room level.
+  const roomDh001 = await prisma.room.create({ data: { buildingId: ndpA.id, name: "Data Hall 001", code: "DH001", type: "DataHall" } });
+  await prisma.room.create({ data: { buildingId: ktpJ.id, name: "Data Hall 103", code: "DH103", type: "DataHall" } });
+  await prisma.room.create({ data: { buildingId: ctpB.id, name: "Mechanical & Meter Room", code: "MMR", type: "Other" } });
+  await prisma.room.create({ data: { buildingId: ntpA.id, name: "Visitor Center Meeting Room", code: "VCMR", type: "Office" } });
+
+  const btm02DH1 = await prisma.room.create({ data: { buildingId: btm02A.id, name: "Data Hall 1", code: "DH1", type: "DataHall" } });
+  await prisma.room.create({ data: { buildingId: btm02A.id, name: "Meet-Me Room", code: "MMR", type: "MeetMeRoom" } });
+  await prisma.rack.createMany({
+    data: [
+      { roomId: btm02DH1.id, rackNumber: "C10" },
+      { roomId: btm02DH1.id, rackNumber: "C14" },
+      { roomId: btm02DH1.id, rackNumber: "C20" },
+    ],
+  });
+
+  const jkt01DH1 = await prisma.room.create({ data: { buildingId: jkt01A.id, name: "Data Hall 1", code: "DH1", type: "DataHall" } });
+  await prisma.rack.create({ data: { roomId: jkt01DH1.id, rackNumber: "B08" } });
+
+  const sby01DH1 = await prisma.room.create({ data: { buildingId: sby01A.id, name: "Data Hall 1", code: "DH1", type: "DataHall" } });
+  await prisma.rack.createMany({
+    data: [
+      { roomId: sby01DH1.id, rackNumber: "A02" },
+      { roomId: sby01DH1.id, rackNumber: "A03" },
+      { roomId: sby01DH1.id, rackNumber: "A04" },
+      { roomId: sby01DH1.id, rackNumber: "D11" },
+    ],
+  });
+
+  // SGP-01 leases whole rooms only — no racks under Suite 2.
+  await prisma.room.create({ data: { buildingId: sgp01MH.id, name: "Suite 2", code: "S2", type: "Office" } });
 
   console.log("Telemetry…");
   await prisma.telemetrySource.create({ data: { facilityId: btm02.id, vendor: "Schneider EcoStruxure", status: "Connected", lastSyncAt: NOW } });

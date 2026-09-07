@@ -93,15 +93,16 @@ model City {
 // campus). Modeled as Facility for historical reasons — see SiteEnrollment,
 // which is where "site" as a tenant-facing concept is used throughout the app.
 model Facility {
-  id             String   @id @default(cuid())
-  name           String
-  code           String   @unique
-  address        String?
-  timezone       String   @default("UTC")
-  acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
-  cityId         String
-  city           City     @relation(fields: [cityId], references: [id])
-  createdAt      DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  code            String   @unique
+  address         String?
+  timezone        String   @default("UTC")
+  acsEndpointUrl  String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
+  offersColoRacks Boolean  @default(true) // false = this site leases whole rooms only, no rack-level colocation
+  cityId          String
+  city            City     @relation(fields: [cityId], references: [id])
+  createdAt       DateTime @default(now())
 
   buildings               Building[]
   siteEnrollments         SiteEnrollment[]
@@ -137,17 +138,34 @@ model Building {
 
 // Level 6 — the most granular area: a room/hall/suite within a Building
 // (e.g. a data hall "DH001", a mechanical/meter room "MMR", a meeting room).
+// `type` distinguishes a Data Hall from an Office/Storage/Meet-Me/Other room;
+// when the site offers colo racks (Facility.offersColoRacks) a Data Hall room
+// can be broken down further into numbered Racks — a site that leases whole
+// rooms only stops here.
 model Room {
   id         String   @id @default(cuid())
   name       String
   code       String
+  type       String   @default("DataHall") // DataHall/Office/Storage/MeetMeRoom/Other
   buildingId String
   building   Building @relation(fields: [buildingId], references: [id])
   createdAt  DateTime @default(now())
 
   controlledAreas ControlledArea[]
+  racks           Rack[]
 
   @@unique([buildingId, code])
+}
+
+model Rack {
+  id         String   @id @default(cuid())
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id])
+  rackNumber String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([roomId, rackNumber])
 }
 
 // ---------------------------------------------------------------------------

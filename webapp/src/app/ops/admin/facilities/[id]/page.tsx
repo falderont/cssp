@@ -4,11 +4,12 @@ import { ChevronLeft } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { Field, Input } from "@/components/ui/form";
+import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireMasterDataAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { createBuilding, createRoom, updateFacilityAcs } from "@/actions/admin";
+import { createBuilding, createRack, createRoom, updateFacilityAcs, updateFacilitySpaceModel } from "@/actions/admin";
+import { ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/constants";
 
 export default async function FacilityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +19,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
       where: { id },
       include: {
         city: { include: { country: { include: { region: true } } } },
-        buildings: { include: { rooms: true }, orderBy: { name: "asc" } },
+        buildings: { include: { rooms: { include: { racks: true } } }, orderBy: { name: "asc" } },
         siteEnrollments: { include: { enterpriseAccount: true } },
       },
     }),
@@ -28,6 +29,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
 
   const addBuildingBound = createBuilding.bind(null, facility.id);
   const updateAcsBound = updateFacilityAcs.bind(null, facility.id);
+  const updateSpaceModelBound = updateFacilitySpaceModel.bind(null, facility.id);
 
   return (
     <div>
@@ -56,13 +58,44 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                     {b.rooms.length === 0 ? (
                       <p className="mt-1 text-sm text-slate-500">No rooms added yet.</p>
                     ) : (
-                      <ul className="mt-1.5 flex flex-wrap gap-2">
-                        {b.rooms.map((room) => (
-                          <li key={room.id} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
-                            {room.name} ({room.code})
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="mt-2 space-y-2">
+                        {b.rooms.map((room) => {
+                          const addRackBound = createRack.bind(null, facility.id, room.id);
+                          return (
+                            <div key={room.id} className="rounded-lg bg-slate-50 px-3 py-2">
+                              <div className="flex flex-wrap items-center gap-2 text-sm">
+                                <span className="font-medium text-slate-800">
+                                  {room.name} <span className="font-normal text-slate-400">({room.code})</span>
+                                </span>
+                                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                  {ROOM_TYPE_LABELS[room.type] ?? room.type}
+                                </span>
+                              </div>
+                              {facility.offersColoRacks && room.type === "DataHall" && (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                  {room.racks.map((rack) => (
+                                    <span key={rack.id} className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600 ring-1 ring-inset ring-slate-200">
+                                      {rack.rackNumber}
+                                    </span>
+                                  ))}
+                                  <form action={addRackBound} className="flex items-center gap-1.5">
+                                    <input
+                                      type="text"
+                                      name="rackNumber"
+                                      placeholder="Rack #"
+                                      required
+                                      className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                                    />
+                                    <Button type="submit" size="sm" variant="secondary">
+                                      Add rack
+                                    </Button>
+                                  </form>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                     <form action={addRoomBound} className="mt-3 flex flex-wrap items-end gap-2">
                       <div className="flex-1">
@@ -73,6 +106,17 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                       <div className="flex-1">
                         <Field label="Code" htmlFor={`roomCode-${b.id}`} required>
                           <Input id={`roomCode-${b.id}`} name="code" required placeholder="DH001" />
+                        </Field>
+                      </div>
+                      <div className="flex-1">
+                        <Field label="Type" htmlFor={`roomType-${b.id}`} required>
+                          <Select id={`roomType-${b.id}`} name="type" defaultValue="DataHall" required>
+                            {ROOM_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {ROOM_TYPE_LABELS[t]}
+                              </option>
+                            ))}
+                          </Select>
                         </Field>
                       </div>
                       <Button type="submit" variant="secondary">
@@ -125,6 +169,34 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Space model</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <form action={updateSpaceModelBound} className="space-y-3">
+                <label className="flex items-start gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    name="offersColoRacks"
+                    defaultChecked={facility.offersColoRacks}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    This site offers numbered colo racks
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      On: add rack numbers under Data Hall rooms. Off: this site leases whole rooms only (data
+                      halls, offices, storage) with no rack-level breakdown.
+                    </span>
+                  </span>
+                </label>
+                <Button type="submit" className="w-full" variant="secondary">
+                  Save
+                </Button>
+              </form>
+            </CardBody>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Access control integration</CardTitle>

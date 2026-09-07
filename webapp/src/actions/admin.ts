@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSysAdmin, requireMasterDataAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
-import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES } from "@/lib/constants";
+import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
 
@@ -136,6 +136,23 @@ export async function updateFacilityAcs(facilityId: string, formData: FormData) 
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
+// Whether this site offers numbered colo racks (add rack numbers under Data
+// Hall rooms) or leases whole rooms only (data halls, offices, storage) with
+// no rack-level breakdown — see Room.type and the Rack model.
+export async function updateFacilitySpaceModel(facilityId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const offersColoRacks = formData.get("offersColoRacks") === "on";
+  await prisma.facility.update({ where: { id: facilityId }, data: { offersColoRacks } });
+  await logAudit({
+    actorId: admin.id,
+    action: "facility.update_space_model",
+    summary: `Set site space model to ${offersColoRacks ? "rooms with colo racks" : "rooms only"}.`,
+    targetType: "Facility",
+    targetId: facilityId,
+  });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
 export async function createBuilding(facilityId: string, formData: FormData) {
   await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
@@ -149,11 +166,29 @@ export async function createRoom(buildingId: string, formData: FormData) {
   await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
+  const type = String(formData.get("type") ?? "DataHall");
   if (!name || !code) throw new Error("Name and code are required.");
-  const room = await prisma.room.create({ data: { buildingId, name, code } });
+  if (!(ROOM_TYPES as readonly string[]).includes(type)) throw new Error("Invalid room type.");
+  const room = await prisma.room.create({ data: { buildingId, name, code, type } });
   const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId }, select: { facilityId: true } });
   revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
   return room;
+}
+
+export async function createRack(facilityId: string, roomId: string, formData: FormData) {
+  await requireMasterDataAdmin();
+  const rackNumber = String(formData.get("rackNumber") ?? "").trim();
+  if (!rackNumber) throw new Error("Rack number is required.");
+
+  const [facility, room] = await Promise.all([
+    prisma.facility.findUniqueOrThrow({ where: { id: facilityId } }),
+    prisma.room.findUniqueOrThrow({ where: { id: roomId }, include: { building: true } }),
+  ]);
+  if (room.building.facilityId !== facilityId) throw new Error("Room does not belong to this site.");
+  if (!facility.offersColoRacks) throw new Error("This site is configured for rooms only — enable colo racks first.");
+
+  await prisma.rack.create({ data: { roomId, rackNumber } });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
 // --- Teams --------------------------------------------------------------------
