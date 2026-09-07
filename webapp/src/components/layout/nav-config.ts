@@ -113,6 +113,20 @@ export const OPS_NAV: NavItem[] = [
   { href: "/ops/admin", label: "Global Overview", icon: "Globe2", group: "Global administration", roles: [SYS_ADMIN] },
   { href: "/ops/admin/facilities", label: "Site Management", icon: "Building2", group: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
   {
+    href: "/ops/aal",
+    label: "Authorized Access List",
+    icon: "IdCard",
+    group: "Global administration",
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
+  },
+  {
+    href: "/ops/loading-docks",
+    label: "Loading Docks",
+    icon: "Warehouse",
+    group: "Global administration",
+    roles: [SYS_ADMIN, OPS_BUILDING_MANAGER],
+  },
+  {
     href: "/ops/admin/area-change-requests",
     label: "Area Change Requests",
     icon: "Ticket",
@@ -137,20 +151,6 @@ export const OPS_NAV: NavItem[] = [
     icon: "Truck",
     group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-  },
-  {
-    href: "/ops/aal",
-    label: "Authorized Access List",
-    icon: "IdCard",
-    group: "Front line",
-    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-  },
-  {
-    href: "/ops/loading-docks",
-    label: "Loading Docks",
-    icon: "Warehouse",
-    group: "Front line",
-    roles: [SYS_ADMIN, OPS_BUILDING_MANAGER],
   },
   {
     href: "/ops/admin/blacklist",
