@@ -53,7 +53,6 @@ export const PORTAL_GROUP_ORDER = ["Day-to-day", "Reporting", "Account administr
 export const OPS_GROUP_ORDER = [
   "Global administration",
   "System administration",
-  "Front line",
   "Service delivery",
   "Reporting & accounts",
 ] as const;
@@ -198,22 +197,6 @@ export const OPS_NAV: NavItem[] = [
     roles: [SYS_ADMIN],
   },
   { href: "/ops/admin/branding", label: "Branding", icon: "Palette", group: "System administration", roles: [SYS_ADMIN] },
-
-  {
-    href: "/ops/visitors",
-    label: "Visitor Approvals",
-    icon: "Users",
-    group: "Front line",
-    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-  },
-  { href: "/ops/front-desk", label: "Front Desk", icon: "IdCard", group: "Front line", roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY] },
-  {
-    href: "/ops/deliveries",
-    label: "Deliveries",
-    icon: "Truck",
-    group: "Front line",
-    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-  },
 
   { href: "/ops/incidents", label: "Incidents", icon: "Siren", group: "Service delivery", roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD] },
   {

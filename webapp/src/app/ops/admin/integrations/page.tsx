@@ -19,7 +19,7 @@ export default async function SystemIntegrationsPage() {
     <div>
       <PageHeader
         title="System integrations"
-        description="External systems this portal mirrors or syncs with — ACS, DCIM, BMS, SSO and outbound email."
+        description="Provider-wide systems shared across every site — DCIM, SSO and outbound email. Access control (ACS) and building management (BMS) are configured per site, on that facility's own Integrations tab."
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {SYSTEM_INTEGRATION_CATALOG.map((def) => {

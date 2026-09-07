@@ -173,9 +173,7 @@ async function main() {
   console.log("System integrations…");
   await prisma.systemIntegration.createMany({
     data: [
-      { key: "ACS", name: "Access Control System (ACS)", status: "Connected", lastSyncAt: NOW },
       { key: "DCIM", name: "DCIM", status: "Connected", lastSyncAt: hoursFromNow(-2) },
-      { key: "BMS", name: "Building Management System (BMS)", status: "Connected", lastSyncAt: hoursFromNow(-1) },
       { key: "SSO", name: "Single Sign-On (SSO)", status: "NotConfigured" },
       { key: "EMAIL", name: "Email / SMTP", status: "Connected", lastSyncAt: hoursFromNow(-6) },
     ],

@@ -331,10 +331,12 @@ export function isAalExpired(entry: { status: string; validUntil: Date | string 
 
 export const SYSTEM_INTEGRATION_STATUSES = ["NotConfigured", "Connected", "Error", "Disabled"] as const;
 
+// Provider-wide integrations only — one endpoint shared by the whole
+// platform. ACS and BMS are the opposite (each site's own hardware, never
+// shared across facilities) and are configured per-site instead, on that
+// facility's own Integrations tab (see facilities/[id]/integrations).
 export const SYSTEM_INTEGRATION_CATALOG: { key: string; name: string; description: string }[] = [
-  { key: "ACS", name: "Access Control System (ACS)", description: "Campus badge/door access sync for visitor management." },
   { key: "DCIM", name: "DCIM", description: "Data Center Infrastructure Management — incident reports, asset data." },
-  { key: "BMS", name: "Building Management System (BMS)", description: "Telemetry mirror — temperature, humidity, power, PUE." },
   { key: "SSO", name: "Single Sign-On (SSO)", description: "Enterprise identity provider for staff and tenant login." },
   { key: "EMAIL", name: "Email / SMTP", description: "Outbound notification and invitation email delivery." },
 ];
