@@ -9,11 +9,12 @@ import { getCustomerFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDateTime } from "@/lib/utils";
 
-export default async function PortalMaintenancePage({ searchParams }: { searchParams: { site?: string; month?: string } }) {
+export default async function PortalMaintenancePage({ searchParams }: { searchParams: Promise<{ site?: string; month?: string }> }) {
+  const { site, month: monthParam } = await searchParams;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
-  const siteFilter = searchParams.site && facilityIds.includes(searchParams.site) ? searchParams.site : undefined;
-  const { year, month } = parseMonthParam(searchParams.month);
+  const siteFilter = site && facilityIds.includes(site) ? site : undefined;
+  const { year, month } = parseMonthParam(monthParam);
 
   const events = await prisma.maintenanceEvent.findMany({
     where: { facilityId: siteFilter ? siteFilter : { in: facilityIds } },

@@ -1,120 +1,140 @@
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardBody } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { logDeliveryArrival, updateDeliveryStatus } from "@/actions/deliveries";
+import { markDeliveryArrived, markDeliveryReceived, rejectDelivery, uploadDeliveryPhoto } from "@/actions/deliveries";
 
 export default async function OpsDeliveriesPage() {
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
-  const [deliveries, facilities, accounts] = await Promise.all([
-    prisma.delivery.findMany({
-      where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
-      include: { facility: true, enterpriseAccount: true, receivedBy: true },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    prisma.facility.findMany({ where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined, orderBy: { name: "asc" } }),
-    prisma.enterpriseAccount.findMany({ orderBy: { name: "asc" } }),
-  ]);
+  const deliveries = await prisma.delivery.findMany({
+    where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
+    include: { facility: true, enterpriseAccount: true, receivedBy: true, loadingDock: { include: { building: true } }, photos: true },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    take: 100,
+  });
 
   return (
     <div>
-      <PageHeader title="Deliveries" description="Incoming logistics traffic across every facility — log an arrival and track it through to hand-off." />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Table>
-            <THead>
-              <tr>
-                <TH>Courier</TH>
-                <TH>Description</TH>
-                <TH>Facility</TH>
-                <TH>For</TH>
-                <TH>Status</TH>
-                <TH>Actions</TH>
-              </tr>
-            </THead>
-            <TBody>
-              {deliveries.length === 0 && <EmptyRow colSpan={6} message="No deliveries logged yet." />}
-              {deliveries.map((d) => {
-                const receivedBound = updateDeliveryStatus.bind(null, d.id, "/ops/deliveries");
-                return (
-                  <TR key={d.id}>
-                    <TD className="font-medium text-slate-900">{d.courierName}</TD>
-                    <TD className="max-w-xs truncate">{d.description}</TD>
-                    <TD>{d.facility.name}</TD>
-                    <TD>{d.enterpriseAccount?.name ?? "—"}</TD>
-                    <TD>
-                      <StatusBadge status={d.status} />
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {d.expectedAt ? `Expected ${formatDate(d.expectedAt)}` : d.arrivedAt ? `Arrived ${formatDateTime(d.arrivedAt)}` : ""}
-                      </p>
-                    </TD>
-                    <TD>
-                      {(d.status === "Expected" || d.status === "Arrived") && (
-                        <form action={receivedBound} className="flex items-center gap-1.5">
-                          <input type="hidden" name="status" value="Received" />
+      <PageHeader
+        title="Deliveries"
+        description="Delivery tickets submitted by tenants through the portal — process each through to arrival and hand-off, or reject it. Front desk doesn't log deliveries here; only the customer submits the request."
+      />
+      <Table>
+        <THead>
+          <tr>
+            <TH>Courier</TH>
+            <TH>Description</TH>
+            <TH>Facility</TH>
+            <TH>Tenant</TH>
+            <TH>Status</TH>
+            <TH>Actions</TH>
+            <TH>Arrival evidence</TH>
+          </tr>
+        </THead>
+        <TBody>
+          {deliveries.length === 0 && <EmptyRow colSpan={7} message="No delivery tickets submitted yet." />}
+          {deliveries.map((d) => {
+            const arrivedBound = markDeliveryArrived.bind(null, d.id, "/ops/deliveries");
+            const receivedBound = markDeliveryReceived.bind(null, d.id, "/ops/deliveries");
+            const rejectBound = rejectDelivery.bind(null, d.id, "/ops/deliveries");
+            const uploadPhotoBound = uploadDeliveryPhoto.bind(null, d.id, "/ops/deliveries");
+            const canUploadEvidence = d.status === "Arrived" || d.status === "Received";
+            return (
+              <TR key={d.id}>
+                <TD className="font-medium text-slate-900">
+                  {d.courierName}
+                  {d.trackingNumber && <p className="text-xs text-slate-400">{d.trackingNumber}</p>}
+                </TD>
+                <TD className="max-w-xs truncate">{d.description}</TD>
+                <TD>
+                  {d.facility.name}
+                  {d.loadingDock && (
+                    <p className="text-xs text-slate-400">
+                      {d.loadingDock.building ? `${d.loadingDock.building.name}: ` : ""}
+                      {d.loadingDock.name}
+                    </p>
+                  )}
+                </TD>
+                <TD>{d.enterpriseAccount.name}</TD>
+                <TD>
+                  <StatusBadge status={d.status} />
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {d.status === "Received" && d.receivedAt
+                      ? `Received ${formatDateTime(d.receivedAt)}${d.receivedBy ? ` by ${d.receivedBy.name}` : ""}`
+                      : d.arrivedAt
+                        ? `Arrived ${formatDateTime(d.arrivedAt)}`
+                        : d.expectedAt
+                          ? `Expected ${formatDate(d.expectedAt)}`
+                          : ""}
+                  </p>
+                </TD>
+                <TD>
+                  {(d.status === "Expected" || d.status === "Arrived") && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {d.status === "Expected" && (
+                        <form action={arrivedBound}>
                           <Button type="submit" size="sm" variant="secondary">
-                            Mark received
+                            Mark arrived
                           </Button>
                         </form>
                       )}
-                    </TD>
-                  </TR>
-                );
-              })}
-            </TBody>
-          </Table>
-        </div>
-
-        <Card>
-          <CardBody>
-            <p className="mb-3 text-sm font-medium text-slate-700">Log an arrival</p>
-            <form action={logDeliveryArrival} className="space-y-3">
-              <Field label="Facility" htmlFor="facilityId" required>
-                <Select id="facilityId" name="facilityId" required>
-                  {facilities.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="For tenant (optional)" htmlFor="enterpriseAccountId">
-                <Select id="enterpriseAccountId" name="enterpriseAccountId" defaultValue="">
-                  <option value="">General / provider</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Courier / carrier" htmlFor="courierName" required>
-                <Input id="courierName" name="courierName" required />
-              </Field>
-              <Field label="Tracking number (optional)" htmlFor="trackingNumber">
-                <Input id="trackingNumber" name="trackingNumber" />
-              </Field>
-              <Field label="Recipient (optional)" htmlFor="recipientName">
-                <Input id="recipientName" name="recipientName" />
-              </Field>
-              <Field label="Description" htmlFor="description" required>
-                <Textarea id="description" name="description" required placeholder="Packages, pallets, hardware…" />
-              </Field>
-              <Button type="submit" className="w-full">
-                Log arrival
-              </Button>
-            </form>
-          </CardBody>
-        </Card>
-      </div>
+                      <form action={receivedBound}>
+                        <Button type="submit" size="sm" variant="secondary">
+                          Mark received
+                        </Button>
+                      </form>
+                      <form action={rejectBound}>
+                        <Button type="submit" size="sm" variant="danger">
+                          Reject
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+                </TD>
+                <TD>
+                  {canUploadEvidence ? (
+                    <div className="space-y-2">
+                      {d.photos.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {d.photos.map((photo) => (
+                            <a key={photo.id} href={`/api/deliveries/photos/${photo.id}`} target="_blank" rel="noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/deliveries/photos/${photo.id}`}
+                                alt="Delivery arrival evidence"
+                                className="h-10 w-10 rounded-md border border-slate-200 object-cover"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      <form action={uploadPhotoBound} className="flex items-center gap-1.5">
+                        <input
+                          type="file"
+                          name="photo"
+                          accept="image/*"
+                          required
+                          className="w-40 text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-brand/10 file:px-2 file:py-1 file:text-xs file:font-medium file:text-brand hover:file:bg-brand/20"
+                        />
+                        <Button type="submit" size="sm" variant="secondary">
+                          Upload
+                        </Button>
+                      </form>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-300">—</span>
+                  )}
+                </TD>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
     </div>
   );
 }

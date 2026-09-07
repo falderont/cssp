@@ -95,6 +95,8 @@ export async function VisitorRequestDetailView({
               <TH>Name</TH>
               <TH>Company</TH>
               <TH>ID</TH>
+              <TH>Email</TH>
+              <TH>Phone</TH>
               <TH>Badge</TH>
               <TH>QR pass</TH>
               <TH>Status</TH>
@@ -113,6 +115,8 @@ export async function VisitorRequestDetailView({
                   <TD className="font-medium text-slate-900">{v.fullName}</TD>
                   <TD>{v.company ?? "—"}</TD>
                   <TD>{v.idType || v.idNumber ? `${v.idType ?? ""} ${v.idNumber ?? ""}`.trim() : "—"}</TD>
+                  <TD>{v.email ?? "—"}</TD>
+                  <TD>{v.phone ?? "—"}</TD>
                   <TD>{v.badgeCode ?? "—"}</TD>
                   <TD>
                     {qrDataUrl ? (

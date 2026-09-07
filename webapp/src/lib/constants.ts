@@ -17,6 +17,7 @@ export const ROLES = {
   OPS_SITE_MANAGER: "OPS_SITE_MANAGER", // manages one facility end-to-end
   OPS_SITE_LEAD: "OPS_SITE_LEAD", // hands-on site supervisor, executes assigned work
   OPS_FRONT_OFFICE_SECURITY: "OPS_FRONT_OFFICE_SECURITY", // reception/guard house/badge desk
+  OPS_BUILDING_MANAGER: "OPS_BUILDING_MANAGER", // owns building-level logistics (loading dock locations)
   CS_TEAM: "CS_TEAM", // customer success — scoped via csScope (Corporate/Region/Site/Billing)
   OPS_VENDOR: "OPS_VENDOR", // external contractor, scoped to assigned tasks only
 } as const;
@@ -36,6 +37,7 @@ export const INTERNAL_ROLES: Role[] = [
   ROLES.OPS_SITE_MANAGER,
   ROLES.OPS_SITE_LEAD,
   ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.OPS_BUILDING_MANAGER,
   ROLES.CS_TEAM,
   ROLES.OPS_VENDOR,
 ];
@@ -61,6 +63,7 @@ export const SITE_SCOPABLE_ROLES: Role[] = [
   ROLES.OPS_SITE_MANAGER,
   ROLES.OPS_SITE_LEAD,
   ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.OPS_BUILDING_MANAGER,
   ROLES.OPS_VENDOR,
 ];
 
@@ -78,6 +81,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   OPS_SITE_MANAGER: "Ops — Site Manager",
   OPS_SITE_LEAD: "Ops — Site Lead",
   OPS_FRONT_OFFICE_SECURITY: "Ops — Front Office & Security",
+  OPS_BUILDING_MANAGER: "Ops — Building Manager",
   CS_TEAM: "Customer Success Team",
   OPS_VENDOR: "Ops — External Vendor",
 };
@@ -92,19 +96,37 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   OPS_SITE_MANAGER: "Manages one facility end-to-end — approvals, assignment, overrides.",
   OPS_SITE_LEAD: "Hands-on site supervisor — executes and completes assigned work.",
   OPS_FRONT_OFFICE_SECURITY: "Reception, guard house and badge desk — visitor & delivery front line.",
+  OPS_BUILDING_MANAGER: "Owns building-level facilities logistics — defines loading dock locations for tenants to book against.",
   CS_TEAM: "Customer success — scope determines account coverage (corporate/region/site/billing).",
   OPS_VENDOR: "External contractor — sees only the tasks assigned to them.",
 };
 
 // --- Customer Success Team scope ---------------------------------------------
-// Only meaningful when role === ROLES.CS_TEAM (see User.csScope).
-export const CS_SCOPES = ["Corporate", "Region", "Site", "Billing"] as const;
+// Only meaningful when role === ROLES.CS_TEAM (see User.csScope). Mirrors the
+// Region -> Country -> Facility geography master data (see schema.prisma).
+export const CS_SCOPES = ["Corporate", "Region", "Country", "Site", "Billing"] as const;
 export type CsScope = (typeof CS_SCOPES)[number];
 export const CS_SCOPE_LABELS: Record<CsScope, string> = {
-  Corporate: "Corporate (all accounts)",
-  Region: "Region",
+  Corporate: "Corporate (all accounts, global)",
+  Region: "Region (every country within it)",
+  Country: "Country (every site within it)",
   Site: "Site",
   Billing: "Billing",
+};
+
+// --- Teams --------------------------------------------------------------------
+// Global Sys Admin master data — a named roster of internal staff scoped to
+// a region, a country, a single facility, or left global/company-wide.
+export const TEAM_FUNCTIONS = ["Executive", "Ops", "NOC", "Security", "CustomerSuccess", "ServiceDesk", "Facilities"] as const;
+export type TeamFunction = (typeof TEAM_FUNCTIONS)[number];
+export const TEAM_FUNCTION_LABELS: Record<TeamFunction, string> = {
+  Executive: "Executive",
+  Ops: "Operations",
+  NOC: "NOC / Engineering",
+  Security: "Front Office & Security",
+  CustomerSuccess: "Customer Success",
+  ServiceDesk: "Service Desk",
+  Facilities: "Facilities & Maintenance",
 };
 
 // --- Visitor management ------------------------------------------------------
@@ -275,6 +297,19 @@ export function statusBadgeTone(status: string): "green" | "amber" | "red" | "sl
   return "slate";
 }
 
+// --- Facility space model (Global Sys Admin) ---------------------------------
+// Facility.offersColoRacks decides whether Data Hall rooms can be broken
+// down into numbered racks, or whether the facility leases whole rooms only.
+
+export const ROOM_TYPES = ["DataHall", "Office", "Storage", "MeetMeRoom", "Other"] as const;
+export const ROOM_TYPE_LABELS: Record<string, string> = {
+  DataHall: "Data Hall",
+  Office: "Office",
+  Storage: "Storage",
+  MeetMeRoom: "Meet-Me Room",
+  Other: "Other",
+};
+
 // --- Authorized Access List (AAL) — permanent site access, distinct from a
 // one-off dated visitor request. Requested by the tenant, approved by ops. --
 
@@ -319,3 +354,43 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
 
 export const CURRENCIES = ["USD", "EUR", "SGD", "IDR", "GBP"] as const;
 export const TIMEZONES = ["UTC", "Asia/Jakarta", "Asia/Singapore", "America/New_York", "Europe/London"] as const;
+
+// --- Personal preferences (per-user, chrome-only customization) --------------
+// Matches every Notification.category value ever written by notifyUsers()
+// call sites (see actions/*.ts) — kept in sync manually since category is a
+// plain string, not a Prisma enum (see schema.prisma header note).
+export const NOTIFICATION_CATEGORIES = ["incident", "maintenance", "visitor", "service_request", "billing", "delivery", "aal"] as const;
+export const NOTIFICATION_CATEGORY_LABELS: Record<string, string> = {
+  incident: "Incidents",
+  maintenance: "Maintenance",
+  visitor: "Visitors",
+  service_request: "Service requests",
+  billing: "Billing",
+  delivery: "Deliveries",
+  aal: "Authorized Access List",
+};
+
+export const ACCENT_COLOR_PRESETS = [
+  { key: "blue", value: "#2563eb" },
+  { key: "violet", value: "#7c3aed" },
+  { key: "cyan", value: "#0891b2" },
+  { key: "emerald", value: "#059669" },
+  { key: "amber", value: "#d97706" },
+  { key: "rose", value: "#e11d48" },
+  { key: "slate", value: "#475569" },
+] as const;
+
+export const DENSITY_OPTIONS = ["comfortable", "compact"] as const;
+export type Density = (typeof DENSITY_OPTIONS)[number];
+
+// --- Area (location) master data ---------------------------------------------
+// Region -> Country -> City -> Site (Facility) -> Building -> Room. Master
+// data is owned by the Global Sys Admin and may be delegated to Service Desk
+// (see requireMasterDataAdmin() in lib/session.ts). Any other internal role
+// raises an AreaChangeRequest ticket instead of editing it directly.
+
+export const AREA_LEVELS = ["Region", "Country", "City", "Site", "Building", "Room"] as const;
+export type AreaLevel = (typeof AREA_LEVELS)[number];
+
+export const AREA_CHANGE_ACTIONS = ["Add", "Update", "Deactivate"] as const;
+export const AREA_CHANGE_STATUSES = ["Submitted", "InReview", "Approved", "Rejected", "Applied"] as const;

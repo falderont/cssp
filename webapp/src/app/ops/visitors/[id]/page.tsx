@@ -4,10 +4,11 @@ import { VisitorRequestDetailView } from "@/components/visitors/visitor-request-
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
-export default async function OpsVisitorDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsVisitorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const vr = await prisma.visitorRequest.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       visitors: true,
       acsLogs: { orderBy: { createdAt: "asc" } },

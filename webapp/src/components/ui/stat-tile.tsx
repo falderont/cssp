@@ -25,12 +25,12 @@ export function StatTile({
 }) {
   const styles = TONE_STYLES[tone] ?? TONE_STYLES.slate;
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-card-hover">
       <span className={cn("absolute inset-y-0 left-0 w-1", styles.bar)} />
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-500">{label}</p>
         {Icon && (
-          <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg transition group-hover:scale-105", styles.icon)}>
+          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition group-hover:scale-105", styles.icon)}>
             <Icon className="h-4 w-4" />
           </span>
         )}

@@ -37,12 +37,32 @@ export async function requireSysAdmin() {
   return user;
 }
 
+// Area (location) master data — Region/Country/City/Site/Building/Room — is
+// owned by the Global Sys Admin and delegable to Service Desk. Every other
+// internal role raises an AreaChangeRequest ticket instead (see
+// actions/area.ts) rather than getting this access.
+export async function requireMasterDataAdmin() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.SERVICE_DESK];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
 // Blacklist management is delegated to front-line ops day-to-day, not
 // restricted to the Sys Admin like the rest of /ops/admin — must match
 // the role check in actions/blacklist.ts.
 export async function requireBlacklistManager() {
   const user = await requireInternalUser();
   const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_FRONT_OFFICE_SECURITY, ROLES.OPS_SITE_MANAGER];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+// Owns building-level logistics — defines the loading dock locations tenants
+// pick from when submitting a delivery ticket for that site.
+export async function requireBuildingManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_BUILDING_MANAGER];
   if (!allowed.includes(user.role)) redirect("/ops");
   return user;
 }
