@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSysAdmin, requireMasterDataAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
+import { withUniqueConstraintMessage } from "@/lib/prisma-errors";
 import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
@@ -63,7 +64,10 @@ export async function createRegion(formData: FormData) {
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  const region = await prisma.region.create({ data: { name, code } });
+  const region = await withUniqueConstraintMessage(
+    () => prisma.region.create({ data: { name, code } }),
+    `A region with code "${code}" already exists — choose a different code.`
+  );
   await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
@@ -98,7 +102,10 @@ export async function updateRegion(regionId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  await prisma.region.update({ where: { id: regionId }, data: { name, code } });
+  await withUniqueConstraintMessage(
+    () => prisma.region.update({ where: { id: regionId }, data: { name, code } }),
+    `A region with code "${code}" already exists — choose a different code.`
+  );
   await logAudit({ actorId: admin.id, action: "region.update", summary: `Updated region ${name} (${code}).`, targetType: "Region", targetId: regionId });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
@@ -109,7 +116,10 @@ export async function createCountry(regionId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  const country = await prisma.country.create({ data: { name, code, regionId } });
+  const country = await withUniqueConstraintMessage(
+    () => prisma.country.create({ data: { name, code, regionId } }),
+    `A country with code "${code}" already exists — choose a different code.`
+  );
   await logAudit({ actorId: admin.id, action: "country.create", summary: `Created country ${name} (${code}).`, targetType: "Country", targetId: country.id });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
@@ -120,7 +130,10 @@ export async function updateCountry(countryId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  await prisma.country.update({ where: { id: countryId }, data: { name, code } });
+  await withUniqueConstraintMessage(
+    () => prisma.country.update({ where: { id: countryId }, data: { name, code } }),
+    `A country with code "${code}" already exists — choose a different code.`
+  );
   await logAudit({ actorId: admin.id, action: "country.update", summary: `Updated country ${name} (${code}).`, targetType: "Country", targetId: countryId });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
@@ -130,7 +143,10 @@ export async function createCity(countryId: string, formData: FormData) {
   const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   if (!name) throw new Error("Name is required.");
-  const city = await prisma.city.create({ data: { name, countryId } });
+  const city = await withUniqueConstraintMessage(
+    () => prisma.city.create({ data: { name, countryId } }),
+    `A city named "${name}" already exists in this country.`
+  );
   await logAudit({ actorId: admin.id, action: "city.create", summary: `Created city ${name}.`, targetType: "City", targetId: city.id });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
@@ -140,7 +156,10 @@ export async function updateCity(cityId: string, formData: FormData) {
   const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   if (!name) throw new Error("Name is required.");
-  await prisma.city.update({ where: { id: cityId }, data: { name } });
+  await withUniqueConstraintMessage(
+    () => prisma.city.update({ where: { id: cityId }, data: { name } }),
+    `A city named "${name}" already exists in this country.`
+  );
   await logAudit({ actorId: admin.id, action: "city.update", summary: `Updated city ${name}.`, targetType: "City", targetId: cityId });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
@@ -168,16 +187,20 @@ export async function createFacility(cityId: string, formData: FormData) {
     acsEndpointUrl: formData.get("acsEndpointUrl") || undefined,
   });
 
-  const facility = await prisma.facility.create({
-    data: {
-      name: parsed.name,
-      code: parsed.code.toUpperCase(),
-      cityId: parsed.cityId,
-      address: parsed.address || null,
-      timezone: parsed.timezone,
-      acsEndpointUrl: parsed.acsEndpointUrl || null,
-    },
-  });
+  const facility = await withUniqueConstraintMessage(
+    () =>
+      prisma.facility.create({
+        data: {
+          name: parsed.name,
+          code: parsed.code.toUpperCase(),
+          cityId: parsed.cityId,
+          address: parsed.address || null,
+          timezone: parsed.timezone,
+          acsEndpointUrl: parsed.acsEndpointUrl || null,
+        },
+      }),
+    `A site with code "${parsed.code.toUpperCase()}" already exists — site codes must be unique across the whole platform.`
+  );
 
   await logAudit({ actorId: admin.id, action: "facility.create", summary: `Created facility ${parsed.name}.`, targetType: "Facility", targetId: facility.id });
   revalidatePath("/ops/admin/facilities");
@@ -203,10 +226,14 @@ export async function updateFacilityDetails(facilityId: string, formData: FormDa
   const timezone = String(formData.get("timezone") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
   if (!name || !code || !timezone) throw new Error("Site name, code and timezone are required.");
-  const facility = await prisma.facility.update({
-    where: { id: facilityId },
-    data: { name, code, timezone, address: address || null },
-  });
+  const facility = await withUniqueConstraintMessage(
+    () =>
+      prisma.facility.update({
+        where: { id: facilityId },
+        data: { name, code, timezone, address: address || null },
+      }),
+    `A site with code "${code}" already exists — site codes must be unique across the whole platform.`
+  );
   await logAudit({
     actorId: admin.id,
     action: "facility.update",
@@ -240,7 +267,10 @@ export async function createBuilding(facilityId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  await prisma.building.create({ data: { facilityId, name, code } });
+  await withUniqueConstraintMessage(
+    () => prisma.building.create({ data: { facilityId, name, code } }),
+    `A building with code "${code}" already exists at this site.`
+  );
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
@@ -249,7 +279,10 @@ export async function updateBuilding(buildingId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
-  const building = await prisma.building.update({ where: { id: buildingId }, data: { name, code } });
+  const building = await withUniqueConstraintMessage(
+    () => prisma.building.update({ where: { id: buildingId }, data: { name, code } }),
+    `A building with code "${code}" already exists at this site.`
+  );
   revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
 }
 
@@ -260,7 +293,10 @@ export async function createRoom(buildingId: string, formData: FormData) {
   const type = String(formData.get("type") ?? "DataHall");
   if (!name || !code) throw new Error("Name and code are required.");
   if (!(ROOM_TYPES as readonly string[]).includes(type)) throw new Error("Invalid room type.");
-  const room = await prisma.room.create({ data: { buildingId, name, code, type } });
+  const room = await withUniqueConstraintMessage(
+    () => prisma.room.create({ data: { buildingId, name, code, type } }),
+    `A room with code "${code}" already exists in this building.`
+  );
   const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId }, select: { facilityId: true } });
   revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
   return room;
@@ -273,11 +309,15 @@ export async function updateRoom(roomId: string, formData: FormData) {
   const type = String(formData.get("type") ?? "DataHall");
   if (!name || !code) throw new Error("Name and code are required.");
   if (!(ROOM_TYPES as readonly string[]).includes(type)) throw new Error("Invalid room type.");
-  const room = await prisma.room.update({
-    where: { id: roomId },
-    data: { name, code, type },
-    include: { building: true },
-  });
+  const room = await withUniqueConstraintMessage(
+    () =>
+      prisma.room.update({
+        where: { id: roomId },
+        data: { name, code, type },
+        include: { building: true },
+      }),
+    `A room with code "${code}" already exists in this building.`
+  );
   revalidatePath(`/ops/admin/facilities/${room.building.facilityId}`);
 }
 
@@ -293,7 +333,10 @@ export async function createRack(facilityId: string, roomId: string, formData: F
   if (room.building.facilityId !== facilityId) throw new Error("Room does not belong to this site.");
   if (!facility.offersColoRacks) throw new Error("This site is configured for rooms only — enable colo racks first.");
 
-  await prisma.rack.create({ data: { roomId, rackNumber } });
+  await withUniqueConstraintMessage(
+    () => prisma.rack.create({ data: { roomId, rackNumber } }),
+    `Rack "${rackNumber}" already exists in this room.`
+  );
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
@@ -302,7 +345,10 @@ export async function updateRack(facilityId: string, rackId: string, formData: F
   const rackNumber = String(formData.get("rackNumber") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
   if (!rackNumber) throw new Error("Rack number is required.");
-  await prisma.rack.update({ where: { id: rackId }, data: { rackNumber, notes: notes || null } });
+  await withUniqueConstraintMessage(
+    () => prisma.rack.update({ where: { id: rackId }, data: { rackNumber, notes: notes || null } }),
+    `Rack "${rackNumber}" already exists in this room.`
+  );
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
@@ -448,7 +494,10 @@ export async function createSiteEnrollment(enterpriseAccountId: string, formData
   const facilityId = String(formData.get("facilityId") ?? "");
   const spaceRef = String(formData.get("spaceRef") ?? "") || null;
   if (!facilityId) throw new Error("Choose a facility.");
-  await prisma.siteEnrollment.create({ data: { enterpriseAccountId, facilityId, spaceRef } });
+  await withUniqueConstraintMessage(
+    () => prisma.siteEnrollment.create({ data: { enterpriseAccountId, facilityId, spaceRef } }),
+    "This tenant is already enrolled at that facility."
+  );
   revalidatePath(`/ops/admin/accounts/${enterpriseAccountId}`);
 }
 
@@ -515,20 +564,24 @@ export async function createUser(formData: FormData) {
   const isCsTeam = parsed.role === ROLES.CS_TEAM;
 
   const passwordHash = await bcrypt.hash(parsed.password, 10);
-  const user = await prisma.user.create({
-    data: {
-      name: parsed.name,
-      email: parsed.email.toLowerCase().trim(),
-      passwordHash,
-      role: parsed.role,
-      enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
-      restrictedFacilityId: parsed.restrictedFacilityId || null,
-      restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
-      restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
-      csScope: isCsTeam ? parsed.csScope || "Site" : null,
-      teamId: !isCustomer ? parsed.teamId || null : null,
-    },
-  });
+  const user = await withUniqueConstraintMessage(
+    () =>
+      prisma.user.create({
+        data: {
+          name: parsed.name,
+          email: parsed.email.toLowerCase().trim(),
+          passwordHash,
+          role: parsed.role,
+          enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
+          restrictedFacilityId: parsed.restrictedFacilityId || null,
+          restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+          restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
+          csScope: isCsTeam ? parsed.csScope || "Site" : null,
+          teamId: !isCustomer ? parsed.teamId || null : null,
+        },
+      }),
+    `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`
+  );
 
   await logAudit({ actorId: admin.id, action: "user.create", summary: `Created user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: user.id });
   revalidatePath("/ops/admin/users");
@@ -558,20 +611,24 @@ export async function updateUser(userId: string, formData: FormData) {
   }
   const isCsTeam = parsed.role === ROLES.CS_TEAM;
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      name: parsed.name,
-      email: parsed.email.toLowerCase().trim(),
-      role: parsed.role,
-      enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
-      restrictedFacilityId: parsed.restrictedFacilityId || null,
-      restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
-      restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
-      csScope: isCsTeam ? parsed.csScope || "Site" : null,
-      teamId: !isCustomer ? parsed.teamId || null : null,
-    },
-  });
+  await withUniqueConstraintMessage(
+    () =>
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: parsed.name,
+          email: parsed.email.toLowerCase().trim(),
+          role: parsed.role,
+          enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
+          restrictedFacilityId: parsed.restrictedFacilityId || null,
+          restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+          restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
+          csScope: isCsTeam ? parsed.csScope || "Site" : null,
+          teamId: !isCustomer ? parsed.teamId || null : null,
+        },
+      }),
+    `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`
+  );
 
   await logAudit({ actorId: admin.id, action: "user.update", summary: `Updated user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: userId });
   revalidatePath("/ops/admin/users");
