@@ -16,12 +16,13 @@ import { SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
 export default async function PortalServiceRequestsPage({
   searchParams,
 }: {
-  searchParams: { site?: string; month?: string };
+  searchParams: Promise<{ site?: string; month?: string }>;
 }) {
+  const { site, month: monthParam } = await searchParams;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
-  const siteFilter = searchParams.site && facilityIds.includes(searchParams.site) ? searchParams.site : undefined;
-  const { year, month } = parseMonthParam(searchParams.month);
+  const siteFilter = site && facilityIds.includes(site) ? site : undefined;
+  const { year, month } = parseMonthParam(monthParam);
 
   const requests = await prisma.serviceRequest.findMany({
     where: {

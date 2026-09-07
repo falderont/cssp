@@ -53,7 +53,7 @@ export default async function PortalDashboardPage() {
 
   const quickActions = [
     { href: "/portal/visitors/new", label: "Register a visitor", icon: Users },
-    { href: "/portal/deliveries/new", label: "Expect a delivery", icon: Truck },
+    { href: "/portal/deliveries/new", label: "Submit a delivery ticket", icon: Truck },
     { href: "/portal/aal", label: "Request permanent access", icon: IdCard },
     { href: "/portal/service-requests/new", label: "New service request", icon: Wrench },
     { href: "/portal/documents", label: "Download Center", icon: FolderDown },

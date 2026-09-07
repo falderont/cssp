@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { requireCustomerUser, requireInternalUser } from "@/lib/session";
 import { assertSiteEnrollmentAccess } from "@/lib/scope";
 import { notifyFacilityTenantUsers } from "@/lib/notify";
-import { DELIVERY_STATUSES } from "@/lib/constants";
 
 const expectedSchema = z.object({
   siteEnrollmentId: z.string().min(1),
@@ -18,6 +17,11 @@ const expectedSchema = z.object({
   expectedAt: z.string().optional(),
 });
 
+// Deliveries are a request ticket into the VMS, the same shape as a
+// VisitorRequest: the tenant is the only one who can submit one — ops never
+// logs a delivery from scratch, it only processes a submitted ticket through
+// to arrival/hand-off, or rejects it (see markDeliveryArrived,
+// markDeliveryReceived and rejectDelivery below).
 export async function createExpectedDelivery(formData: FormData) {
   const user = await requireCustomerUser();
   const parsed = expectedSchema.parse({
@@ -52,75 +56,48 @@ export async function createExpectedDelivery(formData: FormData) {
   redirect("/portal/deliveries");
 }
 
-const logSchema = z.object({
-  facilityId: z.string().min(1),
-  enterpriseAccountId: z.string().optional(),
-  courierName: z.string().min(1),
-  trackingNumber: z.string().optional(),
-  description: z.string().min(1),
-  recipientName: z.string().optional(),
-});
+export async function markDeliveryArrived(id: string, returnPath: string) {
+  await requireInternalUser();
+  const delivery = await prisma.delivery.update({ where: { id }, data: { status: "Arrived", arrivedAt: new Date() } });
 
-export async function logDeliveryArrival(formData: FormData) {
-  const user = await requireInternalUser();
-  const parsed = logSchema.parse({
-    facilityId: formData.get("facilityId"),
-    enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
-    courierName: formData.get("courierName"),
-    trackingNumber: formData.get("trackingNumber") || undefined,
-    description: formData.get("description"),
-    recipientName: formData.get("recipientName") || undefined,
+  await notifyFacilityTenantUsers(delivery.facilityId, {
+    title: "A delivery has arrived",
+    body: `${delivery.courierName}: ${delivery.description}`,
+    category: "delivery",
+    linkUrl: "/portal/deliveries",
   });
 
-  const delivery = await prisma.delivery.create({
-    data: {
-      facilityId: parsed.facilityId,
-      enterpriseAccountId: parsed.enterpriseAccountId || null,
-      courierName: parsed.courierName,
-      trackingNumber: parsed.trackingNumber || null,
-      description: parsed.description,
-      recipientName: parsed.recipientName || null,
-      status: "Arrived",
-      arrivedAt: new Date(),
-      createdById: user.id,
-    },
-  });
-
-  if (delivery.enterpriseAccountId) {
-    await notifyFacilityTenantUsers(delivery.facilityId, {
-      title: "A delivery has arrived",
-      body: `${delivery.courierName}: ${delivery.description}`,
-      category: "delivery",
-      linkUrl: "/portal/deliveries",
-    });
-  }
-
-  revalidatePath("/ops/deliveries");
+  revalidatePath(returnPath);
 }
 
-const statusSchema = z.enum(DELIVERY_STATUSES);
-
-export async function updateDeliveryStatus(id: string, returnPath: string, formData: FormData) {
+export async function markDeliveryReceived(id: string, returnPath: string) {
   const user = await requireInternalUser();
-  const status = statusSchema.parse(formData.get("status"));
-
   const delivery = await prisma.delivery.update({
     where: { id },
-    data: {
-      status,
-      ...(status === "Arrived" ? { arrivedAt: new Date() } : {}),
-      ...(status === "Received" ? { receivedAt: new Date(), receivedById: user.id } : {}),
-    },
+    data: { status: "Received", receivedAt: new Date(), receivedById: user.id },
   });
 
-  if (delivery.enterpriseAccountId && (status === "Arrived" || status === "Received")) {
-    await notifyFacilityTenantUsers(delivery.facilityId, {
-      title: status === "Arrived" ? "A delivery has arrived" : "A delivery was received on your behalf",
-      body: `${delivery.courierName}: ${delivery.description}`,
-      category: "delivery",
-      linkUrl: "/portal/deliveries",
-    });
-  }
+  await notifyFacilityTenantUsers(delivery.facilityId, {
+    title: "A delivery was received on your behalf",
+    body: `${delivery.courierName}: ${delivery.description}`,
+    category: "delivery",
+    linkUrl: "/portal/deliveries",
+  });
+
+  revalidatePath(returnPath);
+}
+
+export async function rejectDelivery(id: string, returnPath: string, formData: FormData) {
+  await requireInternalUser();
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const delivery = await prisma.delivery.update({ where: { id }, data: { status: "Rejected", notes } });
+
+  await notifyFacilityTenantUsers(delivery.facilityId, {
+    title: "A delivery was rejected",
+    body: notes ?? `${delivery.courierName}: ${delivery.description}`,
+    category: "delivery",
+    linkUrl: "/portal/deliveries",
+  });
 
   revalidatePath(returnPath);
 }

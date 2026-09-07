@@ -5,10 +5,10 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireSysAdmin } from "@/lib/session";
+import { requireSysAdmin, requireMasterDataAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
-import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
+import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
 
@@ -48,67 +48,96 @@ export async function updateBranding(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-// --- Regions ----------------------------------------------------------------
+// --- Areas: Region -> Country -> City -> Site (Facility) -> Building -> Room
+// Master data, owned by the Global Sys Admin and delegable to Service Desk —
+// every action below is gated by requireMasterDataAdmin(), not requireSysAdmin().
+// Region/Country/City/Site are staged on one consolidated screen
+// (/ops/admin/facilities — see facility-hierarchy-explorer.tsx): each level
+// is added inline as you drill in, so onboarding a site in a country/city
+// the platform hasn't seen yet is just adding each level in turn, without
+// leaving the page. Building/Room management then hands off to that site's
+// own dedicated admin page.
 
 export async function createRegion(formData: FormData) {
-  const admin = await requireSysAdmin();
+  const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
   const region = await prisma.region.create({ data: { name, code } });
   await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
-  revalidatePath("/ops/admin/regions");
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
 }
 
-// --- Facilities & buildings --------------------------------------------------
+export async function createCountry(regionId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  if (!name || !code) throw new Error("Name and code are required.");
+  const country = await prisma.country.create({ data: { name, code, regionId } });
+  await logAudit({ actorId: admin.id, action: "country.create", summary: `Created country ${name} (${code}).`, targetType: "Country", targetId: country.id });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
+export async function createCity(countryId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  if (!name) throw new Error("Name is required.");
+  const city = await prisma.city.create({ data: { name, countryId } });
+  await logAudit({ actorId: admin.id, action: "city.create", summary: `Created city ${name}.`, targetType: "City", targetId: city.id });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
+// --- Facilities (Sites) & buildings ------------------------------------------
 
 const facilitySchema = z.object({
   name: z.string().min(1),
   code: z.string().min(1),
-  regionId: z.string().min(1),
+  cityId: z.string().min(1),
   address: z.string().optional(),
   timezone: z.string().min(1),
   acsEndpointUrl: z.string().optional(),
 });
 
-export async function createFacility(formData: FormData) {
-  const admin = await requireSysAdmin();
+export async function createFacility(cityId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
   const parsed = facilitySchema.parse({
     name: formData.get("name"),
     code: formData.get("code"),
-    regionId: formData.get("regionId"),
+    cityId,
     address: formData.get("address") || undefined,
     timezone: formData.get("timezone"),
     acsEndpointUrl: formData.get("acsEndpointUrl") || undefined,
   });
-  const offersColoRacks = formData.get("offersColoRacks") === "on";
 
   const facility = await prisma.facility.create({
     data: {
       name: parsed.name,
       code: parsed.code.toUpperCase(),
-      regionId: parsed.regionId,
+      cityId: parsed.cityId,
       address: parsed.address || null,
       timezone: parsed.timezone,
       acsEndpointUrl: parsed.acsEndpointUrl || null,
-      offersColoRacks,
     },
   });
 
   await logAudit({ actorId: admin.id, action: "facility.create", summary: `Created facility ${parsed.name}.`, targetType: "Facility", targetId: facility.id });
   revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
   redirect(`/ops/admin/facilities/${facility.id}`);
 }
 
 export async function updateFacilityAcs(facilityId: string, formData: FormData) {
-  await requireSysAdmin();
+  await requireMasterDataAdmin();
   const acsEndpointUrl = String(formData.get("acsEndpointUrl") ?? "") || null;
   await prisma.facility.update({ where: { id: facilityId }, data: { acsEndpointUrl } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
 export async function createBuilding(facilityId: string, formData: FormData) {
-  await requireSysAdmin();
+  await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
@@ -116,48 +145,62 @@ export async function createBuilding(facilityId: string, formData: FormData) {
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
-// --- Facility space model: rooms (data halls/offices/storage) & racks -------
-
-export async function updateFacilitySpaceModel(facilityId: string, formData: FormData) {
-  const admin = await requireSysAdmin();
-  const offersColoRacks = formData.get("offersColoRacks") === "on";
-  await prisma.facility.update({ where: { id: facilityId }, data: { offersColoRacks } });
-  await logAudit({
-    actorId: admin.id,
-    action: "facility.update_space_model",
-    summary: `Set facility space model to ${offersColoRacks ? "rooms with colo racks" : "rooms only"}.`,
-    targetType: "Facility",
-    targetId: facilityId,
-  });
-  revalidatePath(`/ops/admin/facilities/${facilityId}`);
-}
-
-export async function createRoom(facilityId: string, formData: FormData) {
-  await requireSysAdmin();
+export async function createRoom(buildingId: string, formData: FormData) {
+  await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   const code = String(formData.get("code") ?? "").toUpperCase();
-  const type = String(formData.get("type") ?? "DataHall");
-  const buildingId = String(formData.get("buildingId") ?? "") || null;
   if (!name || !code) throw new Error("Name and code are required.");
-  if (!(ROOM_TYPES as readonly string[]).includes(type)) throw new Error("Invalid room type.");
-  await prisma.room.create({ data: { facilityId, buildingId, name, code, type } });
-  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+  const room = await prisma.room.create({ data: { buildingId, name, code } });
+  const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId }, select: { facilityId: true } });
+  revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
+  return room;
 }
 
-export async function createRack(facilityId: string, roomId: string, formData: FormData) {
-  await requireSysAdmin();
-  const rackNumber = String(formData.get("rackNumber") ?? "").trim();
-  if (!rackNumber) throw new Error("Rack number is required.");
+// --- Teams --------------------------------------------------------------------
+// A team is scoped to at most one geography level — a region, a country or a
+// single facility — or left unscoped for a global/company-wide team.
 
-  const [facility, room] = await Promise.all([
-    prisma.facility.findUniqueOrThrow({ where: { id: facilityId } }),
-    prisma.room.findUniqueOrThrow({ where: { id: roomId } }),
-  ]);
-  if (room.facilityId !== facilityId) throw new Error("Room does not belong to this facility.");
-  if (!facility.offersColoRacks) throw new Error("This facility is configured for rooms only — enable colo racks first.");
+const teamSchema = z.object({
+  name: z.string().min(1),
+  function: z.string().min(1),
+  scopeType: z.enum(["Global", "Region", "Country", "Facility"]),
+  scopeId: z.string().optional(),
+});
 
-  await prisma.rack.create({ data: { roomId, rackNumber } });
-  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+export async function createTeam(formData: FormData) {
+  const admin = await requireSysAdmin();
+  const parsed = teamSchema.parse({
+    name: formData.get("name"),
+    function: formData.get("function"),
+    scopeType: formData.get("scopeType"),
+    scopeId: formData.get("scopeId") || undefined,
+  });
+  if (parsed.scopeType !== "Global" && !parsed.scopeId) {
+    throw new Error("Choose a region, country or facility for this team's scope.");
+  }
+
+  const team = await prisma.team.create({
+    data: {
+      name: parsed.name,
+      function: parsed.function,
+      regionId: parsed.scopeType === "Region" ? parsed.scopeId : null,
+      countryId: parsed.scopeType === "Country" ? parsed.scopeId : null,
+      facilityId: parsed.scopeType === "Facility" ? parsed.scopeId : null,
+    },
+  });
+
+  await logAudit({ actorId: admin.id, action: "team.create", summary: `Created team ${parsed.name} (${parsed.function}).`, targetType: "Team", targetId: team.id });
+  revalidatePath("/ops/admin/teams");
+  revalidatePath("/ops/admin");
+}
+
+export async function deleteTeam(teamId: string) {
+  const admin = await requireSysAdmin();
+  const team = await prisma.team.delete({ where: { id: teamId } });
+  await logAudit({ actorId: admin.id, action: "team.delete", summary: `Deleted team ${team.name}.`, targetType: "Team", targetId: teamId });
+  revalidatePath("/ops/admin/teams");
+  revalidatePath("/ops/admin/users");
+  revalidatePath("/ops/admin");
 }
 
 // --- Enterprise accounts & site enrollments ----------------------------------
@@ -201,6 +244,32 @@ export async function createSiteEnrollment(enterpriseAccountId: string, formData
   revalidatePath(`/ops/admin/accounts/${enterpriseAccountId}`);
 }
 
+// A tenant's controlled/leased area within one enrolled site — as granular as
+// a Room, or as broad as a whole Building (see ControlledArea in the schema).
+// The site enrollment is derived from the chosen building (a facility can
+// only be enrolled once per account — see SiteEnrollment's unique constraint).
+export async function createControlledArea(enterpriseAccountId: string, formData: FormData) {
+  await requireSysAdmin();
+  let buildingId = String(formData.get("buildingId") ?? "") || null;
+  const roomId = String(formData.get("roomId") ?? "") || null;
+  const label = String(formData.get("label") ?? "");
+  const accessNotes = String(formData.get("accessNotes") ?? "") || null;
+  if (!label || (!buildingId && !roomId)) throw new Error("A label and either a building or a room are required.");
+
+  // A room pins the building too — the room selection wins if both are set.
+  if (roomId) {
+    const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { buildingId: true } });
+    buildingId = room.buildingId;
+  }
+  const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId! }, select: { facilityId: true } });
+  const enrollment = await prisma.siteEnrollment.findUniqueOrThrow({
+    where: { enterpriseAccountId_facilityId: { enterpriseAccountId, facilityId: building.facilityId } },
+  });
+
+  await prisma.controlledArea.create({ data: { siteEnrollmentId: enrollment.id, label, buildingId, roomId, accessNotes } });
+  revalidatePath(`/ops/admin/accounts/${enterpriseAccountId}`);
+}
+
 // --- Users -------------------------------------------------------------------
 
 const userSchema = z.object({
@@ -211,7 +280,9 @@ const userSchema = z.object({
   enterpriseAccountId: z.string().optional(),
   restrictedFacilityId: z.string().optional(),
   restrictedRegionId: z.string().optional(),
+  restrictedCountryId: z.string().optional(),
   csScope: z.string().optional(),
+  teamId: z.string().optional(),
 });
 
 export async function createUser(formData: FormData) {
@@ -224,7 +295,9 @@ export async function createUser(formData: FormData) {
     enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
     restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
     restrictedRegionId: formData.get("restrictedRegionId") || undefined,
+    restrictedCountryId: formData.get("restrictedCountryId") || undefined,
     csScope: formData.get("csScope") || undefined,
+    teamId: formData.get("teamId") || undefined,
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
@@ -243,12 +316,15 @@ export async function createUser(formData: FormData) {
       enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
       restrictedFacilityId: parsed.restrictedFacilityId || null,
       restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+      restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
       csScope: isCsTeam ? parsed.csScope || "Site" : null,
+      teamId: !isCustomer ? parsed.teamId || null : null,
     },
   });
 
   await logAudit({ actorId: admin.id, action: "user.create", summary: `Created user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: user.id });
   revalidatePath("/ops/admin/users");
+  revalidatePath("/ops/admin/teams");
   redirect("/ops/admin/users");
 }
 
@@ -263,7 +339,9 @@ export async function updateUser(userId: string, formData: FormData) {
     enterpriseAccountId: formData.get("enterpriseAccountId") || undefined,
     restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
     restrictedRegionId: formData.get("restrictedRegionId") || undefined,
+    restrictedCountryId: formData.get("restrictedCountryId") || undefined,
     csScope: formData.get("csScope") || undefined,
+    teamId: formData.get("teamId") || undefined,
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
@@ -281,12 +359,15 @@ export async function updateUser(userId: string, formData: FormData) {
       enterpriseAccountId: isCustomer ? parsed.enterpriseAccountId! : null,
       restrictedFacilityId: parsed.restrictedFacilityId || null,
       restrictedRegionId: isCsTeam ? parsed.restrictedRegionId || null : null,
+      restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
       csScope: isCsTeam ? parsed.csScope || "Site" : null,
+      teamId: !isCustomer ? parsed.teamId || null : null,
     },
   });
 
   await logAudit({ actorId: admin.id, action: "user.update", summary: `Updated user ${parsed.name} (${parsed.role}).`, targetType: "User", targetId: userId });
   revalidatePath("/ops/admin/users");
+  revalidatePath("/ops/admin/teams");
   redirect("/ops/admin/users");
 }
 

@@ -7,15 +7,21 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { createSiteEnrollment } from "@/actions/admin";
+import { createControlledArea, createSiteEnrollment } from "@/actions/admin";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
-export default async function AccountDetailPage({ params }: { params: { id: string } }) {
+export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireSysAdmin();
   const account = await prisma.enterpriseAccount.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
-      siteEnrollments: { include: { facility: true } },
+      siteEnrollments: {
+        include: {
+          facility: { include: { buildings: { include: { rooms: true } } } },
+          controlledAreas: { include: { building: true, room: true } },
+        },
+      },
       users: { orderBy: { name: "asc" } },
     },
   });
@@ -23,6 +29,10 @@ export default async function AccountDetailPage({ params }: { params: { id: stri
 
   const facilities = await prisma.facility.findMany({ orderBy: { name: "asc" } });
   const enrollBound = createSiteEnrollment.bind(null, account.id);
+  const addControlledAreaBound = createControlledArea.bind(null, account.id);
+  const enrolledBuildings = account.siteEnrollments.flatMap((e) =>
+    e.facility.buildings.map((b) => ({ ...b, facilityName: e.facility.name, siteEnrollmentId: e.id }))
+  );
 
   return (
     <div>
@@ -72,6 +82,77 @@ export default async function AccountDetailPage({ params }: { params: { id: stri
                 </div>
                 <Button type="submit">Enroll site</Button>
               </form>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Controlled areas</CardTitle>
+            </CardHeader>
+            <Table>
+              <THead>
+                <tr>
+                  <TH>Label</TH>
+                  <TH>Facility</TH>
+                  <TH>Building</TH>
+                  <TH>Room</TH>
+                </tr>
+              </THead>
+              <TBody>
+                {account.siteEnrollments.flatMap((e) => e.controlledAreas).length === 0 && (
+                  <EmptyRow colSpan={4} message="No controlled areas defined — the tenant's footprint is the whole facility per enrollment." />
+                )}
+                {account.siteEnrollments.map((e) =>
+                  e.controlledAreas.map((ca) => (
+                    <TR key={ca.id}>
+                      <TD>{ca.label}</TD>
+                      <TD>{e.facility.name}</TD>
+                      <TD>{ca.building?.name ?? "—"}</TD>
+                      <TD>{ca.room?.name ?? "—"}</TD>
+                    </TR>
+                  ))
+                )}
+              </TBody>
+            </Table>
+            <CardBody className="border-t border-slate-100">
+              {enrolledBuildings.length === 0 ? (
+                <p className="text-sm text-slate-500">Add a building to an enrolled facility (under Admin → Facilities) before defining a controlled area.</p>
+              ) : (
+                <form action={addControlledAreaBound} className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1">
+                    <Field label="Label" htmlFor="caLabel" required>
+                      <Input id="caLabel" name="label" required placeholder="e.g. Suite 4B" />
+                    </Field>
+                  </div>
+                  <div className="flex-1">
+                    <Field label="Building" htmlFor="buildingId" hint="Or pick a room below">
+                      <Select id="buildingId" name="buildingId" defaultValue="">
+                        <option value="">—</option>
+                        {enrolledBuildings.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.facilityName} · {b.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                  <div className="flex-1">
+                    <Field label="Room" htmlFor="roomId" hint="Narrows to one room">
+                      <Select id="roomId" name="roomId" defaultValue="">
+                        <option value="">—</option>
+                        {enrolledBuildings.flatMap((b) =>
+                          b.rooms.map((room) => (
+                            <option key={room.id} value={room.id}>
+                              {b.facilityName} · {b.name} · {room.name}
+                            </option>
+                          ))
+                        )}
+                      </Select>
+                    </Field>
+                  </div>
+                  <Button type="submit">Add controlled area</Button>
+                </form>
+              )}
             </CardBody>
           </Card>
 

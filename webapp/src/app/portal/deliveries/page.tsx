@@ -19,10 +19,10 @@ export default async function PortalDeliveriesPage() {
     <div>
       <PageHeader
         title="Deliveries"
-        description="Incoming logistics and courier deliveries for your account."
+        description="Submit a delivery ticket for anything incoming to your site — front desk processes it from there through to hand-off."
         actions={
           <LinkButton href="/portal/deliveries/new">
-            <Plus className="h-4 w-4" /> Expect a delivery
+            <Plus className="h-4 w-4" /> Submit a delivery ticket
           </LinkButton>
         }
       />
@@ -52,8 +52,8 @@ export default async function PortalDeliveriesPage() {
         </TBody>
       </Table>
       <p className="mt-3 text-xs text-slate-400">
-        Front desk logs deliveries as they physically arrive — pre-notifying an expected delivery here just gives them a
-        heads up.
+        Only your company can submit a delivery ticket — front desk can't log one on your behalf. Once submitted, they'll
+        mark it arrived and received (or reject it) as it moves through.
       </p>
     </div>
   );

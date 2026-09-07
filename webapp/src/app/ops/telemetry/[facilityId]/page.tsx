@@ -11,10 +11,11 @@ import { getTelemetrySeries } from "@/lib/telemetry-query";
 import { TELEMETRY_METRICS, TELEMETRY_METRIC_LABELS } from "@/lib/constants";
 import { updateTelemetrySource } from "@/actions/telemetry";
 
-export default async function OpsTelemetryFacilityPage({ params }: { params: { facilityId: string } }) {
+export default async function OpsTelemetryFacilityPage({ params }: { params: Promise<{ facilityId: string }> }) {
+  const { facilityId } = await params;
   await requireInternalUser();
   const facility = await prisma.facility.findUnique({
-    where: { id: params.facilityId },
+    where: { id: facilityId },
     include: { telemetrySource: true },
   });
   if (!facility) notFound();

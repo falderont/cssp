@@ -14,7 +14,20 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Provider branding + facility hierarchy (Region -> Facility -> Building)
+// Provider branding + area (location) hierarchy:
+//   Region -> Country -> City -> Facility ("Site") -> Building -> Room
+// This is the Global Sys Admin's master data for "where" (delegable to
+// Service Desk — see requireMasterDataAdmin() in lib/session.ts), staged and
+// managed from one consolidated Region/Country/City/Site screen
+// (/ops/admin/facilities) that hands off to a dedicated per-site admin page
+// for that site's Buildings and Rooms — see docs/prd-v7.md. A Region,
+// Country or City can exist ahead of any Site actually opening there (see
+// seed.ts for examples). Every facility-scoped entity in the app (incidents,
+// maintenance, telemetry, visitor requests, site enrollments...) still
+// points at Facility/Building directly — Country and City exist to group
+// facilities geographically (reporting, delegated admin scope, tenant
+// multi-location rollups) without churning every existing
+// facilityId/buildingId foreign key in the app.
 // ---------------------------------------------------------------------------
 
 model ProviderSettings {
@@ -37,29 +50,60 @@ model ProviderSettings {
   updatedAt DateTime @updatedAt
 }
 
+// Level 1 — broad geography grouping used for reporting and delegated scope
+// (e.g. a CS Team member or Service Desk agent scoped to "APAC").
 model Region {
-  id         String     @id @default(cuid())
-  name       String
-  code       String     @unique
-  createdAt  DateTime   @default(now())
-  facilities Facility[]
-  csUsers    User[]     @relation("UserRestrictedRegion")
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  countries Country[]
+  csUsers   User[]    @relation("UserRestrictedRegion")
+  teams     Team[]    @relation("TeamRegion")
 }
 
+// Level 2 — ISO-3166-1 alpha-2 country code, grouped under a Region.
+model Country {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique // e.g. ID, MY, SG, TH, JP, HK, FI, ES
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id])
+  createdAt DateTime @default(now())
+
+  cities  City[]
+  csUsers User[] @relation("UserRestrictedCountry")
+  teams   Team[] @relation("TeamCountry")
+}
+
+// Level 3 — a city/metro area within a Country. Facilities (Sites) sit here.
+model City {
+  id        String   @id @default(cuid())
+  name      String
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id])
+  createdAt DateTime @default(now())
+
+  facilities Facility[]
+
+  @@unique([countryId, name])
+}
+
+// Level 4 — a "Site" in provider/tenant terminology (data center, office,
+// campus). Modeled as Facility for historical reasons — see SiteEnrollment,
+// which is where "site" as a tenant-facing concept is used throughout the app.
 model Facility {
-  id              String   @id @default(cuid())
-  name            String
-  code            String   @unique
-  address         String?
-  timezone        String   @default("UTC")
-  acsEndpointUrl  String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
-  offersColoRacks Boolean  @default(true) // false = this facility leases whole rooms only, no rack-level colocation
-  regionId        String
-  region          Region   @relation(fields: [regionId], references: [id])
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String
+  code           String   @unique
+  address        String?
+  timezone       String   @default("UTC")
+  acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id])
+  createdAt      DateTime @default(now())
 
   buildings               Building[]
-  rooms                   Room[]
   siteEnrollments         SiteEnrollment[]
   incidents               Incident[]
   maintenanceEvents       MaintenanceEvent[]
@@ -69,8 +113,10 @@ model Facility {
   deliveries              Delivery[]
   restrictedUsers         User[]                  @relation("UserRestrictedFacility")
   authorizedAccessEntries AuthorizedAccessEntry[]
+  teams                   Team[]                  @relation("TeamFacility")
 }
 
+// Level 5 — a building within a Site/Facility.
 model Building {
   id         String   @id @default(cuid())
   name       String
@@ -84,40 +130,24 @@ model Building {
   maintenanceEvents MaintenanceEvent[]
   telemetryPoints   TelemetryPoint[]
   visitorRequests   VisitorRequest[]
+  controlledAreas   ControlledArea[]
 
   @@unique([facilityId, code])
 }
 
-// A physical space within a facility (optionally within one of its
-// buildings) that the provider offers to tenants — a Data Hall, an office,
-// storage, etc. When the facility offers colo racks (Facility.offersColoRacks)
-// a Data Hall room can be broken down further into numbered Racks; a
-// facility that leases whole rooms only stops here.
+// Level 6 — the most granular area: a room/hall/suite within a Building
+// (e.g. a data hall "DH001", a mechanical/meter room "MMR", a meeting room).
 model Room {
   id         String   @id @default(cuid())
-  facilityId String
-  facility   Facility  @relation(fields: [facilityId], references: [id])
-  buildingId String?
-  building   Building? @relation(fields: [buildingId], references: [id])
   name       String
   code       String
-  type       String    @default("DataHall") // DataHall/Office/Storage/MeetMeRoom/Other
-  createdAt  DateTime  @default(now())
-
-  racks Rack[]
-
-  @@unique([facilityId, code])
-}
-
-model Rack {
-  id         String   @id @default(cuid())
-  roomId     String
-  room       Room     @relation(fields: [roomId], references: [id])
-  rackNumber String
-  notes      String?
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
   createdAt  DateTime @default(now())
 
-  @@unique([roomId, rackNumber])
+  controlledAreas ControlledArea[]
+
+  @@unique([buildingId, code])
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +175,11 @@ model EnterpriseAccount {
   authorizedAccessEntries AuthorizedAccessEntry[]
 }
 
+// One row per facility a tenant occupies — an account with several
+// SiteEnrollments is a tenant with multiple locations. `spaceRef` remains a
+// free-text summary (e.g. "Suite 4, Rack Row 12"); ControlledArea below adds
+// the structured version, scoping the enrollment down to specific
+// buildings/rooms when the tenant's contractual footprint needs that detail.
 model SiteEnrollment {
   id                  String            @id @default(cuid())
   enterpriseAccountId String
@@ -157,8 +192,25 @@ model SiteEnrollment {
 
   visitorRequests VisitorRequest[]
   serviceRequests ServiceRequest[]
+  controlledAreas ControlledArea[]
 
   @@unique([enterpriseAccountId, facilityId])
+}
+
+// A tenant's controlled/leased area within one enrolled site — as granular
+// as a single Room, or as broad as a whole Building. A SiteEnrollment can
+// have several (e.g. a cage in Building A plus a dedicated meeting room).
+model ControlledArea {
+  id               String         @id @default(cuid())
+  siteEnrollmentId String
+  siteEnrollment   SiteEnrollment @relation(fields: [siteEnrollmentId], references: [id])
+  buildingId       String?
+  building         Building?      @relation(fields: [buildingId], references: [id])
+  roomId           String?
+  room             Room?          @relation(fields: [roomId], references: [id])
+  label            String // e.g. "Suite 4B" — shown even when building/room aren't set
+  accessNotes      String?
+  createdAt        DateTime       @default(now())
 }
 
 model User {
@@ -167,7 +219,7 @@ model User {
   email                String             @unique
   passwordHash         String
   role                 String
-  csScope              String? // Corporate/Region/Site/Billing — only when role = CS_TEAM
+  csScope              String? // Corporate/Region/Country/Site/Billing — only when role = CS_TEAM
   title                String?
   phone                String?
   avatarUrl            String?
@@ -178,6 +230,10 @@ model User {
   restrictedFacility   Facility?          @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
   restrictedRegionId   String?
   restrictedRegion     Region?            @relation("UserRestrictedRegion", fields: [restrictedRegionId], references: [id])
+  restrictedCountryId  String?
+  restrictedCountry    Country?           @relation("UserRestrictedCountry", fields: [restrictedCountryId], references: [id])
+  teamId               String?
+  team                 Team?              @relation("TeamMembers", fields: [teamId], references: [id])
   createdAt            DateTime           @default(now())
 
   hostedVisitorRequests   VisitorRequest[]        @relation("HostUser")
@@ -198,6 +254,9 @@ model User {
   decidedAalEntries       AuthorizedAccessEntry[] @relation("AalDecidedBy")
   auditLogs               AuditLog[]
   backups                 BackupRecord[]
+  requestedAreaChanges    AreaChangeRequest[]     @relation("AreaChangeRequestedBy")
+  assignedAreaChanges     AreaChangeRequest[]     @relation("AreaChangeAssignedTo")
+  decidedAreaChanges      AreaChangeRequest[]     @relation("AreaChangeDecidedBy")
 }
 
 // ---------------------------------------------------------------------------
@@ -261,28 +320,30 @@ model BlacklistEntry {
   createdAt   DateTime @default(now())
 }
 
-// Incoming logistics / courier deliveries — a lighter-weight sibling of
-// visitor management for front-desk/dock traffic that isn't a person visit.
+// Incoming logistics / courier deliveries — a customer-submitted request
+// ticket into the VMS, the same pattern as VisitorRequest: the tenant is
+// the only one who can create one (via the portal); ops only processes it
+// through to arrival/hand-off (or rejects it). See actions/deliveries.ts.
 model Delivery {
-  id                  String             @id @default(cuid())
+  id                  String            @id @default(cuid())
   facilityId          String
-  facility            Facility           @relation(fields: [facilityId], references: [id])
-  enterpriseAccountId String?
-  enterpriseAccount   EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  facility            Facility          @relation(fields: [facilityId], references: [id])
+  enterpriseAccountId String
+  enterpriseAccount   EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
   courierName         String
   trackingNumber      String?
   description         String
   recipientName       String?
   expectedAt          DateTime?
-  status              String             @default("Expected") // Expected/Arrived/Received/Rejected
+  status              String            @default("Expected") // Expected/Arrived/Received/Rejected
   arrivedAt           DateTime?
   receivedAt          DateTime?
   receivedById        String?
-  receivedBy          User?              @relation("DeliveryReceivedBy", fields: [receivedById], references: [id])
+  receivedBy          User?             @relation("DeliveryReceivedBy", fields: [receivedById], references: [id])
   notes               String?
   createdById         String
-  createdBy           User               @relation("DeliveryLoggedBy", fields: [createdById], references: [id])
-  createdAt           DateTime           @default(now())
+  createdBy           User              @relation("DeliveryLoggedBy", fields: [createdById], references: [id])
+  createdAt           DateTime          @default(now())
 }
 
 model AcsIntegrationLog {
@@ -559,6 +620,59 @@ model AuthorizedAccessEntry {
   decidedAt           DateTime?
   decisionNotes       String?
   createdAt           DateTime          @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Area (location) master data is owned by the Global Sys Admin and may be
+// delegated to Service Desk (see requireMasterDataAdmin() in lib/session.ts).
+// Any other internal staff who need a change (new site, renamed building,
+// new room, etc.) raise one of these instead of editing master data
+// directly — the ticket a Sys Admin/Service Desk agent triages and applies.
+// ---------------------------------------------------------------------------
+
+model AreaChangeRequest {
+  id            String    @id @default(cuid())
+  level         String // Region/Country/City/Site/Building/Room
+  action        String    @default("Add") // Add/Update/Deactivate
+  context       String // free-text location, e.g. "Indonesia > Batam > NDP > Building A"
+  proposedName  String?
+  proposedCode  String?
+  notes         String
+  status        String    @default("Submitted") // Submitted/InReview/Approved/Rejected/Applied
+  requestedById String
+  requestedBy   User      @relation("AreaChangeRequestedBy", fields: [requestedById], references: [id])
+  assignedToId  String?
+  assignedTo    User?     @relation("AreaChangeAssignedTo", fields: [assignedToId], references: [id])
+  decidedById   String?
+  decidedBy     User?     @relation("AreaChangeDecidedBy", fields: [decidedById], references: [id])
+  decisionNotes String?
+  decidedAt     DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Teams — the Global Sys Admin's organizational master data: a named roster
+// of internal staff scoped to exactly one level of the geography (a whole
+// region, one country, or a single facility) or left unscoped for a
+// company-wide/global team. Distinct from a user's individual facility/
+// region restriction: a team is the reporting/coverage unit a Global Sys
+// Admin defines up front, not an ad hoc grouping of whoever happens to
+// share a scope.
+// ---------------------------------------------------------------------------
+
+model Team {
+  id         String    @id @default(cuid())
+  name       String
+  function   String // Ops/NOC/Security/CustomerSuccess/ServiceDesk/Facilities/Executive — see lib/constants.ts
+  regionId   String?
+  region     Region?   @relation("TeamRegion", fields: [regionId], references: [id])
+  countryId  String?
+  country    Country?  @relation("TeamCountry", fields: [countryId], references: [id])
+  facilityId String?
+  facility   Facility? @relation("TeamFacility", fields: [facilityId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  members User[] @relation("TeamMembers")
 }
 
 // ---------------------------------------------------------------------------

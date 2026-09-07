@@ -12,7 +12,7 @@ export default async function NewDeliveryPage() {
 
   return (
     <div>
-      <PageHeader title="Expect a delivery" description="Give the front desk a heads-up about an incoming courier or logistics delivery." />
+      <PageHeader title="Submit a delivery ticket" description="Tell front desk about an incoming courier or logistics delivery so they can process it on arrival." />
       <Card className="max-w-2xl">
         <CardBody>
           <form action={createExpectedDelivery} className="space-y-4">
@@ -42,7 +42,7 @@ export default async function NewDeliveryPage() {
             <Field label="Description" htmlFor="description" required>
               <Textarea id="description" name="description" required placeholder="What's being delivered?" />
             </Field>
-            <Button type="submit">Notify front desk</Button>
+            <Button type="submit">Submit ticket</Button>
           </form>
         </CardBody>
       </Card>
