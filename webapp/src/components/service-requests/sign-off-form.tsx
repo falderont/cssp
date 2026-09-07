@@ -118,7 +118,7 @@ export function SignOffForm({ serviceRequestId, returnPath }: { serviceRequestId
         Submit sign-off
       </Button>
       <p className="text-xs text-slate-400">
-        This creates a signed acceptance certificate attached to this request and available in the Download Center —
+        This creates a signed acceptance certificate attached to this request and available in Documents —
         the same document your provider can attach for billing.
       </p>
     </ActionForm>

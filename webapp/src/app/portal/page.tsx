@@ -56,7 +56,7 @@ export default async function PortalDashboardPage() {
     { href: "/portal/deliveries/new", label: "Submit a delivery ticket", icon: Truck },
     { href: "/portal/aal", label: "Request permanent access", icon: IdCard },
     { href: "/portal/service-requests/new", label: "New service request", icon: Wrench },
-    { href: "/portal/documents", label: "Download Center", icon: FolderDown },
+    { href: "/portal/documents", label: "Documents", icon: FolderDown },
     { href: "/portal/billing", label: "View invoices", icon: Receipt },
     { href: "/portal/reports", label: "Generate a report", icon: FileBarChart },
     { href: "/portal/telemetry", label: "BMS telemetry", icon: Gauge },

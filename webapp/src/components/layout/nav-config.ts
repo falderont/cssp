@@ -49,7 +49,7 @@ export type NavItem = {
   group?: string;
 };
 
-export const PORTAL_GROUP_ORDER = ["Day-to-day", "Reporting", "Account administration"] as const;
+export const PORTAL_GROUP_ORDER = ["Day-to-day", "Download Center", "Account administration"] as const;
 export const OPS_GROUP_ORDER = [
   "Global administration",
   "System administration",
@@ -94,13 +94,13 @@ export const PORTAL_NAV: NavItem[] = [
   },
   {
     href: "/portal/documents",
-    label: "Download Center",
+    label: "Documents",
     icon: "FolderDown",
-    group: "Reporting",
+    group: "Download Center",
     roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER],
   },
-  { href: "/portal/reports", label: "Reports", icon: "FileBarChart", group: "Reporting", roles: [TENANT_GLOBAL_ADMIN] },
-  { href: "/portal/billing", label: "Billing", icon: "Receipt", group: "Reporting", roles: [TENANT_GLOBAL_ADMIN, TENANT_BILLING] },
+  { href: "/portal/reports", label: "Reports", icon: "FileBarChart", group: "Download Center", roles: [TENANT_GLOBAL_ADMIN] },
+  { href: "/portal/billing", label: "Billing", icon: "Receipt", group: "Download Center", roles: [TENANT_GLOBAL_ADMIN, TENANT_BILLING] },
   { href: "/portal/branding", label: "Branding", icon: "Palette", group: "Account administration", roles: [TENANT_GLOBAL_ADMIN] },
   { href: "/portal/settings", label: "Team & Settings", icon: "Settings", group: "Account administration", roles: [TENANT_GLOBAL_ADMIN] },
 ];

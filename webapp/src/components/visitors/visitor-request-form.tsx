@@ -56,6 +56,9 @@ export function VisitorRequestForm({
             ? "Add one or more visitors below. With more than one, they're registered and approved together as a group visit."
             : "Upload a spreadsheet to register a group of visitors in one go — a contractor crew, an audit team, and so on. They're registered and approved together as a group visit; each visitor still gets their own QR pass for verification."}
         </p>
+        <Link href="/api/visitors/template" className="mt-2 inline-flex items-center gap-1 text-sm text-brand hover:underline">
+          <Download className="h-3.5 w-3.5" /> Download Excel template
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -166,26 +169,21 @@ export function VisitorRequestForm({
           <input type="hidden" name="visitorsJson" value={JSON.stringify(rows)} />
         </div>
       ) : (
-        <div className="space-y-2">
-          <Field
-            label="Visitor list (Excel or CSV)"
-            htmlFor="visitorFile"
+        <Field
+          label="Visitor list (Excel or CSV)"
+          htmlFor="visitorFile"
+          required
+          hint="Header row required: fullName, company, idType, idNumber, email, phone. Each name is screened against the blacklist automatically."
+        >
+          <input
+            id="visitorFile"
+            name="visitorFile"
+            type="file"
+            accept=".xlsx,.xlsm,.csv,text/csv"
             required
-            hint="Header row required: fullName, company, idType, idNumber, email, phone. Each name is screened against the blacklist automatically."
-          >
-            <input
-              id="visitorFile"
-              name="visitorFile"
-              type="file"
-              accept=".xlsx,.xlsm,.csv,text/csv"
-              required
-              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20"
-            />
-          </Field>
-          <Link href="/api/visitors/template" className="inline-flex items-center gap-1 text-sm text-brand hover:underline">
-            <Download className="h-3.5 w-3.5" /> Download Excel template
-          </Link>
-        </div>
+            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20"
+          />
+        </Field>
       )}
 
       <Button type="submit">{mode === "batch" ? "Upload and create visit request" : "Submit visitor request"}</Button>

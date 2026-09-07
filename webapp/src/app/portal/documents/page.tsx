@@ -23,7 +23,7 @@ export default async function PortalDocumentsPage({ searchParams }: { searchPara
 
   return (
     <div>
-      <PageHeader title="Download Center" description="SLA reports, invoices, compliance certificates and contracts, all in one place." />
+      <PageHeader title="Documents" description="SLA reports, invoices, compliance certificates and contracts, all in one place." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
         <a
           href="/portal/documents"
