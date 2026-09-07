@@ -30,6 +30,7 @@ import {
   MapPin,
   Ticket,
   Briefcase,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ const ICONS: Record<IconKey, LucideIcon> = {
   Ticket,
   Building2,
   Briefcase,
+  Warehouse,
 };
 
 // Several admin routes nest under a shared "/ops/admin" prefix (Global

@@ -116,6 +116,7 @@ model Facility {
   telemetryPoints         TelemetryPoint[]
   documents               Document[]
   deliveries              Delivery[]
+  loadingDocks            LoadingDock[]
   restrictedUsers         User[]                  @relation("UserRestrictedFacility")
   authorizedAccessEntries AuthorizedAccessEntry[]
   teams                   Team[]                  @relation("TeamFacility")
@@ -136,6 +137,7 @@ model Building {
   telemetryPoints   TelemetryPoint[]
   visitorRequests   VisitorRequest[]
   controlledAreas   ControlledArea[]
+  loadingDocks      LoadingDock[]
 
   @@unique([facilityId, code])
 }
@@ -236,36 +238,36 @@ model ControlledArea {
 }
 
 model User {
-  id                   String             @id @default(cuid())
-  name                 String
-  email                String             @unique
-  passwordHash         String
-  role                 String
-  csScope              String? // Corporate/Region/Country/Site/Billing — only when role = CS_TEAM
-  title                String?
-  phone                String?
-  avatarUrl            String?
-  isActive             Boolean            @default(true)
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+  role         String
+  csScope      String? // Corporate/Region/Country/Site/Billing — only when role = CS_TEAM
+  title        String?
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean @default(true)
 
   // Personal UI customization — chrome-only preferences, scoped to this
   // user's own view (not tenant/provider branding). accentColor overrides
   // --brand-primary when set; mutedNotificationCategories is a comma
   // separated list of Notification.category values the user no longer
   // wants surfaced in the notifications balloon/list.
-  accentColor                String?
-  density                    String  @default("comfortable")
-  mutedNotificationCategories String @default("")
-  enterpriseAccountId  String?
-  enterpriseAccount    EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
-  restrictedFacilityId String?
-  restrictedFacility   Facility?          @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
-  restrictedRegionId   String?
-  restrictedRegion     Region?            @relation("UserRestrictedRegion", fields: [restrictedRegionId], references: [id])
-  restrictedCountryId  String?
-  restrictedCountry    Country?           @relation("UserRestrictedCountry", fields: [restrictedCountryId], references: [id])
-  teamId               String?
-  team                 Team?              @relation("TeamMembers", fields: [teamId], references: [id])
-  createdAt            DateTime           @default(now())
+  accentColor                 String?
+  density                     String             @default("comfortable")
+  mutedNotificationCategories String             @default("")
+  enterpriseAccountId         String?
+  enterpriseAccount           EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  restrictedFacilityId        String?
+  restrictedFacility          Facility?          @relation("UserRestrictedFacility", fields: [restrictedFacilityId], references: [id])
+  restrictedRegionId          String?
+  restrictedRegion            Region?            @relation("UserRestrictedRegion", fields: [restrictedRegionId], references: [id])
+  restrictedCountryId         String?
+  restrictedCountry           Country?           @relation("UserRestrictedCountry", fields: [restrictedCountryId], references: [id])
+  teamId                      String?
+  team                        Team?              @relation("TeamMembers", fields: [teamId], references: [id])
+  createdAt                   DateTime           @default(now())
 
   hostedVisitorRequests   VisitorRequest[]        @relation("HostUser")
   createdVisitorRequests  VisitorRequest[]        @relation("CreatedByUser")
@@ -281,6 +283,8 @@ model User {
   createdBlacklistEntries BlacklistEntry[]        @relation("BlacklistCreatedBy")
   loggedDeliveries        Delivery[]              @relation("DeliveryLoggedBy")
   receivedDeliveries      Delivery[]              @relation("DeliveryReceivedBy")
+  createdLoadingDocks     LoadingDock[]           @relation("LoadingDockCreatedBy")
+  uploadedDeliveryPhotos  DeliveryPhoto[]         @relation("DeliveryPhotoUploadedBy")
   requestedAalEntries     AuthorizedAccessEntry[] @relation("AalRequestedBy")
   decidedAalEntries       AuthorizedAccessEntry[] @relation("AalDecidedBy")
   auditLogs               AuditLog[]
@@ -366,6 +370,11 @@ model Delivery {
   description         String
   recipientName       String?
   expectedAt          DateTime?
+  // Where the courier should physically drop this off — a LoadingDock at the
+  // facility (see LoadingDock below), set by the tenant when submitting or
+  // editing the ticket. Optional: not every site has its docks configured yet.
+  loadingDockId       String?
+  loadingDock         LoadingDock?      @relation(fields: [loadingDockId], references: [id])
   status              String            @default("Expected") // Expected/Arrived/Received/Rejected
   arrivedAt           DateTime?
   receivedAt          DateTime?
@@ -375,6 +384,43 @@ model Delivery {
   createdById         String
   createdBy           User              @relation("DeliveryLoggedBy", fields: [createdById], references: [id])
   createdAt           DateTime          @default(now())
+
+  photos DeliveryPhoto[]
+}
+
+// A physical arrival point for logistics traffic — "Loading Dock A", a rear
+// dock, etc. Distinct from the Room/Rack space model (which is colocation
+// space a tenant leases): this is purely where a courier hands off a
+// delivery, so it's owned by whoever runs day-to-day building operations
+// (Ops — Building Manager), not the Global Sys Admin's Area master data.
+// Scoped to a building when the site has more than one; buildingId is left
+// null for a single shared dock at a site with no per-building split.
+model LoadingDock {
+  id          String    @id @default(cuid())
+  facilityId  String
+  facility    Facility  @relation(fields: [facilityId], references: [id])
+  buildingId  String?
+  building    Building? @relation(fields: [buildingId], references: [id])
+  name        String
+  isActive    Boolean   @default(true)
+  createdById String
+  createdBy   User      @relation("LoadingDockCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  deliveries Delivery[]
+}
+
+// Photo evidence that a delivery's arrival/hand-off was actually completed —
+// uploaded by front-office/security at the site, not the tenant. A delivery
+// can carry more than one (package, dock, signed waybill, ...).
+model DeliveryPhoto {
+  id           String   @id @default(cuid())
+  deliveryId   String
+  delivery     Delivery @relation(fields: [deliveryId], references: [id])
+  storageKey   String
+  uploadedById String
+  uploadedBy   User     @relation("DeliveryPhotoUploadedBy", fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 model AcsIntegrationLog {

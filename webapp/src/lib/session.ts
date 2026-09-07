@@ -58,6 +58,15 @@ export async function requireBlacklistManager() {
   return user;
 }
 
+// Owns building-level logistics — defines the loading dock locations tenants
+// pick from when submitting a delivery ticket for that site.
+export async function requireBuildingManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_BUILDING_MANAGER];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
 // Runs a facility, coordinates approvals/assignment day-to-day.
 export async function requireOpsManager() {
   const user = await requireInternalUser();

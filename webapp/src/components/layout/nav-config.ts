@@ -27,7 +27,8 @@ export type IconKey =
   | "MapPin"
   | "Ticket"
   | "Building2"
-  | "Briefcase";
+  | "Briefcase"
+  | "Warehouse";
 
 // A NavItem with no `group` renders as a top-level link (e.g. Dashboard).
 // Grouped items render nested under a collapsible section header, forming
@@ -45,7 +46,7 @@ export const PORTAL_GROUP_ORDER = ["Day-to-day", "Reporting", "Account administr
 export const OPS_GROUP_ORDER = ["Global administration", "Front line", "Service delivery", "Reporting & accounts"] as const;
 
 const { TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER } = ROLES;
-const { SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR } = ROLES;
+const { SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, OPS_BUILDING_MANAGER, CS_TEAM, OPS_VENDOR } = ROLES;
 
 export const PORTAL_NAV: NavItem[] = [
   {
@@ -97,7 +98,7 @@ export const OPS_NAV: NavItem[] = [
     href: "/ops",
     label: "Dashboard",
     icon: "LayoutDashboard",
-    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR],
+    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, OPS_BUILDING_MANAGER, CS_TEAM, OPS_VENDOR],
   },
 
   // Global Sys Admin only — the master-data control plane (site hierarchy,
@@ -143,6 +144,13 @@ export const OPS_NAV: NavItem[] = [
     icon: "IdCard",
     group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
+  },
+  {
+    href: "/ops/loading-docks",
+    label: "Loading Docks",
+    icon: "Warehouse",
+    group: "Front line",
+    roles: [SYS_ADMIN, OPS_BUILDING_MANAGER],
   },
   {
     href: "/ops/admin/blacklist",

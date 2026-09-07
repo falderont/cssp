@@ -17,6 +17,7 @@ export const ROLES = {
   OPS_SITE_MANAGER: "OPS_SITE_MANAGER", // manages one facility end-to-end
   OPS_SITE_LEAD: "OPS_SITE_LEAD", // hands-on site supervisor, executes assigned work
   OPS_FRONT_OFFICE_SECURITY: "OPS_FRONT_OFFICE_SECURITY", // reception/guard house/badge desk
+  OPS_BUILDING_MANAGER: "OPS_BUILDING_MANAGER", // owns building-level logistics (loading dock locations)
   CS_TEAM: "CS_TEAM", // customer success — scoped via csScope (Corporate/Region/Site/Billing)
   OPS_VENDOR: "OPS_VENDOR", // external contractor, scoped to assigned tasks only
 } as const;
@@ -36,6 +37,7 @@ export const INTERNAL_ROLES: Role[] = [
   ROLES.OPS_SITE_MANAGER,
   ROLES.OPS_SITE_LEAD,
   ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.OPS_BUILDING_MANAGER,
   ROLES.CS_TEAM,
   ROLES.OPS_VENDOR,
 ];
@@ -61,6 +63,7 @@ export const SITE_SCOPABLE_ROLES: Role[] = [
   ROLES.OPS_SITE_MANAGER,
   ROLES.OPS_SITE_LEAD,
   ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.OPS_BUILDING_MANAGER,
   ROLES.OPS_VENDOR,
 ];
 
@@ -78,6 +81,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   OPS_SITE_MANAGER: "Ops — Site Manager",
   OPS_SITE_LEAD: "Ops — Site Lead",
   OPS_FRONT_OFFICE_SECURITY: "Ops — Front Office & Security",
+  OPS_BUILDING_MANAGER: "Ops — Building Manager",
   CS_TEAM: "Customer Success Team",
   OPS_VENDOR: "Ops — External Vendor",
 };
@@ -92,6 +96,7 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   OPS_SITE_MANAGER: "Manages one facility end-to-end — approvals, assignment, overrides.",
   OPS_SITE_LEAD: "Hands-on site supervisor — executes and completes assigned work.",
   OPS_FRONT_OFFICE_SECURITY: "Reception, guard house and badge desk — visitor & delivery front line.",
+  OPS_BUILDING_MANAGER: "Owns building-level facilities logistics — defines loading dock locations for tenants to book against.",
   CS_TEAM: "Customer success — scope determines account coverage (corporate/region/site/billing).",
   OPS_VENDOR: "External contractor — sees only the tasks assigned to them.",
 };

@@ -6,14 +6,14 @@ import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { markDeliveryArrived, markDeliveryReceived, rejectDelivery } from "@/actions/deliveries";
+import { markDeliveryArrived, markDeliveryReceived, rejectDelivery, uploadDeliveryPhoto } from "@/actions/deliveries";
 
 export default async function OpsDeliveriesPage() {
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const deliveries = await prisma.delivery.findMany({
     where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
-    include: { facility: true, enterpriseAccount: true, receivedBy: true },
+    include: { facility: true, enterpriseAccount: true, receivedBy: true, loadingDock: { include: { building: true } }, photos: true },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 100,
   });
@@ -33,14 +33,17 @@ export default async function OpsDeliveriesPage() {
             <TH>Tenant</TH>
             <TH>Status</TH>
             <TH>Actions</TH>
+            <TH>Arrival evidence</TH>
           </tr>
         </THead>
         <TBody>
-          {deliveries.length === 0 && <EmptyRow colSpan={6} message="No delivery tickets submitted yet." />}
+          {deliveries.length === 0 && <EmptyRow colSpan={7} message="No delivery tickets submitted yet." />}
           {deliveries.map((d) => {
             const arrivedBound = markDeliveryArrived.bind(null, d.id, "/ops/deliveries");
             const receivedBound = markDeliveryReceived.bind(null, d.id, "/ops/deliveries");
             const rejectBound = rejectDelivery.bind(null, d.id, "/ops/deliveries");
+            const uploadPhotoBound = uploadDeliveryPhoto.bind(null, d.id, "/ops/deliveries");
+            const canUploadEvidence = d.status === "Arrived" || d.status === "Received";
             return (
               <TR key={d.id}>
                 <TD className="font-medium text-slate-900">
@@ -48,7 +51,15 @@ export default async function OpsDeliveriesPage() {
                   {d.trackingNumber && <p className="text-xs text-slate-400">{d.trackingNumber}</p>}
                 </TD>
                 <TD className="max-w-xs truncate">{d.description}</TD>
-                <TD>{d.facility.name}</TD>
+                <TD>
+                  {d.facility.name}
+                  {d.loadingDock && (
+                    <p className="text-xs text-slate-400">
+                      {d.loadingDock.building ? `${d.loadingDock.building.name}: ` : ""}
+                      {d.loadingDock.name}
+                    </p>
+                  )}
+                </TD>
                 <TD>{d.enterpriseAccount.name}</TD>
                 <TD>
                   <StatusBadge status={d.status} />
@@ -83,6 +94,40 @@ export default async function OpsDeliveriesPage() {
                         </Button>
                       </form>
                     </div>
+                  )}
+                </TD>
+                <TD>
+                  {canUploadEvidence ? (
+                    <div className="space-y-2">
+                      {d.photos.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {d.photos.map((photo) => (
+                            <a key={photo.id} href={`/api/deliveries/photos/${photo.id}`} target="_blank" rel="noreferrer">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/deliveries/photos/${photo.id}`}
+                                alt="Delivery arrival evidence"
+                                className="h-10 w-10 rounded-md border border-slate-200 object-cover"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      <form action={uploadPhotoBound} className="flex items-center gap-1.5">
+                        <input
+                          type="file"
+                          name="photo"
+                          accept="image/*"
+                          required
+                          className="w-40 text-xs text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-brand/10 file:px-2 file:py-1 file:text-xs file:font-medium file:text-brand hover:file:bg-brand/20"
+                        />
+                        <Button type="submit" size="sm" variant="secondary">
+                          Upload
+                        </Button>
+                      </form>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-300">—</span>
                   )}
                 </TD>
               </TR>

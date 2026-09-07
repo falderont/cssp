@@ -40,6 +40,11 @@ async function saveCompletionPhoto(subpath: string) {
   return saveGeneratedFile(buf, `photos/${subpath}`);
 }
 
+async function saveDeliveryEvidencePhoto(subpath: string) {
+  const buf = Buffer.from(TINY_JPEG_BASE64, "base64");
+  return saveGeneratedFile(buf, `delivery-photos/${subpath}`);
+}
+
 async function saveIncidentReport(subpath: string, title: string, lines: string[]) {
   const pdf = makeSimplePdf(title, lines);
   const storageKey = await saveGeneratedFile(pdf, `incident-reports/${subpath}`);
@@ -331,6 +336,7 @@ async function main() {
   const teamNocID = await prisma.team.create({ data: { name: "Indonesia NOC", function: "NOC", countryId: countryID.id } });
   const teamSecurityID = await prisma.team.create({ data: { name: "Indonesia Front Office & Security", function: "Security", countryId: countryID.id } });
   const teamVendorBtm = await prisma.team.create({ data: { name: "BTM-02 Vendor Support", function: "Facilities", facilityId: btm02.id } });
+  const teamFacilitiesBtm = await prisma.team.create({ data: { name: "BTM-02 Facilities Management", function: "Facilities", facilityId: btm02.id } });
 
   console.log("Users…");
   const pw = await hash(DEFAULT_PASSWORD);
@@ -341,6 +347,9 @@ async function main() {
   const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager", teamId: teamNocID.id } });
   const nocJkt = await prisma.user.create({ data: { name: "Yusuf Hidayat", email: "noc.jkt@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager — JKT-01", restrictedFacilityId: jkt01.id, teamId: teamNocID.id } });
   const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_FRONT_OFFICE_SECURITY, title: "Front Office & Security Lead", teamId: teamSecurityID.id } });
+  const buildingManager = await prisma.user.create({
+    data: { name: "Rudi Hartono", email: "buildingmgr@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_BUILDING_MANAGER, title: "Building Manager — BTM-02", restrictedFacilityId: btm02.id, teamId: teamFacilitiesBtm.id },
+  });
   const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id, teamId: teamNocID.id } });
   const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id, teamId: teamNocID.id } });
   const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)", teamId: teamCsGlobal.id } });
@@ -486,7 +495,19 @@ async function main() {
     },
   });
 
+  console.log("Loading docks…");
+  const dockBtm02A = await prisma.loadingDock.create({
+    data: { facilityId: btm02.id, buildingId: btm02A.id, name: "Loading Dock A", createdById: buildingManager.id },
+  });
+  await prisma.loadingDock.create({
+    data: { facilityId: btm02.id, name: "Main Gate Drop-off", createdById: buildingManager.id },
+  });
+  const dockJkt01A = await prisma.loadingDock.create({
+    data: { facilityId: jkt01.id, buildingId: jkt01A.id, name: "Loading Dock 1", createdById: buildingManager.id },
+  });
+
   console.log("Deliveries…");
+  const pduPhoto = await saveDeliveryEvidencePhoto("btm02-pdu-arrival.jpg");
   await prisma.delivery.create({
     data: {
       facilityId: btm02.id,
@@ -494,11 +515,13 @@ async function main() {
       courierName: "DHL Express",
       trackingNumber: "DHL8827301",
       description: "Replacement PDU unit",
+      loadingDockId: dockBtm02A.id,
       status: "Received",
       arrivedAt: daysFromNow(-2),
       receivedAt: daysFromNow(-2),
       receivedById: security.id,
       createdById: fajar.id,
+      photos: { create: [{ storageKey: pduPhoto, uploadedById: security.id }] },
     },
   });
   await prisma.delivery.create({
@@ -508,6 +531,7 @@ async function main() {
       courierName: "JNE Logistics",
       trackingNumber: "JNE5591204",
       description: "Server chassis (3x) for Rack B08 expansion",
+      loadingDockId: dockJkt01A.id,
       status: "Arrived",
       arrivedAt: hoursFromNow(-5),
       createdById: rinaSaputri.id,
@@ -1230,6 +1254,7 @@ async function main() {
   console.log("  Ops — Site Manager (all sites):    noc@aurorapdc.com");
   console.log("  Ops — Site Manager (JKT-01 only):  noc.jkt@aurorapdc.com");
   console.log("  Ops — Front Office & Security:      security@aurorapdc.com");
+  console.log("  Ops — Building Manager (BTM-02):    buildingmgr@aurorapdc.com");
   console.log("  Ops — Site Lead (BTM-02):          tech@aurorapdc.com");
   console.log("  Ops — Site Lead (JKT-01):          tech2@aurorapdc.com");
   console.log("  CS Team — Corporate:               csmanager@aurorapdc.com");
