@@ -7,10 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { getCustomerFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 
-export default async function PortalIncidentsPage({ searchParams }: { searchParams: { site?: string } }) {
+export default async function PortalIncidentsPage({ searchParams }: { searchParams: Promise<{ site?: string }> }) {
+  const { site } = await searchParams;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
-  const siteFilter = searchParams.site && facilityIds.includes(searchParams.site) ? searchParams.site : undefined;
+  const siteFilter = site && facilityIds.includes(site) ? site : undefined;
 
   const incidents = await prisma.incident.findMany({
     where: {

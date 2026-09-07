@@ -8,6 +8,7 @@ import { ROLES, type Role } from "@/lib/constants";
 export type IconKey =
   | "LayoutDashboard"
   | "Users"
+  | "UsersRound"
   | "Siren"
   | "CalendarClock"
   | "Wrench"
@@ -20,11 +21,18 @@ export type IconKey =
   | "IdCard"
   | "ShieldAlert"
   | "FileBarChart"
-  | "Palette";
+  | "Palette"
+  | "Globe2"
+  | "Map"
+  | "MapPin"
+  | "Ticket"
+  | "Building2"
+  | "Briefcase";
 
 // A NavItem with no `group` renders as a top-level link (e.g. Dashboard).
 // Grouped items render nested under a collapsible section header, forming
-// a two-level tree so related modules read together at a glance.
+// a two-level tree so related modules read together at a glance — keep
+// items for the same group contiguous in the arrays below.
 export type NavItem = {
   href: string;
   label: string;
@@ -33,8 +41,8 @@ export type NavItem = {
   group?: string;
 };
 
-export const PORTAL_GROUP_ORDER = ["Site Operations", "Resources", "Account"] as const;
-export const OPS_GROUP_ORDER = ["Front Line", "Operations", "Business", "Administration"] as const;
+export const PORTAL_GROUP_ORDER = ["Day-to-day", "Reporting", "Account administration"] as const;
+export const OPS_GROUP_ORDER = ["Global administration", "Front line", "Service delivery", "Reporting & accounts"] as const;
 
 const { TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER } = ROLES;
 const { SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR } = ROLES;
@@ -46,66 +54,42 @@ export const PORTAL_NAV: NavItem[] = [
     icon: "LayoutDashboard",
     roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER],
   },
-  {
-    href: "/portal/visitors",
-    label: "Visitors",
-    icon: "Users",
-    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
-    group: "Site Operations",
-  },
-  {
-    href: "/portal/deliveries",
-    label: "Deliveries",
-    icon: "Truck",
-    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
-    group: "Site Operations",
-  },
-  {
-    href: "/portal/aal",
-    label: "Authorized Access List",
-    icon: "IdCard",
-    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD],
-    group: "Site Operations",
-  },
-  {
-    href: "/portal/incidents",
-    label: "Incidents",
-    icon: "Siren",
-    roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
-    group: "Site Operations",
-  },
+  { href: "/portal/visitors", label: "Visitors", icon: "Users", group: "Day-to-day", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER] },
+  { href: "/portal/deliveries", label: "Deliveries", icon: "Truck", group: "Day-to-day", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER] },
+  { href: "/portal/aal", label: "Authorized Access List", icon: "IdCard", group: "Day-to-day", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD] },
+  { href: "/portal/incidents", label: "Incidents", icon: "Siren", group: "Day-to-day", roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER] },
   {
     href: "/portal/maintenance",
     label: "Maintenance",
     icon: "CalendarClock",
+    group: "Day-to-day",
     roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
-    group: "Site Operations",
   },
   {
     href: "/portal/service-requests",
     label: "Service Requests",
     icon: "Wrench",
+    group: "Day-to-day",
     roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
-    group: "Site Operations",
   },
   {
     href: "/portal/telemetry",
     label: "Telemetry (BMS)",
     icon: "Gauge",
+    group: "Day-to-day",
     roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_TECH_USER],
-    group: "Site Operations",
   },
   {
     href: "/portal/documents",
     label: "Download Center",
     icon: "FolderDown",
+    group: "Reporting",
     roles: [TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER],
-    group: "Resources",
   },
-  { href: "/portal/reports", label: "Reports", icon: "FileBarChart", roles: [TENANT_GLOBAL_ADMIN], group: "Resources" },
-  { href: "/portal/billing", label: "Billing", icon: "Receipt", roles: [TENANT_GLOBAL_ADMIN, TENANT_BILLING], group: "Account" },
-  { href: "/portal/branding", label: "Branding", icon: "Palette", roles: [TENANT_GLOBAL_ADMIN], group: "Account" },
-  { href: "/portal/settings", label: "Team & Settings", icon: "Settings", roles: [TENANT_GLOBAL_ADMIN], group: "Account" },
+  { href: "/portal/reports", label: "Reports", icon: "FileBarChart", group: "Reporting", roles: [TENANT_GLOBAL_ADMIN] },
+  { href: "/portal/billing", label: "Billing", icon: "Receipt", group: "Reporting", roles: [TENANT_GLOBAL_ADMIN, TENANT_BILLING] },
+  { href: "/portal/branding", label: "Branding", icon: "Palette", group: "Account administration", roles: [TENANT_GLOBAL_ADMIN] },
+  { href: "/portal/settings", label: "Team & Settings", icon: "Settings", group: "Account administration", roles: [TENANT_GLOBAL_ADMIN] },
 ];
 
 export const OPS_NAV: NavItem[] = [
@@ -115,85 +99,91 @@ export const OPS_NAV: NavItem[] = [
     icon: "LayoutDashboard",
     roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR],
   },
+
+  // Global Sys Admin only — the master-data control plane (site hierarchy,
+  // tenants, users, teams) lives here, ahead of the day-to-day front-line and
+  // service-delivery tools every other ops persona shares. Site management
+  // and Area Change Requests are the exception: their access is delegable
+  // (see requireMasterDataAdmin() in lib/session.ts), so their roles list is
+  // wider than the rest of this section. Region/Country/City/Site are staged
+  // on that one consolidated screen rather than four separate pages — each
+  // level is added inline as you drill in, then a site hands off to its own
+  // dedicated admin page for buildings and rooms.
+  { href: "/ops/admin", label: "Global Overview", icon: "Globe2", group: "Global administration", roles: [SYS_ADMIN] },
+  { href: "/ops/admin/facilities", label: "Site Management", icon: "Building2", group: "Global administration", roles: [SYS_ADMIN, SERVICE_DESK] },
+  {
+    href: "/ops/admin/area-change-requests",
+    label: "Area Change Requests",
+    icon: "Ticket",
+    group: "Global administration",
+    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR],
+  },
+  { href: "/ops/admin/accounts", label: "Tenant Accounts", icon: "Briefcase", group: "Global administration", roles: [SYS_ADMIN] },
+  { href: "/ops/admin/teams", label: "Teams", icon: "UsersRound", group: "Global administration", roles: [SYS_ADMIN] },
+  { href: "/ops/admin/users", label: "Users", icon: "Users", group: "Global administration", roles: [SYS_ADMIN] },
+
   {
     href: "/ops/visitors",
     label: "Visitor Approvals",
     icon: "Users",
+    group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-    group: "Front Line",
   },
-  {
-    href: "/ops/front-desk",
-    label: "Front Desk",
-    icon: "IdCard",
-    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-    group: "Front Line",
-  },
+  { href: "/ops/front-desk", label: "Front Desk", icon: "IdCard", group: "Front line", roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY] },
   {
     href: "/ops/deliveries",
     label: "Deliveries",
     icon: "Truck",
+    group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-    group: "Front Line",
   },
   {
     href: "/ops/aal",
     label: "Authorized Access List",
     icon: "IdCard",
+    group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-    group: "Front Line",
   },
   {
     href: "/ops/admin/blacklist",
     label: "Blacklist",
     icon: "ShieldAlert",
+    group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-    group: "Front Line",
   },
-  {
-    href: "/ops/incidents",
-    label: "Incidents",
-    icon: "Siren",
-    roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD],
-    group: "Operations",
-  },
+
+  { href: "/ops/incidents", label: "Incidents", icon: "Siren", group: "Service delivery", roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD] },
   {
     href: "/ops/maintenance",
     label: "Maintenance",
     icon: "CalendarClock",
+    group: "Service delivery",
     roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD],
-    group: "Operations",
   },
   {
     href: "/ops/service-requests",
     label: "Service Requests",
     icon: "Wrench",
+    group: "Service delivery",
     roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, CS_TEAM, OPS_VENDOR],
-    group: "Operations",
   },
-  {
-    href: "/ops/telemetry",
-    label: "Telemetry (BMS)",
-    icon: "Gauge",
-    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_SITE_LEAD],
-    group: "Operations",
-  },
+  { href: "/ops/telemetry", label: "Telemetry (BMS)", icon: "Gauge", group: "Service delivery", roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_SITE_LEAD] },
+
   {
     href: "/ops/documents",
     label: "Download Center",
     icon: "FolderDown",
+    group: "Reporting & accounts",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, CS_TEAM],
-    group: "Business",
   },
-  { href: "/ops/billing", label: "Billing", icon: "Receipt", roles: [SYS_ADMIN, CS_TEAM], group: "Business" },
+  { href: "/ops/billing", label: "Billing", icon: "Receipt", group: "Reporting & accounts", roles: [SYS_ADMIN, CS_TEAM] },
   {
     href: "/ops/cs-performance",
     label: "CS Performance",
     icon: "Trophy",
+    group: "Reporting & accounts",
     roles: [SYS_ADMIN, CS_TEAM, OPS_SITE_MANAGER],
-    group: "Business",
   },
-  { href: "/ops/admin", label: "Admin Settings", icon: "Settings", roles: [SYS_ADMIN], group: "Administration" },
 ];
 
 export function navForRole(nav: NavItem[], role: string): NavItem[] {

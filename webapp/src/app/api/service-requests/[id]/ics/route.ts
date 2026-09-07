@@ -4,10 +4,11 @@ import { requireUser } from "@/lib/session";
 import { isInternalRole, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
 import { makeIcsEvent } from "@/lib/ics";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireUser();
   const sr = await prisma.serviceRequest.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { siteEnrollment: { include: { facility: true } } },
   });
   if (!sr || !sr.scheduledStart) {

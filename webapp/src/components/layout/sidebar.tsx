@@ -7,6 +7,7 @@ import {
   Building2,
   LayoutDashboard,
   Users,
+  UsersRound,
   Siren,
   CalendarClock,
   Wrench,
@@ -24,6 +25,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   X,
+  Globe2,
+  Map,
+  MapPin,
+  Ticket,
+  Briefcase,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +39,7 @@ import { useMobileNav } from "./mobile-nav-context";
 const ICONS: Record<IconKey, LucideIcon> = {
   LayoutDashboard,
   Users,
+  UsersRound,
   Siren,
   CalendarClock,
   Wrench,
@@ -46,10 +53,23 @@ const ICONS: Record<IconKey, LucideIcon> = {
   ShieldAlert,
   FileBarChart,
   Palette,
+  Globe2,
+  Map,
+  MapPin,
+  Ticket,
+  Building2,
+  Briefcase,
 };
 
-function isActive(pathname: string, href: string) {
-  return href === pathname || (href !== "/portal" && href !== "/ops" && pathname.startsWith(href));
+// Several admin routes nest under a shared "/ops/admin" prefix (Global
+// Overview, Site Management, Blacklist, ...), so a simple "is this href a
+// prefix of the pathname" check would light up more than one item at once.
+// Pick the longest matching href instead — the most specific route wins.
+function activeHrefFor(navItems: NavItem[], pathname: string): string | undefined {
+  return navItems
+    .map((item) => item.href)
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
 }
 
 const RAIL_KEY = "cssp.sidebar.rail";
@@ -115,7 +135,8 @@ function SidebarBody({
   }, []);
 
   const effectiveRail = isDesktop && rail;
-  const activeGroup = groups.find((g) => g.items.some((i) => isActive(pathname, i.href)))?.name;
+  const activeHref = activeHrefFor(navItems, pathname);
+  const activeGroup = groups.find((g) => g.items.some((i) => i.href === activeHref))?.name;
 
   function toggleGroup(name: string) {
     setOpenGroups((prev) => {
@@ -187,7 +208,7 @@ function SidebarBody({
 
       <nav className="scroll-thin flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {top.map((item) => {
-          const active = isActive(pathname, item.href);
+          const active = item.href === activeHref;
           const Icon = ICONS[item.icon];
           return (
             <Link
@@ -220,7 +241,7 @@ function SidebarBody({
               {open && (
                 <div className={cn("space-y-1", !effectiveRail && "animate-collapse-fade relative ml-3 border-l border-slate-100 pl-2")}>
                   {group.items.map((item) => {
-                    const active = isActive(pathname, item.href);
+                    const active = item.href === activeHref;
                     const Icon = ICONS[item.icon];
                     return (
                       <Link

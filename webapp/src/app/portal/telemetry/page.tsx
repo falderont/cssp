@@ -10,10 +10,11 @@ import { TELEMETRY_METRICS, TELEMETRY_METRIC_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 import { Info } from "lucide-react";
 
-export default async function PortalTelemetryPage({ searchParams }: { searchParams: { site?: string } }) {
+export default async function PortalTelemetryPage({ searchParams }: { searchParams: Promise<{ site?: string }> }) {
+  const { site } = await searchParams;
   const user = await requireCustomerUser();
   const enrollments = await getCustomerSiteEnrollments(user);
-  const selected = enrollments.find((e) => e.facilityId === searchParams.site) ?? enrollments[0];
+  const selected = enrollments.find((e) => e.facilityId === site) ?? enrollments[0];
 
   const source = selected
     ? await prisma.telemetrySource.findUnique({ where: { facilityId: selected.facilityId } })

@@ -97,14 +97,31 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
 };
 
 // --- Customer Success Team scope ---------------------------------------------
-// Only meaningful when role === ROLES.CS_TEAM (see User.csScope).
-export const CS_SCOPES = ["Corporate", "Region", "Site", "Billing"] as const;
+// Only meaningful when role === ROLES.CS_TEAM (see User.csScope). Mirrors the
+// Region -> Country -> Facility geography master data (see schema.prisma).
+export const CS_SCOPES = ["Corporate", "Region", "Country", "Site", "Billing"] as const;
 export type CsScope = (typeof CS_SCOPES)[number];
 export const CS_SCOPE_LABELS: Record<CsScope, string> = {
-  Corporate: "Corporate (all accounts)",
-  Region: "Region",
+  Corporate: "Corporate (all accounts, global)",
+  Region: "Region (every country within it)",
+  Country: "Country (every site within it)",
   Site: "Site",
   Billing: "Billing",
+};
+
+// --- Teams --------------------------------------------------------------------
+// Global Sys Admin master data — a named roster of internal staff scoped to
+// a region, a country, a single facility, or left global/company-wide.
+export const TEAM_FUNCTIONS = ["Executive", "Ops", "NOC", "Security", "CustomerSuccess", "ServiceDesk", "Facilities"] as const;
+export type TeamFunction = (typeof TEAM_FUNCTIONS)[number];
+export const TEAM_FUNCTION_LABELS: Record<TeamFunction, string> = {
+  Executive: "Executive",
+  Ops: "Operations",
+  NOC: "NOC / Engineering",
+  Security: "Front Office & Security",
+  CustomerSuccess: "Customer Success",
+  ServiceDesk: "Service Desk",
+  Facilities: "Facilities & Maintenance",
 };
 
 // --- Visitor management ------------------------------------------------------
@@ -275,6 +292,19 @@ export function statusBadgeTone(status: string): "green" | "amber" | "red" | "sl
   return "slate";
 }
 
+// --- Facility space model (Global Sys Admin) ---------------------------------
+// Facility.offersColoRacks decides whether Data Hall rooms can be broken
+// down into numbered racks, or whether the facility leases whole rooms only.
+
+export const ROOM_TYPES = ["DataHall", "Office", "Storage", "MeetMeRoom", "Other"] as const;
+export const ROOM_TYPE_LABELS: Record<string, string> = {
+  DataHall: "Data Hall",
+  Office: "Office",
+  Storage: "Storage",
+  MeetMeRoom: "Meet-Me Room",
+  Other: "Other",
+};
+
 // --- Authorized Access List (AAL) — permanent site access, distinct from a
 // one-off dated visitor request. Requested by the tenant, approved by ops. --
 
@@ -347,3 +377,15 @@ export const ACCENT_COLOR_PRESETS = [
 
 export const DENSITY_OPTIONS = ["comfortable", "compact"] as const;
 export type Density = (typeof DENSITY_OPTIONS)[number];
+
+// --- Area (location) master data ---------------------------------------------
+// Region -> Country -> City -> Site (Facility) -> Building -> Room. Master
+// data is owned by the Global Sys Admin and may be delegated to Service Desk
+// (see requireMasterDataAdmin() in lib/session.ts). Any other internal role
+// raises an AreaChangeRequest ticket instead of editing it directly.
+
+export const AREA_LEVELS = ["Region", "Country", "City", "Site", "Building", "Room"] as const;
+export type AreaLevel = (typeof AREA_LEVELS)[number];
+
+export const AREA_CHANGE_ACTIONS = ["Add", "Update", "Deactivate"] as const;
+export const AREA_CHANGE_STATUSES = ["Submitted", "InReview", "Approved", "Rejected", "Applied"] as const;

@@ -10,10 +10,11 @@ import { formatDateTime } from "@/lib/utils";
 import { updateMaintenanceStatus } from "@/actions/maintenance";
 import { MAINTENANCE_STATUSES } from "@/lib/constants";
 
-export default async function OpsMaintenanceDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsMaintenanceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const event = await prisma.maintenanceEvent.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { facility: true, building: true, notifications: { orderBy: { sentAt: "asc" } } },
   });
   if (!event) notFound();

@@ -130,11 +130,13 @@ separate database server needed.
 npm run seed
 ```
 
-This wipes and fills the database with a realistic demo: 4 data center
-facilities across 2 regions, 4 tenant companies, ~15 users across every
-role, and populated visitors, incidents, maintenance windows, tickets,
-remote-hands requests, telemetry charts, documents, and invoices. It prints
-a list of demo login emails at the end — you'll use those in a moment.
+This wipes and fills the database with a realistic demo: 9 data center
+sites across 4 regions, 8 countries and 10 cities, 4 tenant companies (one
+spanning two countries), ~15 users across every role, and populated
+visitors, incidents, maintenance windows, tickets, remote-hands requests,
+telemetry charts, documents, invoices, and area change request tickets. It
+prints a list of demo login emails at the end — you'll use those in a
+moment.
 
 You can re-run this command at any time to reset back to a clean demo state
 (useful after you've clicked around and created test records).
@@ -213,6 +215,19 @@ npm run seed
 ```
 (This deletes and fully recreates the database — fine to do any time in a
 demo/dev environment.)
+
+**The browser shows a red "Unhandled Runtime Error" box mentioning
+`Environment variable not found: DATABASE_URL`** — this means Step 7 (`cp
+.env.example .env`) was skipped or the `.env` file got deleted, so the app
+has no database to connect to. Fix it by going back to the `webapp` folder
+and running:
+```bash
+cp .env.example .env
+npm run dev
+```
+Then reload the page. (Check it worked with `ls -la .env` — if that prints
+"No such file or directory", the `cp` command above didn't run from the
+right folder; confirm `pwd` ends in `.../cssp/webapp` first.)
 
 **The page loads but looks unstyled / broken** — usually means `npm install`
 didn't finish successfully. Re-run it and watch for red error text near the

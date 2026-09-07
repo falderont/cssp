@@ -16,17 +16,18 @@ import { ROLES, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } fr
 export default async function OpsServiceRequestsPage({
   searchParams,
 }: {
-  searchParams: { category?: string; status?: string; month?: string };
+  searchParams: Promise<{ category?: string; status?: string; month?: string }>;
 }) {
+  const { category, status, month: monthParam } = await searchParams;
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const isVendor = user.role === ROLES.OPS_VENDOR;
-  const { year, month } = parseMonthParam(searchParams.month);
+  const { year, month } = parseMonthParam(monthParam);
 
   const requests = await prisma.serviceRequest.findMany({
     where: {
-      ...(searchParams.category ? { category: searchParams.category } : {}),
-      ...(searchParams.status ? { status: searchParams.status } : {}),
+      ...(category ? { category } : {}),
+      ...(status ? { status } : {}),
       ...(scopedFacilityIds ? { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } : {}),
       ...(isVendor ? { assignedToId: user.id } : {}),
     },
@@ -89,7 +90,7 @@ export default async function OpsServiceRequestsPage({
       </div>
 
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <Select name="category" defaultValue={searchParams.category ?? ""} className="w-auto">
+        <Select name="category" defaultValue={category ?? ""} className="w-auto">
           <option value="">Any type</option>
           {SERVICE_REQUEST_CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -97,7 +98,7 @@ export default async function OpsServiceRequestsPage({
             </option>
           ))}
         </Select>
-        <Select name="status" defaultValue={searchParams.status ?? ""} className="w-auto">
+        <Select name="status" defaultValue={status ?? ""} className="w-auto">
           <option value="">Any status</option>
           <option value="Submitted">Submitted</option>
           <option value="Accepted">Accepted</option>

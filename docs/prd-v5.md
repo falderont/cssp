@@ -1,3 +1,5 @@
+> **Superseded by `docs/prd-v6.md`.** v6 redefines the area/location master data model: the facility hierarchy grows from `Region → Facility → Building` to a full six-level `Region → Country → City → Site → Building → Room`, tenants can hold multiple locations and controlled (sub-site) areas, and area master data ownership is formalized (Global Sys Admin, delegable to Service Desk) with an internal ticket-based change-request flow for everyone else. Kept here for history only.
+
 # CSSP — Product Requirements Document (v5)
 ## From Plan to Build: Maintenance, Billing, Branding and BMS Telemetry Join the MVP, and the First Working Application Ships
 
