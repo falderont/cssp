@@ -7,7 +7,7 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { createControlledArea, createSiteEnrollment } from "@/actions/admin";
+import { createControlledArea, createSiteEnrollment, updateEnterpriseAccount } from "@/actions/admin";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +30,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const facilities = await prisma.facility.findMany({ orderBy: { name: "asc" } });
   const enrollBound = createSiteEnrollment.bind(null, account.id);
   const addControlledAreaBound = createControlledArea.bind(null, account.id);
+  const updateAccountBound = updateEnterpriseAccount.bind(null, account.id);
   const enrolledBuildings = account.siteEnrollments.flatMap((e) =>
     e.facility.buildings.map((b) => ({ ...b, facilityName: e.facility.name, siteEnrollmentId: e.id }))
   );
@@ -181,6 +182,45 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                 ))}
               </TBody>
             </Table>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account details</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <form action={updateAccountBound} className="space-y-3">
+                <Field label="Display name" htmlFor="accountName" required>
+                  <Input id="accountName" name="name" defaultValue={account.name} required />
+                </Field>
+                <Field label="Legal name (optional)" htmlFor="accountLegalName">
+                  <Input id="accountLegalName" name="legalName" defaultValue={account.legalName ?? ""} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Tier" htmlFor="accountTier" required>
+                    <Select id="accountTier" name="tier" defaultValue={account.tier} required>
+                      <option value="Standard">Standard</option>
+                      <option value="Premium">Premium</option>
+                      <option value="Enterprise">Enterprise</option>
+                    </Select>
+                  </Field>
+                  <Field label="Status" htmlFor="accountStatus" required>
+                    <Select id="accountStatus" name="status" defaultValue={account.status} required>
+                      <option value="Active">Active</option>
+                      <option value="Suspended">Suspended</option>
+                    </Select>
+                  </Field>
+                </div>
+                <Field label="Billing email" htmlFor="accountBillingEmail">
+                  <Input id="accountBillingEmail" name="billingEmail" type="email" defaultValue={account.billingEmail ?? ""} />
+                </Field>
+                <Button type="submit" className="w-full" variant="secondary">
+                  Save account details
+                </Button>
+              </form>
+            </CardBody>
           </Card>
         </div>
       </div>

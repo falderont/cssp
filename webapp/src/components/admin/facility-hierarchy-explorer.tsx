@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, ChevronDown, Globe2, Flag, MapPin, Building2, Plus, ArrowRight } from "lucide-react";
+import { ChevronRight, ChevronDown, Globe2, Flag, MapPin, Building2, Plus, Pencil, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { createRegion, createCountry, createCity, createFacility, toggleRegionActive } from "@/actions/admin";
+import { createRegion, updateRegion, createCountry, updateCountry, createCity, updateCity, createFacility, toggleRegionActive } from "@/actions/admin";
 
 export type FacilityNode = {
   id: string;
@@ -68,6 +68,22 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
+// Renaming/fixing an existing record — distinct from AddButton, which adds a
+// new child underneath it. Only rendered for personas who can already reach
+// this page (requireMasterDataAdmin gates every update action too).
+function EditButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Edit"
+      className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 opacity-0 transition group-hover/row:opacity-100 hover:bg-slate-100 hover:text-slate-700 focus-visible:opacity-100"
+    >
+      <Pencil className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 // A single row at any level of the tree — region/country/city header rows
 // and the leaf facility row all share this shape so depth is legible purely
 // from indentation, not from a different box style per level.
@@ -121,28 +137,37 @@ function TreeRow({
   return <div className={cn(rowClass, "hover:bg-slate-50")}>{content}</div>;
 }
 
-type FieldSpec = { name: string; label: string; required?: boolean; wide?: boolean };
+type FieldSpec = { name: string; label: string; required?: boolean; wide?: boolean; defaultValue?: string };
 
+// Doubles as the "add a child" form and the "edit this record" form — the
+// only difference is whether fields carry a defaultValue and which action
+// they post to. A dashed brand-tinted box for adding something new; a plain
+// bordered box for editing what's already there, so the two read distinctly.
 function InlineCreateForm({
   action,
   fields,
   submitLabel = "Save",
   onDone,
+  variant = "add",
 }: {
   action: (formData: FormData) => void;
   fields: FieldSpec[];
   submitLabel?: string;
   onDone: () => void;
+  variant?: "add" | "edit";
 }) {
   return (
     <form
       action={action}
       onSubmit={onDone}
-      className="grid grid-cols-2 gap-2 rounded-lg border border-dashed border-brand/30 bg-brand/5 p-3 sm:grid-cols-4"
+      className={cn(
+        "grid grid-cols-2 gap-2 rounded-lg border p-3 sm:grid-cols-4",
+        variant === "add" ? "border-dashed border-brand/30 bg-brand/5" : "border-slate-200 bg-slate-50/60"
+      )}
     >
       {fields.map((f) => (
         <div key={f.name} className={f.wide ? "col-span-2 sm:col-span-4" : "col-span-2 sm:col-span-1"}>
-          <Input name={f.name} placeholder={f.label} required={f.required} className="text-xs" />
+          <Input name={f.name} placeholder={f.label} defaultValue={f.defaultValue} required={f.required} className="text-xs" />
         </div>
       ))}
       <div className="col-span-2 flex gap-2 sm:col-span-4">
@@ -182,6 +207,8 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
   // Which parent's inline "add child" form is currently open — "root" for the
   // top-level "Add region" form, otherwise a Region/Country/City id.
   const [addingIn, setAddingIn] = useState<string | null>(null);
+  // Which record's own inline "edit" form is currently open.
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -194,6 +221,12 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
 
   function toggleAdding(id: string) {
     setAddingIn((prev) => (prev === id ? null : id));
+    setEditingId(null);
+  }
+
+  function toggleEditing(id: string) {
+    setEditingId((prev) => (prev === id ? null : id));
+    setAddingIn(null);
   }
 
   return (
@@ -234,10 +267,24 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
             actions={
               <>
                 <RegionStatusToggle regionId={region.id} isActive={region.isActive} />
+                <EditButton onClick={() => toggleEditing(region.id)} />
                 <AddButton label="Add country" onClick={() => toggleAdding(region.id)} />
               </>
             }
           />
+          {editingId === region.id && (
+            <div className="px-2 pb-2">
+              <InlineCreateForm
+                variant="edit"
+                action={updateRegion.bind(null, region.id)}
+                fields={[
+                  { name: "name", label: "Region name", required: true, defaultValue: region.name },
+                  { name: "code", label: "Code", required: true, defaultValue: region.code },
+                ]}
+                onDone={() => setEditingId(null)}
+              />
+            </div>
+          )}
 
           {expanded.has(region.id) && (
             <TreeChildren>
@@ -262,8 +309,26 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                     title={country.name}
                     badge={<CodeBadge>{country.code}</CodeBadge>}
                     meta={`${country.cities.length} cit${country.cities.length === 1 ? "y" : "ies"}`}
-                    actions={<AddButton label="Add city" onClick={() => toggleAdding(country.id)} />}
+                    actions={
+                      <>
+                        <EditButton onClick={() => toggleEditing(country.id)} />
+                        <AddButton label="Add city" onClick={() => toggleAdding(country.id)} />
+                      </>
+                    }
                   />
+                  {editingId === country.id && (
+                    <div className="px-2 pb-2">
+                      <InlineCreateForm
+                        variant="edit"
+                        action={updateCountry.bind(null, country.id)}
+                        fields={[
+                          { name: "name", label: "Country name", required: true, defaultValue: country.name },
+                          { name: "code", label: "Code", required: true, defaultValue: country.code },
+                        ]}
+                        onDone={() => setEditingId(null)}
+                      />
+                    </div>
+                  )}
 
                   {expanded.has(country.id) && (
                     <TreeChildren>
@@ -284,8 +349,23 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                             icon={<MapPin className="h-4 w-4" />}
                             title={city.name}
                             meta={`${city.facilities.length} site${city.facilities.length === 1 ? "" : "s"}`}
-                            actions={<AddButton label="Add site" onClick={() => toggleAdding(city.id)} />}
+                            actions={
+                              <>
+                                <EditButton onClick={() => toggleEditing(city.id)} />
+                                <AddButton label="Add site" onClick={() => toggleAdding(city.id)} />
+                              </>
+                            }
                           />
+                          {editingId === city.id && (
+                            <div className="px-2 pb-2">
+                              <InlineCreateForm
+                                variant="edit"
+                                action={updateCity.bind(null, city.id)}
+                                fields={[{ name: "name", label: "City name", required: true, defaultValue: city.name }]}
+                                onDone={() => setEditingId(null)}
+                              />
+                            </div>
+                          )}
 
                           {expanded.has(city.id) && (
                             <TreeChildren>

@@ -90,6 +90,20 @@ export async function toggleRegionActive(regionId: string) {
   revalidatePath("/ops/admin");
 }
 
+// Fixing a typo or renaming a region is still just correcting existing
+// dummy/reference data, distinct from the "add regions on a whim" flow the
+// toggle above replaced — kept as a full edit, gated the same as creation.
+export async function updateRegion(regionId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  if (!name || !code) throw new Error("Name and code are required.");
+  await prisma.region.update({ where: { id: regionId }, data: { name, code } });
+  await logAudit({ actorId: admin.id, action: "region.update", summary: `Updated region ${name} (${code}).`, targetType: "Region", targetId: regionId });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
 export async function createCountry(regionId: string, formData: FormData) {
   const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
@@ -101,12 +115,33 @@ export async function createCountry(regionId: string, formData: FormData) {
   revalidatePath("/ops/admin");
 }
 
+export async function updateCountry(countryId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  if (!name || !code) throw new Error("Name and code are required.");
+  await prisma.country.update({ where: { id: countryId }, data: { name, code } });
+  await logAudit({ actorId: admin.id, action: "country.update", summary: `Updated country ${name} (${code}).`, targetType: "Country", targetId: countryId });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
 export async function createCity(countryId: string, formData: FormData) {
   const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
   if (!name) throw new Error("Name is required.");
   const city = await prisma.city.create({ data: { name, countryId } });
   await logAudit({ actorId: admin.id, action: "city.create", summary: `Created city ${name}.`, targetType: "City", targetId: city.id });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
+export async function updateCity(cityId: string, formData: FormData) {
+  const admin = await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  if (!name) throw new Error("Name is required.");
+  await prisma.city.update({ where: { id: cityId }, data: { name } });
+  await logAudit({ actorId: admin.id, action: "city.update", summary: `Updated city ${name}.`, targetType: "City", targetId: cityId });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
 }
@@ -161,15 +196,21 @@ export async function updateFacilityAcs(facilityId: string, formData: FormData) 
 // data (delegable to Service Desk via requireMasterDataAdmin()), the site
 // name is referenced across tenant-facing branding, invoices and reports, so
 // changing it is kept to the one role with full platform control.
-export async function renameFacility(facilityId: string, formData: FormData) {
+export async function updateFacilityDetails(facilityId: string, formData: FormData) {
   const admin = await requireSysAdmin();
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("Site name is required.");
-  const facility = await prisma.facility.update({ where: { id: facilityId }, data: { name } });
+  const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const timezone = String(formData.get("timezone") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim();
+  if (!name || !code || !timezone) throw new Error("Site name, code and timezone are required.");
+  const facility = await prisma.facility.update({
+    where: { id: facilityId },
+    data: { name, code, timezone, address: address || null },
+  });
   await logAudit({
     actorId: admin.id,
-    action: "facility.rename",
-    summary: `Renamed site to ${facility.name}.`,
+    action: "facility.update",
+    summary: `Updated site details for ${facility.name}.`,
     targetType: "Facility",
     targetId: facilityId,
   });
@@ -203,6 +244,15 @@ export async function createBuilding(facilityId: string, formData: FormData) {
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
+export async function updateBuilding(buildingId: string, formData: FormData) {
+  await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  if (!name || !code) throw new Error("Name and code are required.");
+  const building = await prisma.building.update({ where: { id: buildingId }, data: { name, code } });
+  revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
+}
+
 export async function createRoom(buildingId: string, formData: FormData) {
   await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
@@ -214,6 +264,21 @@ export async function createRoom(buildingId: string, formData: FormData) {
   const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId }, select: { facilityId: true } });
   revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
   return room;
+}
+
+export async function updateRoom(roomId: string, formData: FormData) {
+  await requireMasterDataAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  const type = String(formData.get("type") ?? "DataHall");
+  if (!name || !code) throw new Error("Name and code are required.");
+  if (!(ROOM_TYPES as readonly string[]).includes(type)) throw new Error("Invalid room type.");
+  const room = await prisma.room.update({
+    where: { id: roomId },
+    data: { name, code, type },
+    include: { building: true },
+  });
+  revalidatePath(`/ops/admin/facilities/${room.building.facilityId}`);
 }
 
 export async function createRack(facilityId: string, roomId: string, formData: FormData) {
@@ -229,6 +294,15 @@ export async function createRack(facilityId: string, roomId: string, formData: F
   if (!facility.offersColoRacks) throw new Error("This site is configured for rooms only — enable colo racks first.");
 
   await prisma.rack.create({ data: { roomId, rackNumber } });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+export async function updateRack(facilityId: string, rackId: string, formData: FormData) {
+  await requireMasterDataAdmin();
+  const rackNumber = String(formData.get("rackNumber") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+  if (!rackNumber) throw new Error("Rack number is required.");
+  await prisma.rack.update({ where: { id: rackId }, data: { rackNumber, notes: notes || null } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
@@ -266,6 +340,34 @@ export async function createTeam(formData: FormData) {
   });
 
   await logAudit({ actorId: admin.id, action: "team.create", summary: `Created team ${parsed.name} (${parsed.function}).`, targetType: "Team", targetId: team.id });
+  revalidatePath("/ops/admin/teams");
+  revalidatePath("/ops/admin");
+}
+
+export async function updateTeam(teamId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const parsed = teamSchema.parse({
+    name: formData.get("name"),
+    function: formData.get("function"),
+    scopeType: formData.get("scopeType"),
+    scopeId: formData.get("scopeId") || undefined,
+  });
+  if (parsed.scopeType !== "Global" && !parsed.scopeId) {
+    throw new Error("Choose a region, country or facility for this team's scope.");
+  }
+
+  await prisma.team.update({
+    where: { id: teamId },
+    data: {
+      name: parsed.name,
+      function: parsed.function,
+      regionId: parsed.scopeType === "Region" ? parsed.scopeId : null,
+      countryId: parsed.scopeType === "Country" ? parsed.scopeId : null,
+      facilityId: parsed.scopeType === "Facility" ? parsed.scopeId : null,
+    },
+  });
+
+  await logAudit({ actorId: admin.id, action: "team.update", summary: `Updated team ${parsed.name} (${parsed.function}).`, targetType: "Team", targetId: teamId });
   revalidatePath("/ops/admin/teams");
   revalidatePath("/ops/admin");
 }
@@ -309,6 +411,36 @@ export async function createEnterpriseAccount(formData: FormData) {
   await logAudit({ actorId: admin.id, action: "tenant.create", summary: `Created tenant account ${parsed.name}.`, targetType: "EnterpriseAccount", targetId: account.id });
   revalidatePath("/ops/admin/accounts");
   redirect(`/ops/admin/accounts/${account.id}`);
+}
+
+const accountUpdateSchema = accountSchema.extend({
+  status: z.enum(["Active", "Suspended"]),
+});
+
+export async function updateEnterpriseAccount(accountId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const parsed = accountUpdateSchema.parse({
+    name: formData.get("name"),
+    legalName: formData.get("legalName") || undefined,
+    tier: formData.get("tier"),
+    billingEmail: formData.get("billingEmail") || "",
+    status: formData.get("status"),
+  });
+
+  const account = await prisma.enterpriseAccount.update({
+    where: { id: accountId },
+    data: {
+      name: parsed.name,
+      legalName: parsed.legalName || null,
+      tier: parsed.tier,
+      billingEmail: parsed.billingEmail || null,
+      status: parsed.status,
+    },
+  });
+
+  await logAudit({ actorId: admin.id, action: "tenant.update", summary: `Updated tenant account ${account.name}.`, targetType: "EnterpriseAccount", targetId: accountId });
+  revalidatePath(`/ops/admin/accounts/${accountId}`);
+  revalidatePath("/ops/admin/accounts");
 }
 
 export async function createSiteEnrollment(enterpriseAccountId: string, formData: FormData) {

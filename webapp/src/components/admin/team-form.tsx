@@ -12,16 +12,30 @@ type Region = { id: string; name: string };
 type Country = { id: string; name: string };
 type Facility = { id: string; name: string };
 
-export function TeamForm({ regions, countries, facilities }: { regions: Region[]; countries: Country[]; facilities: Facility[] }) {
-  const [scopeType, setScopeType] = useState<ScopeType>("Facility");
+export function TeamForm({
+  regions,
+  countries,
+  facilities,
+  action = createTeam,
+  initial,
+  submitLabel = "Add team",
+}: {
+  regions: Region[];
+  countries: Country[];
+  facilities: Facility[];
+  action?: (formData: FormData) => void;
+  initial?: { name: string; function: string; scopeType: ScopeType; scopeId?: string };
+  submitLabel?: string;
+}) {
+  const [scopeType, setScopeType] = useState<ScopeType>(initial?.scopeType ?? "Facility");
 
   return (
-    <form action={createTeam} className="space-y-3">
+    <form action={action} className="space-y-3">
       <Field label="Team name" htmlFor="name" required>
-        <Input id="name" name="name" required placeholder="e.g. Indonesia NOC" />
+        <Input id="name" name="name" required placeholder="e.g. Indonesia NOC" defaultValue={initial?.name} />
       </Field>
       <Field label="Function" htmlFor="function" required>
-        <Select id="function" name="function" required defaultValue={TEAM_FUNCTIONS[0]}>
+        <Select id="function" name="function" required defaultValue={initial?.function ?? TEAM_FUNCTIONS[0]}>
           {TEAM_FUNCTIONS.map((f) => (
             <option key={f} value={f}>
               {TEAM_FUNCTION_LABELS[f]}
@@ -39,7 +53,7 @@ export function TeamForm({ regions, countries, facilities }: { regions: Region[]
       </Field>
       {scopeType !== "Global" && (
         <Field label={scopeType} htmlFor="scopeId" required>
-          <Select id="scopeId" name="scopeId" required defaultValue="">
+          <Select id="scopeId" name="scopeId" required defaultValue={initial?.scopeId ?? ""}>
             <option value="" disabled>
               Choose…
             </option>
@@ -62,7 +76,7 @@ export function TeamForm({ regions, countries, facilities }: { regions: Region[]
         </Field>
       )}
       <Button type="submit" className="w-full">
-        Add team
+        {submitLabel}
       </Button>
     </form>
   );

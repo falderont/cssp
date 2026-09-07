@@ -1,3 +1,4 @@
+import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TeamForm } from "@/components/admin/team-form";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { deleteTeam } from "@/actions/admin";
+import { deleteTeam, updateTeam } from "@/actions/admin";
 import { TEAM_FUNCTION_LABELS, type TeamFunction } from "@/lib/constants";
 
 export default async function TeamsPage() {
@@ -26,6 +27,17 @@ export default async function TeamsPage() {
     if (t.country) return `Country: ${t.country.name} (${t.country.region.name})`;
     if (t.region) return `Region: ${t.region.name}`;
     return "Global (company-wide)";
+  }
+
+  function scopeType(t: (typeof teams)[number]): "Global" | "Region" | "Country" | "Facility" {
+    if (t.facilityId) return "Facility";
+    if (t.countryId) return "Country";
+    if (t.regionId) return "Region";
+    return "Global";
+  }
+
+  function scopeId(t: (typeof teams)[number]): string | undefined {
+    return t.facilityId ?? t.countryId ?? t.regionId ?? undefined;
   }
 
   return (
@@ -50,6 +62,7 @@ export default async function TeamsPage() {
               {teams.length === 0 && <EmptyRow colSpan={5} message="No teams yet." />}
               {teams.map((t) => {
                 const deleteBound = deleteTeam.bind(null, t.id);
+                const updateBound = updateTeam.bind(null, t.id);
                 return (
                   <TR key={t.id}>
                     <TD className="font-medium text-slate-900">{t.name}</TD>
@@ -59,11 +72,31 @@ export default async function TeamsPage() {
                     <TD>{scopeLabel(t)}</TD>
                     <TD>{t.members.length}</TD>
                     <TD>
-                      <form action={deleteBound}>
-                        <Button type="submit" size="sm" variant="ghost">
-                          Delete
-                        </Button>
-                      </form>
+                      <div className="flex items-center justify-end gap-1">
+                        <details className="relative">
+                          <summary
+                            title="Edit team"
+                            className="cursor-pointer list-none rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 [&::-webkit-details-marker]:hidden"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </summary>
+                          <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
+                            <TeamForm
+                              regions={regions}
+                              countries={countries}
+                              facilities={facilities}
+                              action={updateBound}
+                              submitLabel="Save"
+                              initial={{ name: t.name, function: t.function, scopeType: scopeType(t), scopeId: scopeId(t) }}
+                            />
+                          </div>
+                        </details>
+                        <form action={deleteBound}>
+                          <Button type="submit" size="sm" variant="ghost">
+                            Delete
+                          </Button>
+                        </form>
+                      </div>
                     </TD>
                   </TR>
                 );
