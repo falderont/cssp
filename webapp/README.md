@@ -24,9 +24,10 @@ This README is the technical reference.
 | **Download Center** | Documents scoped globally, per-tenant, and/or per-facility; access-controlled downloads (a tenant can only fetch what they're entitled to see). |
 | **CS Engagement & Performance** | Internal-only: reps log touchpoints; managers see a team KPI table (resolved items, avg resolution time, touchpoints, avg CSAT) aggregated from tickets, remote-hands tasks and engagement logs. |
 | **Billing** | Invoices with line items, tax, multi-currency, status lifecycle (Draft → Sent → Paid/Overdue), a demo "Pay now" action for tenants, and a print-friendly (Ctrl+P → Save as PDF) invoice layout. |
-| **Multi-region / multi-site / multi-tenant** | `Region → Country → City → Facility (Site) → Building → Area` hierarchy, staged and managed from one consolidated admin screen with a dedicated per-site page for its buildings/areas; `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). |
+| **Multi-region / multi-country / multi-site / multi-tenant** | Six-level area hierarchy — `Region → Country → City → Facility ("Site") → Building → Room` — staged and managed from one consolidated admin screen, with a dedicated per-site page for its buildings/rooms; `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`, with `ControlledArea` scoping an enrollment down to a specific building/room when a tenant's footprint needs that detail; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). Area master data is owned by the Global Sys Admin, delegable to Service Desk; any other internal role raises an `AreaChangeRequest` ticket instead of editing it directly. |
 | **Deliveries** | A customer-submitted request ticket into the VMS (only the tenant can create one, same as a visitor request) — ops processes it through arrival/hand-off or rejects it, never logs one from scratch. |
-| **Branding** | Company name, logo, accent colors and support contact, editable by a Super Admin, applied across both portals, the login screen, and printed invoices. |
+| **Teams** | Global Sys Admin master data — a named staff roster scoped to a region, a country, a single facility, or left global/company-wide. |
+| **Branding** | Company name, logo, accent colors and support contact, editable by the Global Sys Admin, applied across both portals, the login screen, and printed invoices. |
 
 Everything above is backed by real Prisma models and server-validated actions
 — see `prisma/schema.prisma` for the full data model.
@@ -72,7 +73,8 @@ npm run seed                    # wipes and repopulates demo data
 npm run dev                     # http://localhost:3000
 ```
 
-Or in one shot: `npm run setup && npm run dev`.
+Or in one shot: `npm run setup && npm run dev` (also creates `.env` if it
+doesn't already exist, so it's safe to run on a fresh clone).
 
 ### Demo logins
 
@@ -82,11 +84,12 @@ one-click buttons for the most useful ones; the full roster (also printed by
 
 | Role | Email |
 |---|---|
-| Super Admin (provider) | admin@aurorapdc.com |
+| Global Sys Admin (provider) | admin@aurorapdc.com |
 | NOC / Ops (provider) | noc@aurorapdc.com |
 | Security (provider) | security@aurorapdc.com |
-| CS Manager (provider) | csmanager@aurorapdc.com |
-| CS Rep (provider) | cs.rina@aurorapdc.com |
+| CS Manager — Corporate scope (provider) | csmanager@aurorapdc.com |
+| CS Rep — Region scope, APAC (provider) | cs.rina@aurorapdc.com |
+| CS Rep — Country scope, Indonesia (provider) | cs.putu@aurorapdc.com |
 | Field Technician (provider) | tech@aurorapdc.com |
 | Finance (provider) | finance@aurorapdc.com |
 | Tenant Global Admin — Meridian Logistics | dita.ayu@meridianlogistics.com |

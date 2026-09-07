@@ -7,10 +7,11 @@ import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { payInvoice } from "@/actions/billing";
 
-export default async function PortalInvoiceDetailPage({ params }: { params: { id: string } }) {
+export default async function PortalInvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireCustomerUser();
   const invoice = await prisma.invoice.findFirst({
-    where: { id: params.id, enterpriseAccountId: user.enterpriseAccountId },
+    where: { id, enterpriseAccountId: user.enterpriseAccountId },
     include: { lineItems: true, enterpriseAccount: true },
   });
   if (!invoice) notFound();

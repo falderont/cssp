@@ -216,8 +216,8 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                                   action={createFacility.bind(null, city.id)}
                                   submitLabel="Add site"
                                   fields={[
-                                    { name: "name", label: "Site name (e.g. JKT-01 — Jakarta)", required: true },
-                                    { name: "code", label: "Code (e.g. JKT-01)", required: true },
+                                    { name: "name", label: "Site name (e.g. NDP — Batam)", required: true },
+                                    { name: "code", label: "Code (e.g. NDP)", required: true },
                                     { name: "timezone", label: "Timezone (e.g. Asia/Jakarta)", required: true },
                                     { name: "address", label: "Address (optional)", wide: true },
                                     {

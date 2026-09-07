@@ -11,10 +11,11 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDateTime } from "@/lib/utils";
 
-export default async function OpsMaintenancePage({ searchParams }: { searchParams: { month?: string } }) {
+export default async function OpsMaintenancePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { month: monthParam } = await searchParams;
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
-  const { year, month } = parseMonthParam(searchParams.month);
+  const { year, month } = parseMonthParam(monthParam);
 
   const events = await prisma.maintenanceEvent.findMany({
     where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,

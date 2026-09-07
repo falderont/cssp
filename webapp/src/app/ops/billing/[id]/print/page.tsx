@@ -4,11 +4,12 @@ import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getProviderBranding } from "@/lib/branding";
 
-export default async function OpsInvoicePrintPage({ params }: { params: { id: string } }) {
+export default async function OpsInvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const [invoice, branding] = await Promise.all([
     prisma.invoice.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { lineItems: true, enterpriseAccount: true },
     }),
     getProviderBranding(),

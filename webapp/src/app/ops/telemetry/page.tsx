@@ -12,7 +12,7 @@ export default async function OpsTelemetryPage() {
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const facilities = await prisma.facility.findMany({
     where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
-    include: { telemetrySource: true, city: { include: { country: true } } },
+    include: { telemetrySource: true, city: { include: { country: { include: { region: true } } } } },
     orderBy: { name: "asc" },
   });
 
@@ -26,7 +26,7 @@ export default async function OpsTelemetryPage() {
         <THead>
           <tr>
             <TH>Facility</TH>
-            <TH>Location</TH>
+            <TH>Region</TH>
             <TH>Vendor</TH>
             <TH>Status</TH>
             <TH>Last sync</TH>
@@ -41,9 +41,7 @@ export default async function OpsTelemetryPage() {
                   {f.name}
                 </Link>
               </TD>
-              <TD>
-                {f.city.name}, {f.city.country.name}
-              </TD>
+              <TD>{f.city.country.region.name}</TD>
               <TD>{f.telemetrySource?.vendor ?? "—"}</TD>
               <TD>
                 <StatusBadge status={f.telemetrySource?.status ?? "NotConfigured"} />

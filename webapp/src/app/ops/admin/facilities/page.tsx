@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
-import { requireSysAdmin } from "@/lib/session";
+import { requireMasterDataAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { FacilityHierarchyExplorer, type RegionNode } from "@/components/admin/facility-hierarchy-explorer";
 
@@ -12,7 +12,7 @@ function StatPill({ label, value }: { label: string; value: number }) {
 }
 
 export default async function FacilitiesPage() {
-  await requireSysAdmin();
+  await requireMasterDataAdmin();
   const regions = await prisma.region.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -67,7 +67,7 @@ export default async function FacilitiesPage() {
     <div>
       <PageHeader
         title="Site management"
-        description="The full facility hierarchy on one screen — Region → Country → City → Site. Add a level inline as you drill in, then open a site to manage its buildings and areas."
+        description="The full facility hierarchy on one screen — Region → Country → City → Site, delegable to Service Desk. Add a level inline as you drill in, then open a site to manage its buildings and rooms."
       />
       <div className="mb-4 flex flex-wrap gap-2">
         <StatPill label="regions" value={regions.length} />

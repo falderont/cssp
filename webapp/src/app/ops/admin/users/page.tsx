@@ -11,7 +11,7 @@ import { CS_SCOPE_LABELS, ROLE_LABELS, isInternalRole, type Role } from "@/lib/c
 export default async function UsersPage() {
   await requireSysAdmin();
   const users = await prisma.user.findMany({
-    include: { enterpriseAccount: true, restrictedFacility: true, restrictedRegion: true },
+    include: { enterpriseAccount: true, restrictedFacility: true, restrictedRegion: true, restrictedCountry: true, team: true },
     orderBy: { name: "asc" },
   });
 
@@ -53,7 +53,9 @@ export default async function UsersPage() {
                     u.enterpriseAccount?.name,
                     u.csScope ? (CS_SCOPE_LABELS[u.csScope as keyof typeof CS_SCOPE_LABELS] ?? u.csScope) : null,
                     u.restrictedRegion ? `Region: ${u.restrictedRegion.name}` : null,
+                    u.restrictedCountry ? `Country: ${u.restrictedCountry.name}` : null,
                     u.restrictedFacility ? `${u.restrictedFacility.name} only` : null,
+                    u.team ? `Team: ${u.team.name}` : null,
                   ]
                     .filter(Boolean)
                     .join(" · ") || "—"}
