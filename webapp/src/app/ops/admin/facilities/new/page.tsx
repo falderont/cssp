@@ -49,6 +49,16 @@ export default async function NewFacilityPage() {
               >
                 <Input id="acsEndpointUrl" name="acsEndpointUrl" placeholder="https://acs.example.com/api/badges" />
               </Field>
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="offersColoRacks" defaultChecked className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+                <span>
+                  This facility offers numbered colo racks
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    Uncheck if it leases whole rooms only (data halls, offices, storage). Either way, rooms and racks
+                    can be added once the facility is created.
+                  </span>
+                </span>
+              </label>
               <Button type="submit">Add facility</Button>
             </form>
           )}

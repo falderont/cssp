@@ -47,17 +47,19 @@ model Region {
 }
 
 model Facility {
-  id             String   @id @default(cuid())
-  name           String
-  code           String   @unique
-  address        String?
-  timezone       String   @default("UTC")
-  acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
-  regionId       String
-  region         Region   @relation(fields: [regionId], references: [id])
-  createdAt      DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  code            String   @unique
+  address         String?
+  timezone        String   @default("UTC")
+  acsEndpointUrl  String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
+  offersColoRacks Boolean  @default(true) // false = this facility leases whole rooms only, no rack-level colocation
+  regionId        String
+  region          Region   @relation(fields: [regionId], references: [id])
+  createdAt       DateTime @default(now())
 
   buildings               Building[]
+  rooms                   Room[]
   siteEnrollments         SiteEnrollment[]
   incidents               Incident[]
   maintenanceEvents       MaintenanceEvent[]
@@ -77,12 +79,45 @@ model Building {
   facility   Facility @relation(fields: [facilityId], references: [id])
   createdAt  DateTime @default(now())
 
+  rooms             Room[]
   incidents         Incident[]
   maintenanceEvents MaintenanceEvent[]
   telemetryPoints   TelemetryPoint[]
   visitorRequests   VisitorRequest[]
 
   @@unique([facilityId, code])
+}
+
+// A physical space within a facility (optionally within one of its
+// buildings) that the provider offers to tenants — a Data Hall, an office,
+// storage, etc. When the facility offers colo racks (Facility.offersColoRacks)
+// a Data Hall room can be broken down further into numbered Racks; a
+// facility that leases whole rooms only stops here.
+model Room {
+  id         String   @id @default(cuid())
+  facilityId String
+  facility   Facility  @relation(fields: [facilityId], references: [id])
+  buildingId String?
+  building   Building? @relation(fields: [buildingId], references: [id])
+  name       String
+  code       String
+  type       String    @default("DataHall") // DataHall/Office/Storage/MeetMeRoom/Other
+  createdAt  DateTime  @default(now())
+
+  racks Rack[]
+
+  @@unique([facilityId, code])
+}
+
+model Rack {
+  id         String   @id @default(cuid())
+  roomId     String
+  room       Room     @relation(fields: [roomId], references: [id])
+  rackNumber String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([roomId, rackNumber])
 }
 
 // ---------------------------------------------------------------------------

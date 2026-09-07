@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSysAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
-import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES } from "@/lib/constants";
+import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
 
@@ -81,6 +81,7 @@ export async function createFacility(formData: FormData) {
     timezone: formData.get("timezone"),
     acsEndpointUrl: formData.get("acsEndpointUrl") || undefined,
   });
+  const offersColoRacks = formData.get("offersColoRacks") === "on";
 
   const facility = await prisma.facility.create({
     data: {
@@ -90,6 +91,7 @@ export async function createFacility(formData: FormData) {
       address: parsed.address || null,
       timezone: parsed.timezone,
       acsEndpointUrl: parsed.acsEndpointUrl || null,
+      offersColoRacks,
     },
   });
 
@@ -111,6 +113,50 @@ export async function createBuilding(facilityId: string, formData: FormData) {
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
   await prisma.building.create({ data: { facilityId, name, code } });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+// --- Facility space model: rooms (data halls/offices/storage) & racks -------
+
+export async function updateFacilitySpaceModel(facilityId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const offersColoRacks = formData.get("offersColoRacks") === "on";
+  await prisma.facility.update({ where: { id: facilityId }, data: { offersColoRacks } });
+  await logAudit({
+    actorId: admin.id,
+    action: "facility.update_space_model",
+    summary: `Set facility space model to ${offersColoRacks ? "rooms with colo racks" : "rooms only"}.`,
+    targetType: "Facility",
+    targetId: facilityId,
+  });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+export async function createRoom(facilityId: string, formData: FormData) {
+  await requireSysAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  const type = String(formData.get("type") ?? "DataHall");
+  const buildingId = String(formData.get("buildingId") ?? "") || null;
+  if (!name || !code) throw new Error("Name and code are required.");
+  if (!(ROOM_TYPES as readonly string[]).includes(type)) throw new Error("Invalid room type.");
+  await prisma.room.create({ data: { facilityId, buildingId, name, code, type } });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+export async function createRack(facilityId: string, roomId: string, formData: FormData) {
+  await requireSysAdmin();
+  const rackNumber = String(formData.get("rackNumber") ?? "").trim();
+  if (!rackNumber) throw new Error("Rack number is required.");
+
+  const [facility, room] = await Promise.all([
+    prisma.facility.findUniqueOrThrow({ where: { id: facilityId } }),
+    prisma.room.findUniqueOrThrow({ where: { id: roomId } }),
+  ]);
+  if (room.facilityId !== facilityId) throw new Error("Room does not belong to this facility.");
+  if (!facility.offersColoRacks) throw new Error("This facility is configured for rooms only — enable colo racks first.");
+
+  await prisma.rack.create({ data: { roomId, rackNumber } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 

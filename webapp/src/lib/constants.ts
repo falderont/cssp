@@ -275,6 +275,19 @@ export function statusBadgeTone(status: string): "green" | "amber" | "red" | "sl
   return "slate";
 }
 
+// --- Facility space model (Global Sys Admin) ---------------------------------
+// Facility.offersColoRacks decides whether Data Hall rooms can be broken
+// down into numbered racks, or whether the facility leases whole rooms only.
+
+export const ROOM_TYPES = ["DataHall", "Office", "Storage", "MeetMeRoom", "Other"] as const;
+export const ROOM_TYPE_LABELS: Record<string, string> = {
+  DataHall: "Data Hall",
+  Office: "Office",
+  Storage: "Storage",
+  MeetMeRoom: "Meet-Me Room",
+  Other: "Other",
+};
+
 // --- Authorized Access List (AAL) — permanent site access, distinct from a
 // one-off dated visitor request. Requested by the tenant, approved by ops. --
 

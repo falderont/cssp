@@ -31,12 +31,13 @@ export default async function FacilitiesPage() {
             <TH>Code</TH>
             <TH>Region</TH>
             <TH>Buildings</TH>
+            <TH>Space model</TH>
             <TH>Enrolled tenants</TH>
             <TH>ACS integration</TH>
           </tr>
         </THead>
         <TBody>
-          {facilities.length === 0 && <EmptyRow colSpan={6} message="No facilities yet." />}
+          {facilities.length === 0 && <EmptyRow colSpan={7} message="No facilities yet." />}
           {facilities.map((f) => (
             <TR key={f.id}>
               <TD>
@@ -47,6 +48,7 @@ export default async function FacilitiesPage() {
               <TD>{f.code}</TD>
               <TD>{f.region.name}</TD>
               <TD>{f.buildings.length}</TD>
+              <TD>{f.offersColoRacks ? "Rooms + colo racks" : "Rooms only"}</TD>
               <TD>{f.siteEnrollments.length}</TD>
               <TD>{f.acsEndpointUrl ? "Custom endpoint" : "Built-in mock"}</TD>
             </TR>
