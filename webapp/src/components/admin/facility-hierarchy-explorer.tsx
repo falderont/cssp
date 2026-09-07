@@ -197,7 +197,7 @@ function InlineCreateForm({
 
 function RegionStatusToggle({ regionId, isActive }: { regionId: string; isActive: boolean }) {
   return (
-    <ActionForm action={toggleRegionActive.bind(null, regionId)}>
+    <ActionForm action={toggleRegionActive.bind(null, regionId)} silent>
       <button
         type="submit"
         title={isActive ? "Mark this region inactive" : "Mark this region active"}

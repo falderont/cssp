@@ -251,7 +251,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                             </Button>
                           </ActionForm>
                         </Disclosure>
-                        <ActionForm action={toggleTenantAccountUserActive.bind(null, u.id, account.id)}>
+                        <ActionForm action={toggleTenantAccountUserActive.bind(null, u.id, account.id)} silent>
                           <Button type="submit" size="sm" variant="ghost">
                             {u.isActive ? "Disable" : "Enable"}
                           </Button>

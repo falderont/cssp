@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Pencil } from "lucide-react";
+import { ChevronLeft, Pencil, Users, IdCard, Truck } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
@@ -25,7 +25,7 @@ import {
   updateFacilitySpaceModel,
   deleteFacility,
 } from "@/actions/admin";
-import { createLoadingDock, toggleLoadingDockActive } from "@/actions/loading-docks";
+import { createLoadingDock, updateLoadingDock, toggleLoadingDockActive, deleteLoadingDock } from "@/actions/loading-docks";
 import { decideAalEntry, revokeAalEntry } from "@/actions/aal";
 import { ROLES, ROOM_TYPES, ROOM_TYPE_LABELS, AAL_ACCESS_LEVEL_LABELS, isAalExpired } from "@/lib/constants";
 import { cn, formatDate } from "@/lib/utils";
@@ -56,8 +56,17 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
   const canManageDocks = ([ROLES.SYS_ADMIN, ROLES.OPS_BUILDING_MANAGER] as string[]).includes(user.role);
   const canViewAal = ([ROLES.SYS_ADMIN, ROLES.OPS_SITE_MANAGER, ROLES.OPS_FRONT_OFFICE_SECURITY] as string[]).includes(user.role);
   const canDecideAal = ([ROLES.SYS_ADMIN, ROLES.OPS_SITE_MANAGER] as string[]).includes(user.role);
+  // Same role set as the "Front line" nav group (Visitor Approvals/Front
+  // Desk/Deliveries) — those stay dedicated, full-featured pages (a front
+  // desk badge lookup is meant to work regardless of site), but this site's
+  // own page still surfaces a quick, pre-filtered way in, with a count of
+  // what needs attention here specifically.
+  const canViewFrontLine = canViewAal;
 
-  const [facility, teams] = await Promise.all([
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const [facility, teams, pendingVisitorCount, upcomingReservationCount, openDeliveryCount] = await Promise.all([
     prisma.facility.findUnique({
       where: { id },
       include: {
@@ -69,6 +78,18 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
       },
     }),
     prisma.team.findMany({ where: { facilityId: id }, include: { members: true } }),
+    canViewFrontLine
+      ? prisma.visitor.count({ where: { status: "Pending", visitorRequest: { siteEnrollment: { facilityId: id } } } })
+      : 0,
+    canViewFrontLine
+      ? prisma.visitor.count({
+          where: {
+            status: { in: ["Approved", "CheckedIn"] },
+            visitorRequest: { visitDate: { gte: startOfToday }, siteEnrollment: { facilityId: id } },
+          },
+        })
+      : 0,
+    canViewFrontLine ? prisma.delivery.count({ where: { facilityId: id, status: { in: ["Expected", "Arrived"] } } }) : 0,
   ]);
   if (!facility) notFound();
   // Master-data admins can view any site; the day-to-day roles who reach
@@ -285,6 +306,43 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
             </>
           )}
 
+          {canViewFrontLine && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Front line</CardTitle>
+              </CardHeader>
+              <CardBody className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Link
+                  href={`/ops/visitors?facility=${facility.id}`}
+                  className="rounded-lg border border-slate-100 p-3 transition hover:border-brand/30 hover:bg-brand/5"
+                >
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <Users className="h-4 w-4 text-slate-400" /> Visitor approvals
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{pendingVisitorCount} pending</p>
+                </Link>
+                <Link
+                  href={`/ops/front-desk?facility=${facility.id}`}
+                  className="rounded-lg border border-slate-100 p-3 transition hover:border-brand/30 hover:bg-brand/5"
+                >
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <IdCard className="h-4 w-4 text-slate-400" /> Front desk
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{upcomingReservationCount} upcoming</p>
+                </Link>
+                <Link
+                  href={`/ops/deliveries?facility=${facility.id}`}
+                  className="rounded-lg border border-slate-100 p-3 transition hover:border-brand/30 hover:bg-brand/5"
+                >
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <Truck className="h-4 w-4 text-slate-400" /> Deliveries
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{openDeliveryCount} open</p>
+                </Link>
+              </CardBody>
+            </Card>
+          )}
+
           {canManageDocks && (
             <Card>
               <CardHeader>
@@ -298,20 +356,44 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                       <p className="truncate text-sm font-medium text-slate-900">{dock.name}</p>
                       <p className="truncate text-xs text-slate-400">{dock.building ? dock.building.name : "Site-level"}</p>
                     </div>
-                    <ActionForm action={toggleLoadingDockActive.bind(null, dock.id)}>
-                      <button
-                        type="submit"
-                        className={cn(
-                          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset transition",
-                          dock.isActive
-                            ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-500 ring-slate-500/20 hover:bg-slate-200"
-                        )}
-                      >
-                        <span className={cn("h-1.5 w-1.5 rounded-full", dock.isActive ? "bg-emerald-500" : "bg-slate-400")} />
-                        {dock.isActive ? "Active" : "Inactive"}
-                      </button>
-                    </ActionForm>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <ActionForm action={toggleLoadingDockActive.bind(null, dock.id)} silent>
+                        <button
+                          type="submit"
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset transition",
+                            dock.isActive
+                              ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100"
+                              : "bg-slate-100 text-slate-500 ring-slate-500/20 hover:bg-slate-200"
+                          )}
+                        >
+                          <span className={cn("h-1.5 w-1.5 rounded-full", dock.isActive ? "bg-emerald-500" : "bg-slate-400")} />
+                          {dock.isActive ? "Active" : "Inactive"}
+                        </button>
+                      </ActionForm>
+                      <EditDisclosure label="Edit loading dock">
+                        <ActionForm action={updateLoadingDock.bind(null, dock.id)} className="space-y-2">
+                          <Input name="name" defaultValue={dock.name} required placeholder="Name" className="text-xs" />
+                          <Select name="buildingId" defaultValue={dock.buildingId ?? ""} className="text-xs">
+                            <option value="">Site-level</option>
+                            {facility.buildings.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <Button type="submit" size="sm" className="w-full">
+                            Save
+                          </Button>
+                        </ActionForm>
+                      </EditDisclosure>
+                      <ConfirmDeleteButton
+                        action={deleteLoadingDock.bind(null, dock.id)}
+                        confirmMessage={`Delete loading dock ${dock.name}? This can't be undone.`}
+                        label="Delete loading dock"
+                        iconOnly
+                      />
+                    </div>
                   </div>
                 ))}
                 <ActionForm action={createLoadingDock} className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">

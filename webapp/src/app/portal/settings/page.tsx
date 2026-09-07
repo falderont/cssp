@@ -62,7 +62,7 @@ export default async function PortalSettingsPage() {
                               Edit
                             </Link>
                             {u.id !== user.id && (
-                              <ActionForm action={toggleBound}>
+                              <ActionForm action={toggleBound} silent>
                                 <Button type="submit" size="sm" variant="ghost">
                                   {u.isActive ? "Disable" : "Enable"}
                                 </Button>

@@ -22,7 +22,7 @@ export function NotificationsList({ notifications, basePath }: { notifications: 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <ActionForm action={markAllBound}>
+        <ActionForm action={markAllBound} silent>
           <Button type="submit" variant="secondary" size="sm">
             Mark all as read
           </Button>
@@ -55,7 +55,7 @@ export function NotificationsList({ notifications, basePath }: { notifications: 
                     <div className="min-w-0 flex-1">{body}</div>
                   )}
                   {!n.isRead && (
-                    <ActionForm action={markBound}>
+                    <ActionForm action={markBound} silent>
                       <button
                         type="submit"
                         title="Mark as read"

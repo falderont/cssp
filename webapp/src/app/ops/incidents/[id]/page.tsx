@@ -114,7 +114,7 @@ export default async function OpsIncidentDetailPage({ params }: { params: Promis
                 <p className="text-sm font-medium text-slate-800">Tenant visibility</p>
                 <p className="text-xs text-slate-500">{incident.isCustomerVisible ? "Visible to tenants" : "Internal only"}</p>
               </div>
-              <ActionForm action={toggleVisibilityBound}>
+              <ActionForm action={toggleVisibilityBound} silent>
                 <Button type="submit" size="sm" variant="secondary">
                   {incident.isCustomerVisible ? "Hide from tenants" : "Publish to tenants"}
                 </Button>

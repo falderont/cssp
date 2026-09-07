@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Input } from "@/components/ui/form";
+import { Input, Select } from "@/components/ui/form";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
@@ -12,11 +12,26 @@ import { checkInVisitor, checkOutVisitor } from "@/actions/visitors";
 import { formatDate } from "@/lib/utils";
 import { ActionForm } from "@/components/errors/action-form";
 
-export default async function FrontDeskPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function FrontDeskPage({ searchParams }: { searchParams: Promise<{ q?: string; facility?: string }> }) {
   const searchParamsResolved = await searchParams;
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const q = searchParamsResolved.q?.trim();
+  const facility = searchParamsResolved.facility;
+  const facilities = await prisma.facility.findMany({
+    where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
+    orderBy: { name: "asc" },
+  });
+  // Narrowing to one site is optional — left at "All sites", a search still
+  // reaches everything the viewer's role can see, since front desk staff
+  // often need to look up a badge fast regardless of which site it's at.
+  const allowedFacilityIds = scopedFacilityIds
+    ? facility && scopedFacilityIds.includes(facility)
+      ? [facility]
+      : scopedFacilityIds
+    : facility
+      ? [facility]
+      : undefined;
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -26,7 +41,7 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: Pr
       status: { in: ["Approved", "CheckedIn"] },
       visitorRequest: {
         visitDate: { gte: startOfToday },
-        ...(scopedFacilityIds ? { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } : {}),
+        ...(allowedFacilityIds ? { siteEnrollment: { facilityId: { in: allowedFacilityIds } } } : {}),
       },
     },
     include: {
@@ -52,14 +67,14 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: Pr
             { verificationToken: { contains: q } },
             { company: { contains: q } },
           ],
-          ...(scopedFacilityIds ? { visitorRequest: { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } } : {}),
+          ...(allowedFacilityIds ? { visitorRequest: { siteEnrollment: { facilityId: { in: allowedFacilityIds } } } } : {}),
         },
         include: { visitorRequest: { include: { siteEnrollment: { include: { facility: true } } } } },
         take: 20,
       })
     : [];
 
-  const returnPath = `/ops/front-desk${q ? `?q=${encodeURIComponent(q)}` : ""}`;
+  const returnPath = `/ops/front-desk?${new URLSearchParams({ ...(q ? { q } : {}), ...(facility ? { facility } : {}) }).toString()}`;
 
   return (
     <div>
@@ -67,6 +82,23 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: Pr
         title="Front Desk"
         description="Today's and upcoming approved reservations, plus lookup by name, company, or badge/QR code — badges shown here are already registered in the access control system from the approval step."
       />
+
+      {facilities.length > 1 && (
+        <form className="mb-4 flex flex-wrap gap-2" method="get">
+          {q && <input type="hidden" name="q" value={q} />}
+          <Select name="facility" defaultValue={facility ?? ""} className="w-auto">
+            <option value="">All sites</option>
+            {facilities.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit" size="md">
+            Filter
+          </Button>
+        </form>
+      )}
 
       <Card className="mb-6">
         <CardHeader>
@@ -146,6 +178,7 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: Pr
         </CardHeader>
         <CardBody className="border-b border-slate-100">
           <form className="flex gap-2" method="get">
+            {facility && <input type="hidden" name="facility" value={facility} />}
             <Input type="text" name="q" defaultValue={q} placeholder="Search name, company, or badge code…" className="max-w-sm" />
             <Button type="submit">Search</Button>
           </form>

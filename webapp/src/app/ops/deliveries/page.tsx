@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/form";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
@@ -9,15 +10,29 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import { markDeliveryArrived, markDeliveryReceived, rejectDelivery, uploadDeliveryPhoto } from "@/actions/deliveries";
 import { ActionForm } from "@/components/errors/action-form";
 
-export default async function OpsDeliveriesPage() {
+export default async function OpsDeliveriesPage({ searchParams }: { searchParams: Promise<{ facility?: string }> }) {
+  const { facility } = await searchParams;
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
+  const facilities = await prisma.facility.findMany({
+    where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
+    orderBy: { name: "asc" },
+  });
+  const allowedFacilityIds = scopedFacilityIds
+    ? facility && scopedFacilityIds.includes(facility)
+      ? [facility]
+      : scopedFacilityIds
+    : facility
+      ? [facility]
+      : undefined;
+
   const deliveries = await prisma.delivery.findMany({
-    where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
+    where: allowedFacilityIds ? { facilityId: { in: allowedFacilityIds } } : undefined,
     include: { facility: true, enterpriseAccount: true, receivedBy: true, loadingDock: { include: { building: true } }, photos: true },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 100,
   });
+  const returnPath = `/ops/deliveries${facility ? `?facility=${facility}` : ""}`;
 
   return (
     <div>
@@ -25,6 +40,21 @@ export default async function OpsDeliveriesPage() {
         title="Deliveries"
         description="Delivery tickets submitted by tenants through the portal — process each through to arrival and hand-off, or reject it. Front desk doesn't log deliveries here; only the customer submits the request."
       />
+      {facilities.length > 1 && (
+        <form className="mb-4 flex flex-wrap gap-2" method="get">
+          <Select name="facility" defaultValue={facility ?? ""} className="w-auto">
+            <option value="">All facilities</option>
+            {facilities.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit" size="md">
+            Filter
+          </Button>
+        </form>
+      )}
       <Table>
         <THead>
           <tr>
@@ -40,10 +70,10 @@ export default async function OpsDeliveriesPage() {
         <TBody>
           {deliveries.length === 0 && <EmptyRow colSpan={7} message="No delivery tickets submitted yet." />}
           {deliveries.map((d) => {
-            const arrivedBound = markDeliveryArrived.bind(null, d.id, "/ops/deliveries");
-            const receivedBound = markDeliveryReceived.bind(null, d.id, "/ops/deliveries");
-            const rejectBound = rejectDelivery.bind(null, d.id, "/ops/deliveries");
-            const uploadPhotoBound = uploadDeliveryPhoto.bind(null, d.id, "/ops/deliveries");
+            const arrivedBound = markDeliveryArrived.bind(null, d.id, returnPath);
+            const receivedBound = markDeliveryReceived.bind(null, d.id, returnPath);
+            const rejectBound = rejectDelivery.bind(null, d.id, returnPath);
+            const uploadPhotoBound = uploadDeliveryPhoto.bind(null, d.id, returnPath);
             const canUploadEvidence = d.status === "Arrived" || d.status === "Received";
             return (
               <TR key={d.id}>

@@ -69,7 +69,7 @@ export default async function UsersPage() {
                     <LinkButton href={`/ops/admin/users/${u.id}`} size="sm" variant="ghost">
                       Edit
                     </LinkButton>
-                    <ActionForm action={toggleBound}>
+                    <ActionForm action={toggleBound} silent>
                       <Button type="submit" size="sm" variant="ghost">
                         {u.isActive ? "Disable" : "Enable"}
                       </Button>
