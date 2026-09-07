@@ -8,12 +8,12 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireMasterDataAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { createBuilding, createRack, createRoom, updateFacilityAcs, updateFacilitySpaceModel } from "@/actions/admin";
-import { ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/constants";
+import { createBuilding, createRack, createRoom, renameFacility, updateFacilityAcs, updateFacilitySpaceModel } from "@/actions/admin";
+import { ROLES, ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/constants";
 
 export default async function FacilityDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireMasterDataAdmin();
+  const user = await requireMasterDataAdmin();
   const [facility, teams] = await Promise.all([
     prisma.facility.findUnique({
       where: { id },
@@ -30,6 +30,8 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
   const addBuildingBound = createBuilding.bind(null, facility.id);
   const updateAcsBound = updateFacilityAcs.bind(null, facility.id);
   const updateSpaceModelBound = updateFacilitySpaceModel.bind(null, facility.id);
+  const renameFacilityBound = renameFacility.bind(null, facility.id);
+  const isSysAdmin = user.role === ROLES.SYS_ADMIN;
 
   return (
     <div>
@@ -169,6 +171,24 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-6">
+          {isSysAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Site details</CardTitle>
+              </CardHeader>
+              <CardBody>
+                <form action={renameFacilityBound} className="space-y-3">
+                  <Field label="Site name" htmlFor="facilityName" required hint="Global Sys Admin only — shown across tenant portals, invoices and reports.">
+                    <Input id="facilityName" name="name" defaultValue={facility.name} required />
+                  </Field>
+                  <Button type="submit" className="w-full" variant="secondary">
+                    Save name
+                  </Button>
+                </form>
+              </CardBody>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Space model</CardTitle>

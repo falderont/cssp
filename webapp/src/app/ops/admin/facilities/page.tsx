@@ -37,6 +37,7 @@ export default async function FacilitiesPage() {
     id: r.id,
     name: r.name,
     code: r.code,
+    isActive: r.isActive,
     countries: r.countries.map((c) => ({
       id: c.id,
       name: c.name,

@@ -56,6 +56,10 @@ model Region {
   id        String    @id @default(cuid())
   name      String
   code      String    @unique
+  // Regions are near-static reference data (APAC, EMEA, ...) — toggled off
+  // rather than deleted, so existing FK references (countries, restricted
+  // users, teams) never dangle.
+  isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   countries Country[]
   csUsers   User[]    @relation("UserRestrictedRegion")

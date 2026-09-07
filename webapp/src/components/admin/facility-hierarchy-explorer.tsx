@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ChevronDown, Globe2, Flag, MapPin, Building2, Plus, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { createRegion, createCountry, createCity, createFacility } from "@/actions/admin";
+import { createRegion, createCountry, createCity, createFacility, toggleRegionActive } from "@/actions/admin";
 
 export type FacilityNode = {
   id: string;
@@ -17,7 +18,7 @@ export type FacilityNode = {
 };
 export type CityNode = { id: string; name: string; facilities: FacilityNode[] };
 export type CountryNode = { id: string; name: string; code: string; cities: CityNode[] };
-export type RegionNode = { id: string; name: string; code: string; countries: CountryNode[] };
+export type RegionNode = { id: string; name: string; code: string; isActive: boolean; countries: CountryNode[] };
 
 function allBranchIds(regions: RegionNode[]): string[] {
   const ids: string[] = [];
@@ -29,6 +30,13 @@ function allBranchIds(regions: RegionNode[]): string[] {
     }
   }
   return ids;
+}
+
+// One consistent indent-and-guideline step per hierarchy level, instead of
+// each level hand-tuning its own padding/border/background — this is what
+// actually reads as a tree rather than boxes nested in boxes.
+function TreeChildren({ children }: { children: React.ReactNode }) {
+  return <div className="ml-[15px] space-y-0.5 border-l border-slate-200 py-1 pl-4">{children}</div>;
 }
 
 function Toggle({ open, onClick }: { open: boolean; onClick: () => void }) {
@@ -53,11 +61,64 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-brand hover:bg-brand/10"
+      className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-brand opacity-0 transition group-hover/row:opacity-100 hover:bg-brand/10 focus-visible:opacity-100"
     >
       <Plus className="h-3.5 w-3.5" /> {label}
     </button>
   );
+}
+
+// A single row at any level of the tree — region/country/city header rows
+// and the leaf facility row all share this shape so depth is legible purely
+// from indentation, not from a different box style per level.
+function TreeRow({
+  toggle,
+  icon,
+  iconTone = "slate",
+  title,
+  badge,
+  meta,
+  actions,
+  href,
+}: {
+  toggle?: { open: boolean; onClick: () => void };
+  icon: React.ReactNode;
+  iconTone?: "brand" | "slate";
+  title: React.ReactNode;
+  badge?: React.ReactNode;
+  meta?: React.ReactNode;
+  actions?: React.ReactNode;
+  href?: string;
+}) {
+  const resolvedActions =
+    actions ??
+    (href ? (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-brand">
+        Manage site <ArrowRight className="h-3.5 w-3.5" />
+      </span>
+    ) : null);
+
+  const content = (
+    <>
+      {toggle ? <Toggle open={toggle.open} onClick={toggle.onClick} /> : <span className="w-4 shrink-0" />}
+      <span className={cn("shrink-0", iconTone === "brand" ? "text-brand" : "text-slate-400")}>{icon}</span>
+      <span className="truncate font-medium text-slate-900">{title}</span>
+      {badge}
+      {meta && <span className="truncate text-xs text-slate-400">{meta}</span>}
+      <div className="ml-auto flex shrink-0 items-center gap-1">{resolvedActions}</div>
+    </>
+  );
+
+  const rowClass = "group/row flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 transition";
+
+  if (href) {
+    return (
+      <Link href={href} className={cn(rowClass, "hover:bg-brand/5")}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={cn(rowClass, "hover:bg-slate-50")}>{content}</div>;
 }
 
 type FieldSpec = { name: string; label: string; required?: boolean; wide?: boolean };
@@ -96,6 +157,26 @@ function InlineCreateForm({
   );
 }
 
+function RegionStatusToggle({ regionId, isActive }: { regionId: string; isActive: boolean }) {
+  return (
+    <form action={toggleRegionActive.bind(null, regionId)}>
+      <button
+        type="submit"
+        title={isActive ? "Mark this region inactive" : "Mark this region active"}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset transition",
+          isActive
+            ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20 hover:bg-emerald-100"
+            : "bg-slate-100 text-slate-500 ring-slate-500/20 hover:bg-slate-200"
+        )}
+      >
+        <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-500" : "bg-slate-400")} />
+        {isActive ? "Active" : "Inactive"}
+      </button>
+    </form>
+  );
+}
+
 export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(allBranchIds(regions)));
   // Which parent's inline "add child" form is currently open — "root" for the
@@ -117,7 +198,7 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-card">
         <p className="text-sm font-medium text-slate-700">Regions</p>
         <AddButton label="Add region" onClick={() => toggleAdding("root")} />
       </div>
@@ -139,22 +220,27 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
       )}
 
       {regions.map((region) => (
-        <div key={region.id} className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-            <Toggle open={expanded.has(region.id)} onClick={() => toggle(region.id)} />
-            <Globe2 className="h-4 w-4 shrink-0 text-brand" />
-            <span className="font-medium text-slate-900">{region.name}</span>
-            <CodeBadge>{region.code}</CodeBadge>
-            <span className="text-xs text-slate-400">
-              {region.countries.length} countr{region.countries.length === 1 ? "y" : "ies"}
-            </span>
-            <div className="ml-auto">
-              <AddButton label="Add country" onClick={() => toggleAdding(region.id)} />
-            </div>
-          </div>
+        <div
+          key={region.id}
+          className={cn("rounded-xl border border-slate-200 bg-white p-2 shadow-card", !region.isActive && "opacity-60")}
+        >
+          <TreeRow
+            toggle={{ open: expanded.has(region.id), onClick: () => toggle(region.id) }}
+            icon={<Globe2 className="h-4 w-4" />}
+            iconTone="brand"
+            title={region.name}
+            badge={<CodeBadge>{region.code}</CodeBadge>}
+            meta={`${region.countries.length} countr${region.countries.length === 1 ? "y" : "ies"}`}
+            actions={
+              <>
+                <RegionStatusToggle regionId={region.id} isActive={region.isActive} />
+                <AddButton label="Add country" onClick={() => toggleAdding(region.id)} />
+              </>
+            }
+          />
 
           {expanded.has(region.id) && (
-            <div className="space-y-2 border-t border-slate-100 py-3 pl-10 pr-4">
+            <TreeChildren>
               {addingIn === region.id && (
                 <InlineCreateForm
                   action={createCountry.bind(null, region.id)}
@@ -166,25 +252,21 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                 />
               )}
               {region.countries.length === 0 && addingIn !== region.id && (
-                <p className="py-1 text-xs text-slate-400">No countries yet in this region.</p>
+                <p className="px-2 py-1 text-xs text-slate-400">No countries yet in this region.</p>
               )}
               {region.countries.map((country) => (
-                <div key={country.id} className="rounded-lg border border-slate-200">
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                    <Toggle open={expanded.has(country.id)} onClick={() => toggle(country.id)} />
-                    <Flag className="h-4 w-4 shrink-0 text-slate-400" />
-                    <span className="font-medium text-slate-800">{country.name}</span>
-                    <CodeBadge>{country.code}</CodeBadge>
-                    <span className="text-xs text-slate-400">
-                      {country.cities.length} cit{country.cities.length === 1 ? "y" : "ies"}
-                    </span>
-                    <div className="ml-auto">
-                      <AddButton label="Add city" onClick={() => toggleAdding(country.id)} />
-                    </div>
-                  </div>
+                <div key={country.id}>
+                  <TreeRow
+                    toggle={{ open: expanded.has(country.id), onClick: () => toggle(country.id) }}
+                    icon={<Flag className="h-4 w-4" />}
+                    title={country.name}
+                    badge={<CodeBadge>{country.code}</CodeBadge>}
+                    meta={`${country.cities.length} cit${country.cities.length === 1 ? "y" : "ies"}`}
+                    actions={<AddButton label="Add city" onClick={() => toggleAdding(country.id)} />}
+                  />
 
                   {expanded.has(country.id) && (
-                    <div className="space-y-2 border-t border-slate-100 py-2.5 pl-9 pr-3">
+                    <TreeChildren>
                       {addingIn === country.id && (
                         <InlineCreateForm
                           action={createCity.bind(null, country.id)}
@@ -193,24 +275,20 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                         />
                       )}
                       {country.cities.length === 0 && addingIn !== country.id && (
-                        <p className="py-1 text-xs text-slate-400">No cities yet in this country.</p>
+                        <p className="px-2 py-1 text-xs text-slate-400">No cities yet in this country.</p>
                       )}
                       {country.cities.map((city) => (
-                        <div key={city.id} className="rounded-lg border border-slate-200 bg-slate-50/60">
-                          <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                            <Toggle open={expanded.has(city.id)} onClick={() => toggle(city.id)} />
-                            <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
-                            <span className="font-medium text-slate-800">{city.name}</span>
-                            <span className="text-xs text-slate-400">
-                              {city.facilities.length} site{city.facilities.length === 1 ? "" : "s"}
-                            </span>
-                            <div className="ml-auto">
-                              <AddButton label="Add site" onClick={() => toggleAdding(city.id)} />
-                            </div>
-                          </div>
+                        <div key={city.id}>
+                          <TreeRow
+                            toggle={{ open: expanded.has(city.id), onClick: () => toggle(city.id) }}
+                            icon={<MapPin className="h-4 w-4" />}
+                            title={city.name}
+                            meta={`${city.facilities.length} site${city.facilities.length === 1 ? "" : "s"}`}
+                            actions={<AddButton label="Add site" onClick={() => toggleAdding(city.id)} />}
+                          />
 
                           {expanded.has(city.id) && (
-                            <div className="space-y-2 border-t border-slate-100 bg-white py-2.5 pl-8 pr-3">
+                            <TreeChildren>
                               {addingIn === city.id && (
                                 <InlineCreateForm
                                   action={createFacility.bind(null, city.id)}
@@ -230,38 +308,28 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                                 />
                               )}
                               {city.facilities.length === 0 && addingIn !== city.id && (
-                                <p className="py-1 text-xs text-slate-400">No sites yet in this city.</p>
+                                <p className="px-2 py-1 text-xs text-slate-400">No sites yet in this city.</p>
                               )}
                               {city.facilities.map((facility) => (
-                                <Link
+                                <TreeRow
                                   key={facility.id}
                                   href={`/ops/admin/facilities/${facility.id}`}
-                                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 transition hover:border-brand/40 hover:shadow-sm"
-                                >
-                                  <Building2 className="h-4 w-4 shrink-0 text-brand" />
-                                  <span className="font-medium text-slate-900">{facility.name}</span>
-                                  <CodeBadge>{facility.code}</CodeBadge>
-                                  <span className="text-xs text-slate-400">{facility.timezone}</span>
-                                  <span className="text-xs text-slate-400">
-                                    {facility.buildingCount} building{facility.buildingCount === 1 ? "" : "s"}
-                                  </span>
-                                  <span className="text-xs text-slate-400">
-                                    {facility.tenantCount} tenant{facility.tenantCount === 1 ? "" : "s"}
-                                  </span>
-                                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand">
-                                    Manage site <ArrowRight className="h-3.5 w-3.5" />
-                                  </span>
-                                </Link>
+                                  icon={<Building2 className="h-4 w-4" />}
+                                  iconTone="brand"
+                                  title={facility.name}
+                                  badge={<CodeBadge>{facility.code}</CodeBadge>}
+                                  meta={`${facility.timezone} · ${facility.buildingCount} building${facility.buildingCount === 1 ? "" : "s"} · ${facility.tenantCount} tenant${facility.tenantCount === 1 ? "" : "s"}`}
+                                />
                               ))}
-                            </div>
+                            </TreeChildren>
                           )}
                         </div>
                       ))}
-                    </div>
+                    </TreeChildren>
                   )}
                 </div>
               ))}
-            </div>
+            </TreeChildren>
           )}
         </div>
       ))}

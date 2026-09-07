@@ -69,6 +69,27 @@ export async function createRegion(formData: FormData) {
   revalidatePath("/ops/admin");
 }
 
+// Regions are near-static reference data — provider-wide geography rarely
+// changes — so rather than a full edit/delete flow, a region is just toggled
+// active/inactive. Inactive regions stay visible here (with their existing
+// countries/cities/sites) but are meant to be excluded from places that let
+// staff pick a region going forward (team coverage, CS scope, etc.).
+export async function toggleRegionActive(regionId: string) {
+  const admin = await requireMasterDataAdmin();
+  const region = await prisma.region.findUniqueOrThrow({ where: { id: regionId } });
+  const isActive = !region.isActive;
+  await prisma.region.update({ where: { id: regionId }, data: { isActive } });
+  await logAudit({
+    actorId: admin.id,
+    action: "region.toggle_active",
+    summary: `Marked region ${region.name} ${isActive ? "active" : "inactive"}.`,
+    targetType: "Region",
+    targetId: regionId,
+  });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
 export async function createCountry(regionId: string, formData: FormData) {
   const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
@@ -134,6 +155,26 @@ export async function updateFacilityAcs(facilityId: string, formData: FormData) 
   const acsEndpointUrl = String(formData.get("acsEndpointUrl") ?? "") || null;
   await prisma.facility.update({ where: { id: facilityId }, data: { acsEndpointUrl } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+// Renaming a site is Global Sys Admin only — unlike the rest of Area master
+// data (delegable to Service Desk via requireMasterDataAdmin()), the site
+// name is referenced across tenant-facing branding, invoices and reports, so
+// changing it is kept to the one role with full platform control.
+export async function renameFacility(facilityId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Site name is required.");
+  const facility = await prisma.facility.update({ where: { id: facilityId }, data: { name } });
+  await logAudit({
+    actorId: admin.id,
+    action: "facility.rename",
+    summary: `Renamed site to ${facility.name}.`,
+    targetType: "Facility",
+    targetId: facilityId,
+  });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+  revalidatePath("/ops/admin/facilities");
 }
 
 // Whether this site offers numbered colo racks (add rack numbers under Data
