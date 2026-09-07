@@ -137,6 +137,15 @@ model User {
   phone                String?
   avatarUrl            String?
   isActive             Boolean            @default(true)
+
+  // Personal UI customization — chrome-only preferences, scoped to this
+  // user's own view (not tenant/provider branding). accentColor overrides
+  // --brand-primary when set; mutedNotificationCategories is a comma
+  // separated list of Notification.category values the user no longer
+  // wants surfaced in the notifications balloon/list.
+  accentColor                String?
+  density                    String  @default("comfortable")
+  mutedNotificationCategories String @default("")
   enterpriseAccountId  String?
   enterpriseAccount    EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
   restrictedFacilityId String?

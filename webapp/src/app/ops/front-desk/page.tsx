@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/form";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
@@ -39,13 +40,7 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: { 
         description="Look up a visitor's ticket by name, company, or badge/QR code — the badge shown here is what's already registered in the access control system from the approval step."
       />
       <form className="mb-4 flex gap-2" method="get">
-        <input
-          type="text"
-          name="q"
-          defaultValue={q}
-          placeholder="Search name, company, or badge code…"
-          className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-        />
+        <Input type="text" name="q" defaultValue={q} placeholder="Search name, company, or badge code…" className="max-w-sm" />
         <Button type="submit">Search</Button>
       </form>
 

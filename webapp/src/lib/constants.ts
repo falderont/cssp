@@ -319,3 +319,31 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
 
 export const CURRENCIES = ["USD", "EUR", "SGD", "IDR", "GBP"] as const;
 export const TIMEZONES = ["UTC", "Asia/Jakarta", "Asia/Singapore", "America/New_York", "Europe/London"] as const;
+
+// --- Personal preferences (per-user, chrome-only customization) --------------
+// Matches every Notification.category value ever written by notifyUsers()
+// call sites (see actions/*.ts) — kept in sync manually since category is a
+// plain string, not a Prisma enum (see schema.prisma header note).
+export const NOTIFICATION_CATEGORIES = ["incident", "maintenance", "visitor", "service_request", "billing", "delivery", "aal"] as const;
+export const NOTIFICATION_CATEGORY_LABELS: Record<string, string> = {
+  incident: "Incidents",
+  maintenance: "Maintenance",
+  visitor: "Visitors",
+  service_request: "Service requests",
+  billing: "Billing",
+  delivery: "Deliveries",
+  aal: "Authorized Access List",
+};
+
+export const ACCENT_COLOR_PRESETS = [
+  { key: "blue", value: "#2563eb" },
+  { key: "violet", value: "#7c3aed" },
+  { key: "cyan", value: "#0891b2" },
+  { key: "emerald", value: "#059669" },
+  { key: "amber", value: "#d97706" },
+  { key: "rose", value: "#e11d48" },
+  { key: "slate", value: "#475569" },
+] as const;
+
+export const DENSITY_OPTIONS = ["comfortable", "compact"] as const;
+export type Density = (typeof DENSITY_OPTIONS)[number];

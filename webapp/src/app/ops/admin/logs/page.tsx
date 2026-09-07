@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
@@ -32,17 +34,15 @@ export default async function SystemLogsPage({ searchParams }: { searchParams: {
     <div>
       <PageHeader title="System logs" description="An audit trail of administrative actions across the platform." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="action" defaultValue={searchParams.action ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <Select name="action" defaultValue={searchParams.action ?? ""} className="w-auto">
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </select>
-        <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
-          Filter
-        </button>
+        </Select>
+        <Button type="submit">Filter</Button>
       </form>
       <Table>
         <THead>

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
@@ -42,25 +44,25 @@ export default async function OpsVisitorsPage({ searchParams }: { searchParams: 
     <div>
       <PageHeader title="Visitor approvals" description="Approve, deny, check in/out, and monitor access-control sync across every site and tenant." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="facility" defaultValue={searchParams.facility ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <Select name="facility" defaultValue={searchParams.facility ?? ""} className="w-auto">
           <option value="">All facilities</option>
           {facilities.map((f) => (
             <option key={f.id} value={f.id}>
               {f.name}
             </option>
           ))}
-        </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        </Select>
+        <Select name="status" defaultValue={searchParams.status ?? ""} className="w-auto">
           <option value="">Any status</option>
           {["Pending", "Approved", "CheckedIn", "CheckedOut", "Denied", "Mixed"].map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
-        </select>
-        <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
+        </Select>
+        <Button type="submit" size="md">
           Filter
-        </button>
+        </Button>
       </form>
       <Table>
         <THead>

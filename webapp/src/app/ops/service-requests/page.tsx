@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
+import { Select } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { ServiceRequestCalendar } from "@/components/service-requests/calendar";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -87,25 +89,23 @@ export default async function OpsServiceRequestsPage({
       </div>
 
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="category" defaultValue={searchParams.category ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <Select name="category" defaultValue={searchParams.category ?? ""} className="w-auto">
           <option value="">Any type</option>
           {SERVICE_REQUEST_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {SERVICE_REQUEST_CATEGORY_LABELS[c]}
             </option>
           ))}
-        </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        </Select>
+        <Select name="status" defaultValue={searchParams.status ?? ""} className="w-auto">
           <option value="">Any status</option>
           <option value="Submitted">Submitted</option>
           <option value="Accepted">Accepted</option>
           <option value="InProgress">In Progress</option>
           <option value="Done">Done</option>
           <option value="Cancelled">Cancelled</option>
-        </select>
-        <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
-          Filter
-        </button>
+        </Select>
+        <Button type="submit">Filter</Button>
       </form>
 
       <Table>

@@ -8,6 +8,7 @@ const TONE_CLASSES: Record<string, string> = {
   red: "bg-red-50 text-red-700 ring-red-600/20",
   slate: "bg-slate-100 text-slate-700 ring-slate-500/20",
   blue: "bg-blue-50 text-blue-700 ring-blue-600/20",
+  purple: "bg-violet-50 text-violet-700 ring-violet-600/20",
 };
 
 export function Badge({
@@ -16,13 +17,13 @@ export function Badge({
   className,
 }: {
   children: React.ReactNode;
-  tone?: "green" | "amber" | "red" | "slate" | "blue";
+  tone?: "green" | "amber" | "red" | "slate" | "blue" | "purple";
   className?: string;
 }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
         TONE_CLASSES[tone ?? "slate"],
         className
       )}
