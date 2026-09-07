@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
@@ -9,10 +10,18 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate } from "@/lib/utils";
 import { deleteDocument } from "@/actions/documents";
 import { DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
-import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
+import { getFacilityTabAccess } from "@/lib/facility-tabs";
 
+// Documents now also live on each site's own management page — a viewer
+// pinned to one facility goes straight there, but only if their role can
+// reach the facility page's Documents tab at all: CS Team can also be
+// facility-restricted and has no site tab, so it keeps this cross-site page.
 export default async function OpsDocumentsPage() {
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId && getFacilityTabAccess(user.role).canViewDocuments) {
+    redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/documents`);
+  }
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const documents = await prisma.document.findMany({
     where: scopedFacilityIds ? { OR: [{ facilityId: null }, { facilityId: { in: scopedFacilityIds } }] } : undefined,
@@ -64,11 +73,11 @@ export default async function OpsDocumentsPage() {
                     <a href={`/api/documents/${doc.id}`} className="text-sm text-brand hover:underline">
                       Download
                     </a>
-                    <form action={deleteBound}>
-                      <Button type="submit" size="sm" variant="ghost">
-                        Delete
-                      </Button>
-                    </form>
+                    <ConfirmDeleteButton
+                      action={deleteBound}
+                      confirmMessage={`Delete "${doc.title}"? This can't be undone.`}
+                      label="Delete"
+                    />
                   </div>
                 </TD>
               </TR>

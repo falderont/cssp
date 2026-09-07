@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
@@ -7,12 +8,16 @@ import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 
+// Telemetry (BMS) now lives entirely as a tab on each site's own management
+// page — a viewer pinned to one facility goes straight there. This stays as
+// a picker for anyone who can see more than one site.
 export default async function OpsTelemetryPage() {
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/telemetry`);
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const facilities = await prisma.facility.findMany({
     where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
-    include: { telemetrySource: true, region: true },
+    include: { telemetrySource: true, city: { include: { country: { include: { region: true } } } } },
     orderBy: { name: "asc" },
   });
 
@@ -20,7 +25,7 @@ export default async function OpsTelemetryPage() {
     <div>
       <PageHeader
         title="BMS Telemetry"
-        description="Optional per-facility integration into your building management system — this mirrors your BMS/DCIM, it doesn't replace it."
+        description="Optional per-facility integration into your building management system — pick a site to view its telemetry and integration settings."
       />
       <Table>
         <THead>
@@ -37,11 +42,11 @@ export default async function OpsTelemetryPage() {
           {facilities.map((f) => (
             <TR key={f.id}>
               <TD>
-                <Link href={`/ops/telemetry/${f.id}`} className="font-medium text-brand hover:underline">
+                <Link href={`/ops/admin/facilities/${f.id}/service-delivery/telemetry`} className="font-medium text-brand hover:underline">
                   {f.name}
                 </Link>
               </TD>
-              <TD>{f.region.name}</TD>
+              <TD>{f.city.country.region.name}</TD>
               <TD>{f.telemetrySource?.vendor ?? "—"}</TD>
               <TD>
                 <StatusBadge status={f.telemetrySource?.status ?? "NotConfigured"} />

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, cn } from "@/lib/utils";
 import { markAllNotificationsRead, markNotificationRead } from "@/actions/notifications";
+import { ActionForm } from "@/components/errors/action-form";
 
 type NotificationItem = {
   id: string;
@@ -21,11 +22,11 @@ export function NotificationsList({ notifications, basePath }: { notifications: 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <form action={markAllBound}>
+        <ActionForm action={markAllBound} silent>
           <Button type="submit" variant="secondary" size="sm">
             Mark all as read
           </Button>
-        </form>
+        </ActionForm>
       </div>
       <Card>
         {notifications.length === 0 ? (
@@ -54,13 +55,13 @@ export function NotificationsList({ notifications, basePath }: { notifications: 
                     <div className="min-w-0 flex-1">{body}</div>
                   )}
                   {!n.isRead && (
-                    <form action={markBound}>
+                    <ActionForm action={markBound} silent>
                       <button
                         type="submit"
                         title="Mark as read"
                         className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-brand hover:ring-2 hover:ring-brand/30"
                       />
-                    </form>
+                    </ActionForm>
                   )}
                 </li>
               );

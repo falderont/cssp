@@ -11,6 +11,15 @@ export async function getSession() {
 export async function requireUser() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
+
+  // The session is a JWT and isn't re-validated against the DB by NextAuth
+  // itself, so a stale cookie from before a database reset/reseed (which
+  // hands out fresh ids) or from a since-deactivated account would otherwise
+  // sail through every check below and only fail later — confusingly — as a
+  // foreign key error wherever that stale id gets written (e.g. audit logs).
+  const dbUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { isActive: true } });
+  if (!dbUser || !dbUser.isActive) redirect("/login");
+
   if (session.user.role !== ROLES.SYS_ADMIN) {
     const settings = await prisma.providerSettings.findUnique({ where: { id: "singleton" } });
     if (settings?.maintenanceMode) redirect("/maintenance");
@@ -37,12 +46,61 @@ export async function requireSysAdmin() {
   return user;
 }
 
+// Area (location) master data — Region/Country/City/Site/Building/Room — is
+// owned by the Global Sys Admin and delegable to Service Desk. Every other
+// internal role raises an AreaChangeRequest ticket instead (see
+// actions/area.ts) rather than getting this access.
+export async function requireMasterDataAdmin() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.SERVICE_DESK];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
 // Blacklist management is delegated to front-line ops day-to-day, not
 // restricted to the Sys Admin like the rest of /ops/admin — must match
 // the role check in actions/blacklist.ts.
 export async function requireBlacklistManager() {
   const user = await requireInternalUser();
   const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_FRONT_OFFICE_SECURITY, ROLES.OPS_SITE_MANAGER];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+// Anyone who can view a site's own management page — the master-data admins
+// plus every day-to-day role that now manages a slice of that site (Loading
+// Docks, AAL, Front Line, Service Delivery, Telemetry, Documents) right
+// there instead of on a separate global list (see
+// /ops/admin/facilities/[id]). Each tab still gates itself more narrowly.
+export async function requireFacilityPageAccess() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [
+    ROLES.SYS_ADMIN,
+    ROLES.SERVICE_DESK,
+    ROLES.OPS_BUILDING_MANAGER,
+    ROLES.OPS_SITE_MANAGER,
+    ROLES.OPS_SITE_LEAD,
+    ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+// Tenant account administration delegated to Service Desk, scoped to that
+// account's users (add/edit/enable/disable/reset password) — must match the
+// role check in the relevant actions/admin.ts functions.
+export async function requireAccountManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.SERVICE_DESK];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+// Owns building-level logistics — defines the loading dock locations tenants
+// pick from when submitting a delivery ticket for that site.
+export async function requireBuildingManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_BUILDING_MANAGER];
   if (!allowed.includes(user.role)) redirect("/ops");
   return user;
 }

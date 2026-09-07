@@ -7,6 +7,8 @@ import { requireBlacklistManager } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { createBlacklistEntry, deleteBlacklistEntry } from "@/actions/blacklist";
+import { ActionForm } from "@/components/errors/action-form";
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 
 export default async function BlacklistPage() {
   await requireBlacklistManager();
@@ -46,11 +48,11 @@ export default async function BlacklistPage() {
                       <p className="text-xs text-slate-400">{formatDate(e.createdAt)}</p>
                     </TD>
                     <TD>
-                      <form action={deleteBound}>
-                        <Button type="submit" size="sm" variant="ghost">
-                          Remove
-                        </Button>
-                      </form>
+                      <ConfirmDeleteButton
+                        action={deleteBound}
+                        confirmMessage={`Remove ${e.fullName} from the blacklist? This can't be undone.`}
+                        label="Remove"
+                      />
                     </TD>
                   </TR>
                 );
@@ -61,7 +63,7 @@ export default async function BlacklistPage() {
         <Card>
           <CardBody>
             <p className="mb-3 text-sm font-medium text-slate-700">Add entry</p>
-            <form action={createBlacklistEntry} className="space-y-3">
+            <ActionForm action={createBlacklistEntry} className="space-y-3">
               <Field label="Full name" htmlFor="fullName" required>
                 <Input id="fullName" name="fullName" required />
               </Field>
@@ -77,7 +79,7 @@ export default async function BlacklistPage() {
               <Button type="submit" className="w-full">
                 Add to blacklist
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

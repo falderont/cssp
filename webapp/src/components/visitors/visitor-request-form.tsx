@@ -7,6 +7,7 @@ import { Download, Plus, Trash2, Upload } from "lucide-react";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { createVisitorRequest, createVisitorRequestBatch } from "@/actions/visitors";
+import { ActionForm } from "@/components/errors/action-form";
 
 type Building = { id: string; name: string; code: string };
 type Enrollment = { id: string; facilityId: string; facility: { name: string; buildings: Building[] } };
@@ -44,7 +45,7 @@ export function VisitorRequestForm({
   }
 
   return (
-    <form action={mode === "batch" ? createVisitorRequestBatch : createVisitorRequest} className="space-y-6">
+    <ActionForm action={mode === "batch" ? createVisitorRequestBatch : createVisitorRequest} className="space-y-6">
       <div>
         <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
           <ModeTab active={mode === "manual"} onClick={() => setMode("manual")} icon={Plus} label="Add manually" />
@@ -188,7 +189,7 @@ export function VisitorRequestForm({
       )}
 
       <Button type="submit">{mode === "batch" ? "Upload and create visit request" : "Submit visitor request"}</Button>
-    </form>
+    </ActionForm>
   );
 }
 

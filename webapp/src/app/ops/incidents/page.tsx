@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Plus, Siren } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
@@ -11,8 +12,12 @@ import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
 
+// Incidents now also lives as a tab on each site's own management page — a
+// viewer pinned to one facility goes straight there. Service Desk and other
+// cross-site roles keep this page: they triage across every site at once.
 export default async function OpsIncidentsPage() {
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/incidents`);
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const incidents = await prisma.incident.findMany({
     where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,

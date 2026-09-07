@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { getProviderBranding } from "@/lib/branding";
 import { updateBranding } from "@/actions/admin";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function BrandingPage() {
   await requireSysAdmin();
@@ -15,7 +16,7 @@ export default async function BrandingPage() {
       <PageHeader title="Branding" description="Shown across the internal console, the tenant portal, invoices, and the login screen." />
       <Card className="max-w-2xl">
         <CardBody>
-          <form action={updateBranding} className="space-y-4">
+          <ActionForm action={updateBranding} className="space-y-4">
             <div className="flex items-center gap-4">
               {branding.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -58,7 +59,7 @@ export default async function BrandingPage() {
               <Textarea id="address" name="address" defaultValue={branding.address ?? ""} />
             </Field>
             <Button type="submit">Save branding</Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCustomerUser } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
+import { withUniqueConstraintMessage } from "@/lib/prisma-errors";
 import { ROLES, TENANT_ROLES } from "@/lib/constants";
 
 async function requireTenantGlobalAdminAction() {
@@ -34,16 +35,20 @@ export async function inviteTenantUser(formData: FormData) {
   });
 
   const passwordHash = await bcrypt.hash(parsed.password, 10);
-  await prisma.user.create({
-    data: {
-      name: parsed.name,
-      email: parsed.email.toLowerCase().trim(),
-      passwordHash,
-      role: parsed.role,
-      enterpriseAccountId: user.enterpriseAccountId,
-      restrictedFacilityId: parsed.restrictedFacilityId || null,
-    },
-  });
+  await withUniqueConstraintMessage(
+    () =>
+      prisma.user.create({
+        data: {
+          name: parsed.name,
+          email: parsed.email.toLowerCase().trim(),
+          passwordHash,
+          role: parsed.role,
+          enterpriseAccountId: user.enterpriseAccountId,
+          restrictedFacilityId: parsed.restrictedFacilityId || null,
+        },
+      }),
+    `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`
+  );
 
   revalidatePath("/portal/settings");
 }

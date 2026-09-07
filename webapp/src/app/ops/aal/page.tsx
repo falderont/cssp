@@ -1,96 +1,64 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { IdCard } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { StatusBadge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardBody } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
-import { decideAalEntry, revokeAalEntry } from "@/actions/aal";
-import { AAL_ACCESS_LEVEL_LABELS, ROLES, isAalExpired } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
 
+// Authorized Access List requests are now decided right on each site's own
+// page (see /ops/admin/facilities/[id]) instead of one flat cross-site list.
+// This page is just the way in: straight to your one site if your scope is
+// exactly one facility, otherwise a picker (with a pending-count nudge so
+// nothing waiting for a decision gets lost across sites).
 export default async function OpsAalPage() {
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
-  const canDecide = user.role === ROLES.SYS_ADMIN || user.role === ROLES.OPS_SITE_MANAGER;
+  if (scopedFacilityIds && scopedFacilityIds.length === 1) redirect(`/ops/admin/facilities/${scopedFacilityIds[0]}/aal`);
 
-  const entries = await prisma.authorizedAccessEntry.findMany({
-    where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
-    include: { facility: true, enterpriseAccount: true, requestedBy: true },
-    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-  });
+  const [facilities, pendingCounts] = await Promise.all([
+    prisma.facility.findMany({
+      where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, code: true },
+    }),
+    prisma.authorizedAccessEntry.groupBy({
+      by: ["facilityId"],
+      where: { status: "PendingApproval", ...(scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : {}) },
+      _count: { _all: true },
+    }),
+  ]);
+  const pendingByFacility = new Map(pendingCounts.map((p) => [p.facilityId, p._count._all]));
 
   return (
     <div>
       <PageHeader
         title="Authorized Access List"
-        description="Permanent access requests from tenants — a one-time decision, distinct from a dated visitor ticket."
+        description="Pick a site — AAL requests are approved, rejected and revoked on that site's own page."
       />
-      <Table>
-        <THead>
-          <tr>
-            <TH>Name</TH>
-            <TH>Tenant</TH>
-            <TH>Site</TH>
-            <TH>Access level</TH>
-            <TH>Valid until</TH>
-            <TH>Status</TH>
-            {canDecide && <TH>Actions</TH>}
-          </tr>
-        </THead>
-        <TBody>
-          {entries.length === 0 && <EmptyRow colSpan={canDecide ? 7 : 6} message="No AAL requests yet." />}
-          {entries.map((e) => {
-            const approveBound = decideAalEntry.bind(null, e.id, "Active");
-            const rejectBound = decideAalEntry.bind(null, e.id, "Rejected");
-            const revokeBound = revokeAalEntry.bind(null, e.id);
-            const expired = isAalExpired(e);
+      <Card>
+        <CardBody className="divide-y divide-slate-100 p-0">
+          {facilities.length === 0 && <p className="p-4 text-sm text-slate-400">No sites in your scope yet.</p>}
+          {facilities.map((f) => {
+            const pending = pendingByFacility.get(f.id) ?? 0;
             return (
-              <TR key={e.id}>
-                <TD className="font-medium text-slate-900">
-                  {e.fullName}
-                  {e.company && <p className="text-xs text-slate-400">{e.company}</p>}
-                  <p className="text-xs text-slate-400">{e.reason}</p>
-                </TD>
-                <TD>{e.enterpriseAccount.name}</TD>
-                <TD>{e.facility.name}</TD>
-                <TD>{AAL_ACCESS_LEVEL_LABELS[e.accessLevel] ?? e.accessLevel}</TD>
-                <TD>{e.validUntil ? formatDate(e.validUntil) : "No expiry"}</TD>
-                <TD>
-                  <StatusBadge status={expired ? "Expired" : e.status} />
-                </TD>
-                {canDecide && (
-                  <TD>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {e.status === "PendingApproval" && (
-                        <>
-                          <form action={approveBound}>
-                            <Button type="submit" size="sm" variant="secondary">
-                              Approve
-                            </Button>
-                          </form>
-                          <form action={rejectBound}>
-                            <Button type="submit" size="sm" variant="danger">
-                              Reject
-                            </Button>
-                          </form>
-                        </>
-                      )}
-                      {e.status === "Active" && !expired && (
-                        <form action={revokeBound}>
-                          <Button type="submit" size="sm" variant="danger">
-                            Revoke
-                          </Button>
-                        </form>
-                      )}
-                    </div>
-                  </TD>
-                )}
-              </TR>
+              <Link
+                key={f.id}
+                href={`/ops/admin/facilities/${f.id}/aal`}
+                className="flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-50"
+              >
+                <span className="flex items-center gap-2 font-medium text-slate-900">
+                  <IdCard className="h-4 w-4 text-slate-400" /> {f.name}
+                  <span className="font-normal text-slate-400">({f.code})</span>
+                </span>
+                {pending > 0 && <Badge tone="amber">{pending} pending</Badge>}
+              </Link>
             );
           })}
-        </TBody>
-      </Table>
+        </CardBody>
+      </Card>
     </div>
   );
 }

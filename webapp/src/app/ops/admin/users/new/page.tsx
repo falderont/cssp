@@ -6,10 +6,12 @@ import { prisma } from "@/lib/prisma";
 
 export default async function NewUserPage() {
   await requireSysAdmin();
-  const [accounts, facilities, regions] = await Promise.all([
+  const [accounts, facilities, regions, countries, teams] = await Promise.all([
     prisma.enterpriseAccount.findMany({ orderBy: { name: "asc" } }),
     prisma.facility.findMany({ orderBy: { name: "asc" } }),
     prisma.region.findMany({ orderBy: { name: "asc" } }),
+    prisma.country.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -17,7 +19,7 @@ export default async function NewUserPage() {
       <PageHeader title="Add user" description="Internal staff or a tenant user, across any persona." />
       <Card className="max-w-2xl">
         <CardBody>
-          <UserForm accounts={accounts} facilities={facilities} regions={regions} />
+          <UserForm accounts={accounts} facilities={facilities} regions={regions} countries={countries} teams={teams} />
         </CardBody>
       </Card>
     </div>

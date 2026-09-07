@@ -22,6 +22,11 @@ const config: Config = {
         ],
         display: ["Space Grotesk", "ui-sans-serif", "system-ui", "sans-serif"],
       },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
+        balloon: "var(--shadow-balloon)",
+      },
     },
   },
   plugins: [],

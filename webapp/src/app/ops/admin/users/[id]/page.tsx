@@ -8,14 +8,18 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { resetUserPassword } from "@/actions/admin";
 import type { Role } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
-export default async function EditUserPage({ params }: { params: { id: string } }) {
+export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireSysAdmin();
-  const [target, accounts, facilities, regions] = await Promise.all([
-    prisma.user.findUnique({ where: { id: params.id } }),
+  const [target, accounts, facilities, regions, countries, teams] = await Promise.all([
+    prisma.user.findUnique({ where: { id } }),
     prisma.enterpriseAccount.findMany({ orderBy: { name: "asc" } }),
     prisma.facility.findMany({ orderBy: { name: "asc" } }),
     prisma.region.findMany({ orderBy: { name: "asc" } }),
+    prisma.country.findMany({ orderBy: { name: "asc" } }),
+    prisma.team.findMany({ orderBy: { name: "asc" } }),
   ]);
   if (!target) notFound();
 
@@ -31,6 +35,8 @@ export default async function EditUserPage({ params }: { params: { id: string } 
               accounts={accounts}
               facilities={facilities}
               regions={regions}
+              countries={countries}
+              teams={teams}
               existingUser={{
                 id: target.id,
                 name: target.name,
@@ -39,7 +45,9 @@ export default async function EditUserPage({ params }: { params: { id: string } 
                 enterpriseAccountId: target.enterpriseAccountId,
                 restrictedFacilityId: target.restrictedFacilityId,
                 restrictedRegionId: target.restrictedRegionId,
+                restrictedCountryId: target.restrictedCountryId,
                 csScope: target.csScope,
+                teamId: target.teamId,
               }}
             />
           </CardBody>
@@ -49,14 +57,14 @@ export default async function EditUserPage({ params }: { params: { id: string } 
             <CardTitle>Reset password</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={resetBound} className="space-y-3">
+            <ActionForm action={resetBound} className="space-y-3">
               <Field label="New password" htmlFor="password" required hint="At least 8 characters">
                 <Input id="password" name="password" defaultValue="password123" required minLength={8} />
               </Field>
               <Button type="submit" variant="secondary" className="w-full">
                 Reset password
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

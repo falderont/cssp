@@ -4,11 +4,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { requireSysAdmin } from "@/lib/session";
+import { requireAccountManager } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { ROLES } from "@/lib/constants";
 
 export default async function AccountsPage() {
-  await requireSysAdmin();
+  const user = await requireAccountManager();
   const accounts = await prisma.enterpriseAccount.findMany({
     include: { siteEnrollments: true, users: true },
     orderBy: { name: "asc" },
@@ -20,9 +21,11 @@ export default async function AccountsPage() {
         title="Tenant accounts"
         description="Enterprise customers, enrolled across one or more of your facilities."
         actions={
-          <LinkButton href="/ops/admin/accounts/new">
-            <Plus className="h-4 w-4" /> Add tenant account
-          </LinkButton>
+          user.role === ROLES.SYS_ADMIN ? (
+            <LinkButton href="/ops/admin/accounts/new">
+              <Plus className="h-4 w-4" /> Add tenant account
+            </LinkButton>
+          ) : undefined
         }
       />
       <Table>

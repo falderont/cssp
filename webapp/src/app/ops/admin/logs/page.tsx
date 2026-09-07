@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
@@ -10,39 +12,58 @@ const ACTION_TONES: Record<string, "blue" | "green" | "amber" | "red" | "slate">
   tenant: "green",
   facility: "green",
   region: "green",
+  country: "green",
+  city: "green",
+  team: "blue",
+  area_change_request: "amber",
   branding: "amber",
   preferences: "amber",
   maintenance: "red",
   backup: "slate",
   integration: "blue",
+  changelog: "blue",
 };
 
-export default async function SystemLogsPage({ searchParams }: { searchParams: { action?: string } }) {
+export default async function SystemLogsPage({ searchParams }: { searchParams: Promise<{ action?: string }> }) {
+  const { action } = await searchParams;
   await requireSysAdmin();
   const logs = await prisma.auditLog.findMany({
-    where: searchParams.action ? { action: { startsWith: searchParams.action } } : undefined,
+    where: action ? { action: { startsWith: action } } : undefined,
     include: { actor: true },
     orderBy: { createdAt: "desc" },
     take: 300,
   });
 
-  const categories = ["user", "tenant", "facility", "region", "branding", "preferences", "maintenance", "backup", "integration"];
+  const categories = [
+    "user",
+    "tenant",
+    "facility",
+    "region",
+    "country",
+    "city",
+    "team",
+    "area_change_request",
+    "branding",
+    "preferences",
+    "maintenance",
+    "backup",
+    "integration",
+    "changelog",
+  ];
 
   return (
     <div>
       <PageHeader title="System logs" description="An audit trail of administrative actions across the platform." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="action" defaultValue={searchParams.action ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <Select name="action" defaultValue={action ?? ""} className="w-auto">
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </select>
-        <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
-          Filter
-        </button>
+        </Select>
+        <Button type="submit">Filter</Button>
       </form>
       <Table>
         <THead>

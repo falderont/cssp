@@ -11,6 +11,7 @@ import {
   SERVICE_REQUEST_CATEGORY_LABELS,
   SERVICE_REQUEST_PRIORITIES,
 } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 type Enrollment = { id: string; facility: { name: string } };
 
@@ -20,7 +21,7 @@ export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] 
   const isScheduled = category === "SiteWalkEscort" || category === "GeneralMeeting";
 
   return (
-    <form action={createServiceRequest} className="space-y-4">
+    <ActionForm action={createServiceRequest} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Site" htmlFor="siteEnrollmentId" required>
           <Select id="siteEnrollmentId" name="siteEnrollmentId" required>
@@ -97,6 +98,6 @@ export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] 
         />
       </Field>
       <Button type="submit">Submit request</Button>
-    </form>
+    </ActionForm>
   );
 }

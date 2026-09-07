@@ -7,10 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { getCustomerSiteEnrollments } from "@/lib/scope";
 import type { Role } from "@/lib/constants";
 
-export default async function EditTenantUserPage({ params }: { params: { id: string } }) {
+export default async function EditTenantUserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const admin = await requireTenantGlobalAdmin();
   const [target, enrollments] = await Promise.all([
-    prisma.user.findFirst({ where: { id: params.id, enterpriseAccountId: admin.enterpriseAccountId } }),
+    prisma.user.findFirst({ where: { id, enterpriseAccountId: admin.enterpriseAccountId } }),
     getCustomerSiteEnrollments(admin),
   ]);
   if (!target) notFound();

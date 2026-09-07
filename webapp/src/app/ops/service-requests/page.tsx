@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
+import { Select } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { ServiceRequestCalendar } from "@/components/service-requests/calendar";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -10,21 +13,33 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { ROLES, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
+import { getFacilityTabAccess } from "@/lib/facility-tabs";
 
+// Service Requests now also lives as a tab on each site's own management
+// page — a viewer pinned to one facility goes straight there, but only if
+// their role can actually reach the facility page at all: CS Team and
+// vendors can also be facility-restricted, and neither has a Service
+// Delivery tab there (a vendor's queue is their own assigned tasks, not one
+// site's; CS Team stays on this cross-site page). Everyone else keeps this
+// page exactly as before.
 export default async function OpsServiceRequestsPage({
   searchParams,
 }: {
-  searchParams: { category?: string; status?: string; month?: string };
+  searchParams: Promise<{ category?: string; status?: string; month?: string }>;
 }) {
+  const { category, status, month: monthParam } = await searchParams;
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId && getFacilityTabAccess(user.role).canViewServiceDelivery) {
+    redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/service-requests`);
+  }
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const isVendor = user.role === ROLES.OPS_VENDOR;
-  const { year, month } = parseMonthParam(searchParams.month);
+  const { year, month } = parseMonthParam(monthParam);
 
   const requests = await prisma.serviceRequest.findMany({
     where: {
-      ...(searchParams.category ? { category: searchParams.category } : {}),
-      ...(searchParams.status ? { status: searchParams.status } : {}),
+      ...(category ? { category } : {}),
+      ...(status ? { status } : {}),
       ...(scopedFacilityIds ? { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } : {}),
       ...(isVendor ? { assignedToId: user.id } : {}),
     },
@@ -87,25 +102,23 @@ export default async function OpsServiceRequestsPage({
       </div>
 
       <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <select name="category" defaultValue={searchParams.category ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        <Select name="category" defaultValue={category ?? ""} className="w-auto">
           <option value="">Any type</option>
           {SERVICE_REQUEST_CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {SERVICE_REQUEST_CATEGORY_LABELS[c]}
             </option>
           ))}
-        </select>
-        <select name="status" defaultValue={searchParams.status ?? ""} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
+        </Select>
+        <Select name="status" defaultValue={status ?? ""} className="w-auto">
           <option value="">Any status</option>
           <option value="Submitted">Submitted</option>
           <option value="Accepted">Accepted</option>
           <option value="InProgress">In Progress</option>
           <option value="Done">Done</option>
           <option value="Cancelled">Cancelled</option>
-        </select>
-        <button type="submit" className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">
-          Filter
-        </button>
+        </Select>
+        <Button type="submit">Filter</Button>
       </form>
 
       <Table>

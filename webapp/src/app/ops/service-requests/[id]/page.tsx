@@ -14,11 +14,13 @@ import {
   updateServiceRequestStatus,
 } from "@/actions/service-requests";
 import { ROLES, SERVICE_REQUEST_STATUSES } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
-export default async function OpsServiceRequestDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsServiceRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireInternalUser();
   const request = await prisma.serviceRequest.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       siteEnrollment: { include: { facility: true, enterpriseAccount: true } },
       assignedToUser: true,
@@ -95,7 +97,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                 <CardTitle>Assign</CardTitle>
               </CardHeader>
               <CardBody>
-                <form action={assignBound} className="space-y-3">
+                <ActionForm action={assignBound} className="space-y-3">
                   <Field label={isRemoteHands ? "Technician" : "Assign to"} htmlFor="assignedToId" required>
                     <Select id="assignedToId" name="assignedToId" required>
                       <option value="">Choose…</option>
@@ -109,7 +111,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                   <Button type="submit" className="w-full">
                     Accept &amp; assign
                   </Button>
-                </form>
+                </ActionForm>
               </CardBody>
             </Card>
           )}
@@ -120,11 +122,11 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                 <CardTitle>{request.assignedToUser?.name}</CardTitle>
               </CardHeader>
               <CardBody>
-                <form action={startBound}>
+                <ActionForm action={startBound}>
                   <Button type="submit" className="w-full">
                     Start task
                   </Button>
-                </form>
+                </ActionForm>
               </CardBody>
             </Card>
           )}
@@ -135,7 +137,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                 <CardTitle>Complete task</CardTitle>
               </CardHeader>
               <CardBody>
-                <form action={completeBound} className="space-y-3">
+                <ActionForm action={completeBound} className="space-y-3">
                   <Field label="Completion notes" htmlFor="completionNotes" required>
                     <Textarea id="completionNotes" name="completionNotes" required placeholder="What was done…" />
                   </Field>
@@ -158,7 +160,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                   <Button type="submit" className="w-full">
                     Complete task
                   </Button>
-                </form>
+                </ActionForm>
               </CardBody>
             </Card>
           )}
@@ -169,7 +171,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                 <CardTitle>Update status</CardTitle>
               </CardHeader>
               <CardBody>
-                <form action={statusBound} className="space-y-3">
+                <ActionForm action={statusBound} className="space-y-3">
                   <Field label="Status" htmlFor="status">
                     <Select id="status" name="status" defaultValue={request.status}>
                       {SERVICE_REQUEST_STATUSES.map((s) => (
@@ -182,7 +184,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
                   <Button type="submit" className="w-full">
                     Update &amp; notify tenant
                   </Button>
-                </form>
+                </ActionForm>
               </CardBody>
             </Card>
           )}

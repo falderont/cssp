@@ -9,11 +9,13 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 import { postIncidentUpdate, toggleIncidentVisibility, uploadIncidentReport } from "@/actions/incidents";
 import { INCIDENT_STATUSES, parseImpactedServices } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
-export default async function OpsIncidentDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsIncidentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const incident = await prisma.incident.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { facility: true, building: true, updates: { orderBy: { createdAt: "asc" }, include: { createdByUser: true } } },
   });
   if (!incident) notFound();
@@ -86,7 +88,7 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
               <CardTitle>Post an update</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={postUpdateBound} className="space-y-3">
+              <ActionForm action={postUpdateBound} className="space-y-3">
                 <Field label="Update status" htmlFor="status">
                   <Select id="status" name="status" defaultValue={incident.status}>
                     {INCIDENT_STATUSES.map((s) => (
@@ -102,7 +104,7 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
                 <Button type="submit" className="w-full">
                   Post update
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
 
@@ -112,11 +114,11 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
                 <p className="text-sm font-medium text-slate-800">Tenant visibility</p>
                 <p className="text-xs text-slate-500">{incident.isCustomerVisible ? "Visible to tenants" : "Internal only"}</p>
               </div>
-              <form action={toggleVisibilityBound}>
+              <ActionForm action={toggleVisibilityBound} silent>
                 <Button type="submit" size="sm" variant="secondary">
                   {incident.isCustomerVisible ? "Hide from tenants" : "Publish to tenants"}
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
 
@@ -136,7 +138,7 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
                     Download {incident.reportFileName}
                   </a>
                 ) : (
-                  <form action={uploadReportBound} className="space-y-3">
+                  <ActionForm action={uploadReportBound} className="space-y-3">
                     <Field label="Upload report (from DCIM)" htmlFor="report" required>
                       <input
                         id="report"
@@ -149,7 +151,7 @@ export default async function OpsIncidentDetailPage({ params }: { params: { id: 
                     <Button type="submit" className="w-full" variant="secondary">
                       Attach to closure
                     </Button>
-                  </form>
+                  </ActionForm>
                 )}
               </CardBody>
             </Card>

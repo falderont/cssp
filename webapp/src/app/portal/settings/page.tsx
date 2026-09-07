@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getCustomerSiteEnrollments } from "@/lib/scope";
 import { inviteTenantUser, toggleTenantUserActive } from "@/actions/tenant";
 import { ROLE_LABELS, ROLES, TENANT_ROLES, type Role } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function PortalSettingsPage() {
   const user = await requireCustomerUser();
@@ -61,11 +62,11 @@ export default async function PortalSettingsPage() {
                               Edit
                             </Link>
                             {u.id !== user.id && (
-                              <form action={toggleBound}>
+                              <ActionForm action={toggleBound} silent>
                                 <Button type="submit" size="sm" variant="ghost">
                                   {u.isActive ? "Disable" : "Enable"}
                                 </Button>
-                              </form>
+                              </ActionForm>
                             )}
                           </div>
                         </TD>
@@ -84,7 +85,7 @@ export default async function PortalSettingsPage() {
               <CardTitle>Invite teammate</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={inviteTenantUser} className="space-y-3">
+              <ActionForm action={inviteTenantUser} className="space-y-3">
                 <Field label="Full name" htmlFor="name" required>
                   <Input id="name" name="name" required />
                 </Field>
@@ -116,7 +117,7 @@ export default async function PortalSettingsPage() {
                 <Button type="submit" className="w-full">
                   Send invite
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
         )}

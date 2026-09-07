@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { requireTenantGlobalAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { updateTenantBranding } from "@/actions/tenant";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function TenantBrandingPage() {
   const user = await requireTenantGlobalAdmin();
@@ -30,7 +31,7 @@ export default async function TenantBrandingPage() {
             </div>
           </div>
 
-          <form action={updateTenantBranding} className="space-y-4" encType="multipart/form-data">
+          <ActionForm action={updateTenantBranding} className="space-y-4" encType="multipart/form-data">
             <Field label="Company logo" htmlFor="logo" hint="PNG or SVG, square works best">
               <input
                 id="logo"
@@ -46,7 +47,7 @@ export default async function TenantBrandingPage() {
             <Button type="submit" className="w-full">
               Save branding
             </Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>
