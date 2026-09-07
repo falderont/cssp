@@ -1,15 +1,13 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { StatusBadge } from "@/components/ui/badge";
+import { PortalAalTable } from "@/components/aal/portal-aal-table";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireTenantAdminOrSiteLead } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCustomerSiteEnrollments } from "@/lib/scope";
 import { requestAalEntry } from "@/actions/aal";
-import { AAL_ACCESS_LEVELS, AAL_ACCESS_LEVEL_LABELS, isAalExpired } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
+import { AAL_ACCESS_LEVELS, AAL_ACCESS_LEVEL_LABELS } from "@/lib/constants";
 import { ActionForm } from "@/components/errors/action-form";
 
 export default async function PortalAalPage() {
@@ -31,34 +29,7 @@ export default async function PortalAalPage() {
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Table>
-            <THead>
-              <tr>
-                <TH>Name</TH>
-                <TH>Site</TH>
-                <TH>Access level</TH>
-                <TH>Valid until</TH>
-                <TH>Status</TH>
-              </tr>
-            </THead>
-            <TBody>
-              {entries.length === 0 && <EmptyRow colSpan={5} message="No authorized access entries yet." />}
-              {entries.map((e) => (
-                <TR key={e.id}>
-                  <TD className="font-medium text-slate-900">
-                    {e.fullName}
-                    {e.company && <p className="text-xs text-slate-400">{e.company}</p>}
-                  </TD>
-                  <TD>{e.facility.name}</TD>
-                  <TD>{AAL_ACCESS_LEVEL_LABELS[e.accessLevel] ?? e.accessLevel}</TD>
-                  <TD>{e.validUntil ? formatDate(e.validUntil) : "No expiry"}</TD>
-                  <TD>
-                    <StatusBadge status={isAalExpired(e) ? "Expired" : e.status} />
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
+          <PortalAalTable entries={entries} />
         </div>
 
         <Card>

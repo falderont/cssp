@@ -23,6 +23,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
     where: { id },
     include: {
       siteEnrollment: { include: { facility: true, enterpriseAccount: true } },
+      building: true,
       assignedToUser: true,
       createdByUser: true,
     },

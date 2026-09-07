@@ -19,6 +19,7 @@ import {
 
 const createSchema = z.object({
   siteEnrollmentId: z.string().min(1),
+  buildingId: z.string().optional(),
   category: z.enum(SERVICE_REQUEST_CATEGORIES),
   subject: z.string().min(1),
   description: z.string().min(1),
@@ -33,6 +34,7 @@ export async function createServiceRequest(formData: FormData) {
   const user = await requireCustomerUser();
   const parsed = createSchema.parse({
     siteEnrollmentId: formData.get("siteEnrollmentId"),
+    buildingId: formData.get("buildingId") || undefined,
     category: formData.get("category"),
     subject: formData.get("subject"),
     description: formData.get("description"),
@@ -56,6 +58,7 @@ export async function createServiceRequest(formData: FormData) {
   const request = await prisma.serviceRequest.create({
     data: {
       siteEnrollmentId: parsed.siteEnrollmentId,
+      buildingId: parsed.buildingId || null,
       category: parsed.category,
       subject: parsed.subject,
       description: parsed.description,

@@ -2,36 +2,31 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
 import { ServiceRequestCalendar } from "@/components/service-requests/calendar";
+import { PortalServiceRequestsTable } from "@/components/service-requests/portal-service-requests-table";
 import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
 
-export default async function PortalServiceRequestsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ site?: string; month?: string }>;
-}) {
-  const { site, month: monthParam } = await searchParams;
+export default async function PortalServiceRequestsPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { month: monthParam } = await searchParams;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
-  const siteFilter = site && facilityIds.includes(site) ? site : undefined;
   const { year, month } = parseMonthParam(monthParam);
 
   const requests = await prisma.serviceRequest.findMany({
     where: {
       siteEnrollment: {
         enterpriseAccountId: user.enterpriseAccountId,
-        facilityId: siteFilter ? siteFilter : { in: facilityIds },
+        facilityId: { in: facilityIds },
       },
     },
-    include: { siteEnrollment: { include: { facility: true } }, assignedToUser: true },
+    include: { siteEnrollment: { include: { facility: true } }, building: true, assignedToUser: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -94,41 +89,7 @@ export default async function PortalServiceRequestsPage({
         </div>
       </div>
 
-      <Table>
-        <THead>
-          <tr>
-            <TH>Subject</TH>
-            <TH>Type</TH>
-            <TH>Site</TH>
-            <TH>Priority</TH>
-            <TH>Assigned to</TH>
-            <TH>Status</TH>
-            <TH>Submitted</TH>
-          </tr>
-        </THead>
-        <TBody>
-          {requests.length === 0 && <EmptyRow colSpan={7} message="No service requests yet." />}
-          {requests.map((r) => (
-            <TR key={r.id}>
-              <TD>
-                <Link href={`/portal/service-requests/${r.id}`} className="font-medium text-brand hover:underline">
-                  {r.subject}
-                </Link>
-              </TD>
-              <TD>
-                <Badge>{SERVICE_REQUEST_CATEGORY_LABELS[r.category] ?? r.category}</Badge>
-              </TD>
-              <TD>{r.siteEnrollment.facility.name}</TD>
-              <TD>{r.priority}</TD>
-              <TD>{r.assignedToUser?.name ?? "Unassigned"}</TD>
-              <TD>
-                <StatusBadge status={r.status} />
-              </TD>
-              <TD>{formatDate(r.createdAt)}</TD>
-            </TR>
-          ))}
-        </TBody>
-      </Table>
+      <PortalServiceRequestsTable requests={requests} />
     </div>
   );
 }

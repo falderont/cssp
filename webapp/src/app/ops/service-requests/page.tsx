@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
-import { Select } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { ServiceRequestCalendar } from "@/components/service-requests/calendar";
+import { OpsServiceRequestsTable } from "@/components/service-requests/ops-service-requests-table";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
-import { formatDate, formatDateTime } from "@/lib/utils";
-import { ROLES, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
+import { formatDateTime } from "@/lib/utils";
+import { ROLES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
 import { getFacilityTabAccess } from "@/lib/facility-tabs";
 
 // Service Requests now also lives as a tab on each site's own management
@@ -22,12 +20,8 @@ import { getFacilityTabAccess } from "@/lib/facility-tabs";
 // Delivery tab there (a vendor's queue is their own assigned tasks, not one
 // site's; CS Team stays on this cross-site page). Everyone else keeps this
 // page exactly as before.
-export default async function OpsServiceRequestsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string; status?: string; month?: string }>;
-}) {
-  const { category, status, month: monthParam } = await searchParams;
+export default async function OpsServiceRequestsPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { month: monthParam } = await searchParams;
   const user = await requireInternalUser();
   if (user.restrictedFacilityId && getFacilityTabAccess(user.role).canViewServiceDelivery) {
     redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/service-requests`);
@@ -38,12 +32,10 @@ export default async function OpsServiceRequestsPage({
 
   const requests = await prisma.serviceRequest.findMany({
     where: {
-      ...(category ? { category } : {}),
-      ...(status ? { status } : {}),
       ...(scopedFacilityIds ? { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } : {}),
       ...(isVendor ? { assignedToId: user.id } : {}),
     },
-    include: { siteEnrollment: { include: { facility: true, enterpriseAccount: true } }, assignedToUser: true },
+    include: { siteEnrollment: { include: { facility: true, enterpriseAccount: true } }, building: true, assignedToUser: true },
     orderBy: { createdAt: "desc" },
     take: 300,
   });
@@ -101,61 +93,7 @@ export default async function OpsServiceRequestsPage({
         </div>
       </div>
 
-      <form className="mb-4 flex flex-wrap gap-2" method="get">
-        <Select name="category" defaultValue={category ?? ""} className="w-auto">
-          <option value="">Any type</option>
-          {SERVICE_REQUEST_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {SERVICE_REQUEST_CATEGORY_LABELS[c]}
-            </option>
-          ))}
-        </Select>
-        <Select name="status" defaultValue={status ?? ""} className="w-auto">
-          <option value="">Any status</option>
-          <option value="Submitted">Submitted</option>
-          <option value="Accepted">Accepted</option>
-          <option value="InProgress">In Progress</option>
-          <option value="Done">Done</option>
-          <option value="Cancelled">Cancelled</option>
-        </Select>
-        <Button type="submit">Filter</Button>
-      </form>
-
-      <Table>
-        <THead>
-          <tr>
-            <TH>Subject</TH>
-            <TH>Type</TH>
-            <TH>Tenant</TH>
-            <TH>Site</TH>
-            <TH>Assigned to</TH>
-            <TH>Status</TH>
-            <TH>Submitted</TH>
-          </tr>
-        </THead>
-        <TBody>
-          {requests.length === 0 && <EmptyRow colSpan={7} message="No requests match this filter." />}
-          {requests.map((r) => (
-            <TR key={r.id}>
-              <TD>
-                <Link href={`/ops/service-requests/${r.id}`} className="font-medium text-brand hover:underline">
-                  {r.subject}
-                </Link>
-              </TD>
-              <TD>
-                <Badge>{SERVICE_REQUEST_CATEGORY_LABELS[r.category] ?? r.category}</Badge>
-              </TD>
-              <TD>{r.siteEnrollment.enterpriseAccount.name}</TD>
-              <TD>{r.siteEnrollment.facility.name}</TD>
-              <TD>{r.assignedToUser?.name ?? "Unassigned"}</TD>
-              <TD>
-                <StatusBadge status={r.status} />
-              </TD>
-              <TD>{formatDate(r.createdAt)}</TD>
-            </TR>
-          ))}
-        </TBody>
-      </Table>
+      <OpsServiceRequestsTable requests={requests} />
     </div>
   );
 }

@@ -1,12 +1,9 @@
-import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { StatusBadge } from "@/components/ui/badge";
+import { OpsInvoicesTable } from "@/components/billing/ops-invoices-table";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { formatDate, formatMoney } from "@/lib/utils";
 
 export default async function OpsBillingPage() {
   await requireInternalUser();
@@ -27,37 +24,7 @@ export default async function OpsBillingPage() {
           </LinkButton>
         }
       />
-      <Table>
-        <THead>
-          <tr>
-            <TH>Invoice</TH>
-            <TH>Tenant</TH>
-            <TH>Issue date</TH>
-            <TH>Due date</TH>
-            <TH>Total</TH>
-            <TH>Status</TH>
-          </tr>
-        </THead>
-        <TBody>
-          {invoices.length === 0 && <EmptyRow colSpan={6} message="No invoices yet." />}
-          {invoices.map((inv) => (
-            <TR key={inv.id}>
-              <TD>
-                <Link href={`/ops/billing/${inv.id}`} className="font-medium text-brand hover:underline">
-                  {inv.invoiceNumber}
-                </Link>
-              </TD>
-              <TD>{inv.enterpriseAccount.name}</TD>
-              <TD>{formatDate(inv.issueDate)}</TD>
-              <TD>{formatDate(inv.dueDate)}</TD>
-              <TD>{formatMoney(inv.total, inv.currency)}</TD>
-              <TD>
-                <StatusBadge status={inv.status} />
-              </TD>
-            </TR>
-          ))}
-        </TBody>
-      </Table>
+      <OpsInvoicesTable invoices={invoices} />
     </div>
   );
 }

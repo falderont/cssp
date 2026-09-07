@@ -119,6 +119,16 @@ export async function requireTenantGlobalAdmin() {
   return user;
 }
 
+// Billing (invoices, outstanding balance) is visible to the account owner
+// and the dedicated billing persona only — every other tenant role is
+// blocked at the route level, not just hidden from the nav.
+export async function requireTenantBillingViewer() {
+  const user = await requireCustomerUser();
+  const allowed: string[] = [ROLES.TENANT_GLOBAL_ADMIN, ROLES.TENANT_BILLING];
+  if (!allowed.includes(user.role)) redirect("/portal");
+  return user;
+}
+
 // A tenant user who can act for their whole account, or is the operational
 // lead for the one site they're restricted to.
 export async function requireTenantAdminOrSiteLead() {

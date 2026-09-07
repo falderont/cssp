@@ -1,15 +1,13 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { TeamTable } from "@/components/portal/team-table";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getCustomerSiteEnrollments } from "@/lib/scope";
-import { inviteTenantUser, toggleTenantUserActive } from "@/actions/tenant";
-import { ROLE_LABELS, ROLES, TENANT_ROLES, type Role } from "@/lib/constants";
+import { inviteTenantUser } from "@/actions/tenant";
+import { ROLE_LABELS, ROLES, TENANT_ROLES } from "@/lib/constants";
 import { ActionForm } from "@/components/errors/action-form";
 
 export default async function PortalSettingsPage() {
@@ -30,52 +28,7 @@ export default async function PortalSettingsPage() {
             <CardHeader>
               <CardTitle>Team ({users.length})</CardTitle>
             </CardHeader>
-            <Table>
-              <THead>
-                <tr>
-                  <TH>Name</TH>
-                  <TH>Email</TH>
-                  <TH>Role</TH>
-                  <TH>Status</TH>
-                  {isGlobalAdmin && <TH>Actions</TH>}
-                </tr>
-              </THead>
-              <TBody>
-                {users.length === 0 && <EmptyRow colSpan={isGlobalAdmin ? 5 : 4} message="No users yet." />}
-                {users.map((u) => {
-                  const toggleBound = toggleTenantUserActive.bind(null, u.id);
-                  return (
-                    <TR key={u.id}>
-                      <TD className="font-medium text-slate-900">{u.name}</TD>
-                      <TD>{u.email}</TD>
-                      <TD>
-                        <Badge>{ROLE_LABELS[u.role as Role] ?? u.role}</Badge>
-                        {u.restrictedFacility && <p className="mt-0.5 text-xs text-slate-400">{u.restrictedFacility.name} only</p>}
-                      </TD>
-                      <TD>
-                        <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "Active" : "Disabled"}</Badge>
-                      </TD>
-                      {isGlobalAdmin && (
-                        <TD>
-                          <div className="flex items-center gap-1.5">
-                            <Link href={`/portal/settings/users/${u.id}`} className="text-sm text-brand hover:underline">
-                              Edit
-                            </Link>
-                            {u.id !== user.id && (
-                              <ActionForm action={toggleBound} silent>
-                                <Button type="submit" size="sm" variant="ghost">
-                                  {u.isActive ? "Disable" : "Enable"}
-                                </Button>
-                              </ActionForm>
-                            )}
-                          </div>
-                        </TD>
-                      )}
-                    </TR>
-                  );
-                })}
-              </TBody>
-            </Table>
+            <TeamTable users={users} isGlobalAdmin={isGlobalAdmin} currentUserId={user.id} />
           </Card>
         </div>
 

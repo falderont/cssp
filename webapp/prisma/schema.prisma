@@ -138,6 +138,7 @@ model Building {
   visitorRequests   VisitorRequest[]
   controlledAreas   ControlledArea[]
   loadingDocks      LoadingDock[]
+  serviceRequests   ServiceRequest[]
 
   @@unique([facilityId, code])
 }
@@ -527,6 +528,9 @@ model ServiceRequest {
   description String
   priority    String @default("Normal") // Low/Normal/High/Urgent
   status      String @default("Submitted") // Submitted/Accepted/InProgress/Done/Cancelled
+
+  buildingId String?
+  building   Building? @relation(fields: [buildingId], references: [id])
 
   createdById    String
   createdByUser  User    @relation("SRCreatedBy", fields: [createdById], references: [id])

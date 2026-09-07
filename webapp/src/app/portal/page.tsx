@@ -18,6 +18,8 @@ export default async function PortalDashboardPage() {
   const allowedHrefs = new Set(navForRole(PORTAL_NAV, user.role).map((i) => i.href));
   const isBillingOnly = user.role === ROLES.TENANT_BILLING;
 
+  const canViewBilling = allowedHrefs.has("/portal/billing");
+
   const [openServiceRequests, pendingVisitors, activeIncidents, upcomingMaintenance, invoices, recentNotifications, pendingAal, srByStatus] =
     await Promise.all([
       allowedHrefs.has("/portal/service-requests")
@@ -36,7 +38,9 @@ export default async function PortalDashboardPage() {
       allowedHrefs.has("/portal/maintenance")
         ? prisma.maintenanceEvent.count({ where: { facilityId: { in: facilityIds }, status: { in: ["Scheduled", "InProgress"] } } })
         : 0,
-      prisma.invoice.findMany({ where: { enterpriseAccountId: accountId, status: { in: ["Sent", "Overdue"] } } }),
+      canViewBilling
+        ? prisma.invoice.findMany({ where: { enterpriseAccountId: accountId, status: { in: ["Sent", "Overdue"] } } })
+        : [],
       prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 5 }),
       allowedHrefs.has("/portal/aal") ? prisma.authorizedAccessEntry.count({ where: { enterpriseAccountId: accountId, status: "PendingApproval" } }) : 0,
       allowedHrefs.has("/portal/service-requests")
@@ -79,12 +83,14 @@ export default async function PortalDashboardPage() {
         {allowedHrefs.has("/portal/aal") && (
           <StatTile label="AAL pending approval" value={pendingAal} icon={IdCard} tone={pendingAal ? "amber" : "slate"} />
         )}
-        <StatTile
-          label="Outstanding balance"
-          value={formatMoney(outstandingTotal)}
-          icon={Receipt}
-          tone={outstandingTotal ? "amber" : "slate"}
-        />
+        {canViewBilling && (
+          <StatTile
+            label="Outstanding balance"
+            value={formatMoney(outstandingTotal)}
+            icon={Receipt}
+            tone={outstandingTotal ? "amber" : "slate"}
+          />
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
