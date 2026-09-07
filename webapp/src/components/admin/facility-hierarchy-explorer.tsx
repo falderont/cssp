@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, ChevronDown, Globe2, Flag, MapPin, Building2, Plus, Pencil, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronRight, ChevronDown, Globe2, MapPin, Building2, Plus, Pencil, ArrowRight } from "lucide-react";
+import { cn, countryFlagEmoji } from "@/lib/utils";
 import { Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
@@ -318,7 +318,11 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                 <div key={country.id}>
                   <TreeRow
                     toggle={{ open: expanded.has(country.id), onClick: () => toggle(country.id) }}
-                    icon={<Flag className="h-4 w-4" />}
+                    icon={
+                      <span className="text-base leading-none" role="img" aria-label={`Flag of ${country.name}`}>
+                        {countryFlagEmoji(country.code)}
+                      </span>
+                    }
                     title={country.name}
                     badge={<CodeBadge>{country.code}</CodeBadge>}
                     meta={`${country.cities.length} cit${country.cities.length === 1 ? "y" : "ies"}`}

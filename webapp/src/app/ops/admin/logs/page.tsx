@@ -21,6 +21,7 @@ const ACTION_TONES: Record<string, "blue" | "green" | "amber" | "red" | "slate">
   maintenance: "red",
   backup: "slate",
   integration: "blue",
+  changelog: "blue",
 };
 
 export default async function SystemLogsPage({ searchParams }: { searchParams: Promise<{ action?: string }> }) {
@@ -47,6 +48,7 @@ export default async function SystemLogsPage({ searchParams }: { searchParams: P
     "maintenance",
     "backup",
     "integration",
+    "changelog",
   ];
 
   return (

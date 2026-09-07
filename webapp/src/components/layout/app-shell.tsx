@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Sidebar } from "./sidebar";
 import { Topbar, type NotificationPreview } from "./topbar";
 import { MobileNavProvider } from "./mobile-nav-context";
@@ -18,6 +19,7 @@ export function AppShell({
   recentNotifications,
   notificationsHref,
   preferencesHref,
+  changelogHref,
   topbarSlot,
   tenantBrand,
   themeColor,
@@ -39,6 +41,7 @@ export function AppShell({
   recentNotifications?: NotificationPreview[];
   notificationsHref: string;
   preferencesHref: string;
+  changelogHref: string;
   topbarSlot?: React.ReactNode;
   tenantBrand?: { name: string; logoUrl?: string | null } | null;
   themeColor?: string | null;
@@ -82,6 +85,11 @@ export function AppShell({
             </Topbar>
           </div>
           <main className="flex-1 p-4 lg:p-8">{children}</main>
+          <footer className="no-print border-t border-slate-200 bg-white px-4 py-3 text-center text-xs text-slate-400 lg:px-8">
+            <Link href={changelogHref} className="hover:text-brand hover:underline">
+              Changelog
+            </Link>
+          </footer>
         </div>
       </div>
     </MobileNavProvider>

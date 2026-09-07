@@ -31,6 +31,13 @@ import {
   Ticket,
   Briefcase,
   Warehouse,
+  Activity,
+  BarChart3,
+  ScrollText,
+  DatabaseBackup,
+  AlertTriangle,
+  Plug,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,6 +68,13 @@ const ICONS: Record<IconKey, LucideIcon> = {
   Building2,
   Briefcase,
   Warehouse,
+  Activity,
+  BarChart3,
+  ScrollText,
+  DatabaseBackup,
+  AlertTriangle,
+  Plug,
+  SlidersHorizontal,
 };
 
 // Several admin routes nest under a shared "/ops/admin" prefix (Global

@@ -34,6 +34,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
       recentNotifications={recentNotifications}
       notificationsHref="/ops/notifications"
       preferencesHref="/ops/profile"
+      changelogHref="/ops/changelog"
       accentColor={preferences.accentColor}
       themeColor={preferences.accentColor}
       density={preferences.density}

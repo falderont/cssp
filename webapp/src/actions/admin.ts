@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireSysAdmin, requireMasterDataAdmin } from "@/lib/session";
+import { requireSysAdmin, requireMasterDataAdmin, requireAccountManager } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
 import { withUniqueConstraintMessage, withForeignKeyConstraintMessage, assertNoDependents } from "@/lib/prisma-errors";
@@ -765,4 +765,123 @@ export async function toggleUserActive(userId: string, returnPath: string) {
     targetId: userId,
   });
   revalidatePath(returnPath);
+}
+
+// --- Tenant account user management (delegable to Service Desk) -------------
+// Scoped strictly to one EnterpriseAccount's own users — see
+// requireAccountManager() in lib/session.ts. Distinct from createUser/
+// updateUser/toggleUserActive/resetUserPassword above, which stay Global Sys
+// Admin-only and cover every persona (internal staff included); these only
+// ever touch a customer-role user already tied to accountId, enforced by
+// checking enterpriseAccountId on every read before writing.
+
+const tenantAccountUserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8, "At least 8 characters"),
+  role: z.enum(CUSTOMER_ROLES as [string, ...string[]]),
+  restrictedFacilityId: z.string().optional(),
+});
+
+export async function createTenantUserForAccount(accountId: string, formData: FormData) {
+  const admin = await requireAccountManager();
+  const parsed = tenantAccountUserSchema.parse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    role: formData.get("role"),
+    restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
+  });
+
+  const passwordHash = await bcrypt.hash(parsed.password, 10);
+  const user = await withUniqueConstraintMessage(
+    () =>
+      prisma.user.create({
+        data: {
+          name: parsed.name,
+          email: parsed.email.toLowerCase().trim(),
+          passwordHash,
+          role: parsed.role,
+          enterpriseAccountId: accountId,
+          restrictedFacilityId: parsed.restrictedFacilityId || null,
+        },
+      }),
+    `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`
+  );
+
+  await logAudit({
+    actorId: admin.id,
+    action: "tenant_user.create",
+    summary: `Added user ${parsed.name} to tenant account.`,
+    targetType: "User",
+    targetId: user.id,
+  });
+  revalidatePath(`/ops/admin/accounts/${accountId}`);
+}
+
+const tenantAccountUserUpdateSchema = tenantAccountUserSchema.omit({ password: true });
+
+export async function updateTenantUserForAccount(userId: string, accountId: string, formData: FormData) {
+  const admin = await requireAccountManager();
+  const existing = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (existing.enterpriseAccountId !== accountId) throw new Error("That user does not belong to this account.");
+
+  const parsed = tenantAccountUserUpdateSchema.parse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    role: formData.get("role"),
+    restrictedFacilityId: formData.get("restrictedFacilityId") || undefined,
+  });
+
+  await withUniqueConstraintMessage(
+    () =>
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: parsed.name,
+          email: parsed.email.toLowerCase().trim(),
+          role: parsed.role,
+          restrictedFacilityId: parsed.restrictedFacilityId || null,
+        },
+      }),
+    `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`
+  );
+
+  await logAudit({ actorId: admin.id, action: "tenant_user.update", summary: `Updated user ${parsed.name}.`, targetType: "User", targetId: userId });
+  revalidatePath(`/ops/admin/accounts/${accountId}`);
+}
+
+export async function toggleTenantAccountUserActive(userId: string, accountId: string) {
+  const admin = await requireAccountManager();
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (user.enterpriseAccountId !== accountId) throw new Error("That user does not belong to this account.");
+
+  await prisma.user.update({ where: { id: userId }, data: { isActive: !user.isActive } });
+  await logAudit({
+    actorId: admin.id,
+    action: "tenant_user.toggle_active",
+    summary: `${user.isActive ? "Disabled" : "Enabled"} user ${user.name}.`,
+    targetType: "User",
+    targetId: userId,
+  });
+  revalidatePath(`/ops/admin/accounts/${accountId}`);
+}
+
+export async function resetTenantAccountUserPassword(userId: string, accountId: string, formData: FormData) {
+  const admin = await requireAccountManager();
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (user.enterpriseAccountId !== accountId) throw new Error("That user does not belong to this account.");
+
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await logAudit({
+    actorId: admin.id,
+    action: "tenant_user.reset_password",
+    summary: `Reset password for ${user.name}.`,
+    targetType: "User",
+    targetId: userId,
+  });
+  revalidatePath(`/ops/admin/accounts/${accountId}`);
 }

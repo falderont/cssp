@@ -110,6 +110,7 @@ async function main() {
     prisma.notification.deleteMany(),
     prisma.auditLog.deleteMany(),
     prisma.backupRecord.deleteMany(),
+    prisma.changelogEntry.deleteMany(),
     prisma.authorizedAccessEntry.deleteMany(),
     prisma.systemIntegration.deleteMany(),
     prisma.engagementLog.deleteMany(),
@@ -1263,6 +1264,58 @@ async function main() {
       decidedById: serviceDesk.id,
       decidedAt: daysFromNow(-2),
       decisionNotes: "Approved — will apply once the fit-out is confirmed complete.",
+    },
+  });
+
+  console.log("Changelog…");
+  await prisma.changelogEntry.create({
+    data: {
+      title: "Platform launch",
+      version: "v1.0",
+      category: "Feature",
+      description:
+        "Initial rollout: Visitor Management, Incident & Maintenance tracking, the Download Center, Ticketing (Complaint/RFI/Service Request), Remote/Smart Hands, BMS Telemetry, Billing & Invoicing, and CS Engagement — on top of the Region → Facility → Building hierarchy and multi-tenant enrollment.",
+      publishedAt: daysFromNow(-210),
+      createdById: admin.id,
+    },
+  });
+  await prisma.changelogEntry.create({
+    data: {
+      title: "Provider branding & white-labeling",
+      version: "v1.1",
+      category: "Feature",
+      description: "Providers can now set their own logo, colors and support contact details across both the ops console and every tenant's portal.",
+      publishedAt: daysFromNow(-150),
+      createdById: admin.id,
+    },
+  });
+  await prisma.changelogEntry.create({
+    data: {
+      title: "Role-based control planes",
+      version: "v2.0",
+      category: "Feature",
+      description:
+        "Reworked personas into a full RBAC model — Global/Tenant admin control planes, delegated master-data administration (Service Desk), and per-role scoping down to a region, country or single facility.",
+      publishedAt: daysFromNow(-60),
+      createdById: admin.id,
+    },
+  });
+  await prisma.changelogEntry.create({
+    data: {
+      title: "App-wide error pop-ups",
+      category: "Improvement",
+      description: "Every action across the app now reports failures through a consistent pop-up dialog instead of crashing to a blank error page.",
+      publishedAt: daysFromNow(-14),
+      createdById: admin.id,
+    },
+  });
+  await prisma.changelogEntry.create({
+    data: {
+      title: "Site-scoped Loading Docks & Authorized Access List",
+      category: "Improvement",
+      description: "Loading dock locations and the Authorized Access List now live on each site's own management page instead of separate global lists.",
+      publishedAt: daysFromNow(-1),
+      createdById: admin.id,
     },
   });
 

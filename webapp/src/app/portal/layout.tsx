@@ -39,6 +39,7 @@ export default async function PortalLayout({ children }: { children: React.React
       recentNotifications={recentNotifications}
       notificationsHref="/portal/notifications"
       preferencesHref="/portal/profile"
+      changelogHref="/portal/changelog"
       topbarSlot={<SiteSwitcher facilities={facilities} />}
       tenantBrand={account ? { name: account.name, logoUrl: account.logoUrl } : null}
       themeColor={preferences.accentColor ?? account?.primaryColor}

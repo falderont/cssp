@@ -58,6 +58,34 @@ export async function requireBlacklistManager() {
   return user;
 }
 
+// Anyone who can view a site's own management page — the master-data admins
+// plus the day-to-day roles who now manage that site's Loading Docks and/or
+// Authorized Access List right there instead of on a separate global list
+// (see /ops/admin/facilities/[id]). Each section within the page still gates
+// itself more narrowly (isMasterDataAdmin/canManageDocks/canManageAal).
+export async function requireFacilityPageAccess() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [
+    ROLES.SYS_ADMIN,
+    ROLES.SERVICE_DESK,
+    ROLES.OPS_BUILDING_MANAGER,
+    ROLES.OPS_SITE_MANAGER,
+    ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
+// Tenant account administration delegated to Service Desk, scoped to that
+// account's users (add/edit/enable/disable/reset password) — must match the
+// role check in the relevant actions/admin.ts functions.
+export async function requireAccountManager() {
+  const user = await requireInternalUser();
+  const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.SERVICE_DESK];
+  if (!allowed.includes(user.role)) redirect("/ops");
+  return user;
+}
+
 // Owns building-level logistics — defines the loading dock locations tenants
 // pick from when submitting a delivery ticket for that site.
 export async function requireBuildingManager() {

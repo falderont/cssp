@@ -383,6 +383,16 @@ export const ACCENT_COLOR_PRESETS = [
 export const DENSITY_OPTIONS = ["comfortable", "compact"] as const;
 export type Density = (typeof DENSITY_OPTIONS)[number];
 
+// --- Changelog (Global Sys Admin authored, visible to every persona) ---------
+
+export const CHANGELOG_CATEGORIES = ["Feature", "Improvement", "Fix"] as const;
+export type ChangelogCategory = (typeof CHANGELOG_CATEGORIES)[number];
+export const CHANGELOG_CATEGORY_TONES: Record<ChangelogCategory, "blue" | "green" | "amber"> = {
+  Feature: "blue",
+  Improvement: "green",
+  Fix: "amber",
+};
+
 // --- Area (location) master data ---------------------------------------------
 // Region -> Country -> City -> Site (Facility) -> Building -> Room. Master
 // data is owned by the Global Sys Admin and may be delegated to Service Desk

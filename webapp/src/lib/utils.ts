@@ -42,6 +42,17 @@ export function humanize(value: string): string {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
+// Converts an ISO 3166-1 alpha-2 code (see Country.code in schema.prisma)
+// into its flag emoji via the regional indicator symbol trick: A-Z map onto
+// the Unicode block starting at U+1F1E6 in order, and two of them compose
+// into one flag glyph.
+export function countryFlagEmoji(isoAlpha2: string): string {
+  const code = isoAlpha2.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return "🏳️";
+  const codePoints = [...code].map((c) => 0x1f1e6 + (c.charCodeAt(0) - 65));
+  return String.fromCodePoint(...codePoints);
+}
+
 export function slugify(value: string): string {
   return value
     .toLowerCase()

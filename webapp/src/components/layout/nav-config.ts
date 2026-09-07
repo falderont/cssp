@@ -28,7 +28,14 @@ export type IconKey =
   | "Ticket"
   | "Building2"
   | "Briefcase"
-  | "Warehouse";
+  | "Warehouse"
+  | "Activity"
+  | "BarChart3"
+  | "ScrollText"
+  | "DatabaseBackup"
+  | "AlertTriangle"
+  | "Plug"
+  | "SlidersHorizontal";
 
 // A NavItem with no `group` renders as a top-level link (e.g. Dashboard).
 // Grouped items render nested under a collapsible section header, forming
@@ -43,7 +50,13 @@ export type NavItem = {
 };
 
 export const PORTAL_GROUP_ORDER = ["Day-to-day", "Reporting", "Account administration"] as const;
-export const OPS_GROUP_ORDER = ["Global administration", "Front line", "Service delivery", "Reporting & accounts"] as const;
+export const OPS_GROUP_ORDER = [
+  "Global administration",
+  "System administration",
+  "Front line",
+  "Service delivery",
+  "Reporting & accounts",
+] as const;
 
 const { TENANT_GLOBAL_ADMIN, TENANT_SITE_LEAD, TENANT_BILLING, TENANT_TECH_USER } = ROLES;
 const { SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, OPS_BUILDING_MANAGER, CS_TEAM, OPS_VENDOR } = ROLES;
@@ -133,9 +146,58 @@ export const OPS_NAV: NavItem[] = [
     group: "Global administration",
     roles: [SYS_ADMIN, SERVICE_DESK, OPS_SITE_MANAGER, OPS_SITE_LEAD, OPS_FRONT_OFFICE_SECURITY, CS_TEAM, OPS_VENDOR],
   },
-  { href: "/ops/admin/accounts", label: "Tenant Accounts", icon: "Briefcase", group: "Global administration", roles: [SYS_ADMIN] },
+  {
+    href: "/ops/admin/accounts",
+    label: "Tenant Accounts",
+    icon: "Briefcase",
+    group: "Global administration",
+    roles: [SYS_ADMIN, SERVICE_DESK],
+  },
   { href: "/ops/admin/teams", label: "Teams", icon: "UsersRound", group: "Global administration", roles: [SYS_ADMIN] },
   { href: "/ops/admin/users", label: "Users", icon: "Users", group: "Global administration", roles: [SYS_ADMIN] },
+  {
+    href: "/ops/admin/blacklist",
+    label: "Blacklist",
+    icon: "ShieldAlert",
+    group: "Global administration",
+    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
+  },
+
+  // Global Sys Admin's platform-health toolbox — previously only reachable
+  // as quick-link cards from the Global Overview hub, promoted to its own
+  // sidebar section so it doesn't get lost alongside master data.
+  { href: "/ops/admin/stats", label: "Statistics", icon: "BarChart3", group: "System administration", roles: [SYS_ADMIN] },
+  {
+    href: "/ops/admin/system-health",
+    label: "System Performance",
+    icon: "Activity",
+    group: "System administration",
+    roles: [SYS_ADMIN],
+  },
+  { href: "/ops/admin/logs", label: "System Logs", icon: "ScrollText", group: "System administration", roles: [SYS_ADMIN] },
+  {
+    href: "/ops/admin/backup",
+    label: "Backup & Maintenance",
+    icon: "DatabaseBackup",
+    group: "System administration",
+    roles: [SYS_ADMIN],
+  },
+  {
+    href: "/ops/admin/error-catalog",
+    label: "Error Catalog",
+    icon: "AlertTriangle",
+    group: "System administration",
+    roles: [SYS_ADMIN],
+  },
+  { href: "/ops/admin/integrations", label: "Integrations", icon: "Plug", group: "System administration", roles: [SYS_ADMIN] },
+  {
+    href: "/ops/admin/preferences",
+    label: "Global Preferences",
+    icon: "SlidersHorizontal",
+    group: "System administration",
+    roles: [SYS_ADMIN],
+  },
+  { href: "/ops/admin/branding", label: "Branding", icon: "Palette", group: "System administration", roles: [SYS_ADMIN] },
 
   {
     href: "/ops/visitors",
@@ -149,13 +211,6 @@ export const OPS_NAV: NavItem[] = [
     href: "/ops/deliveries",
     label: "Deliveries",
     icon: "Truck",
-    group: "Front line",
-    roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
-  },
-  {
-    href: "/ops/admin/blacklist",
-    label: "Blacklist",
-    icon: "ShieldAlert",
     group: "Front line",
     roles: [SYS_ADMIN, OPS_SITE_MANAGER, OPS_FRONT_OFFICE_SECURITY],
   },

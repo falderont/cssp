@@ -292,6 +292,7 @@ model User {
   requestedAreaChanges    AreaChangeRequest[]     @relation("AreaChangeRequestedBy")
   assignedAreaChanges     AreaChangeRequest[]     @relation("AreaChangeAssignedTo")
   decidedAreaChanges      AreaChangeRequest[]     @relation("AreaChangeDecidedBy")
+  changelogEntries        ChangelogEntry[]
 }
 
 // ---------------------------------------------------------------------------
@@ -800,4 +801,18 @@ model SystemErrorDefinition {
   description     String
   fallbackMessage String
   updatedAt       DateTime @updatedAt
+}
+
+// Product/system changelog — Global Sys Admin authored, visible to every
+// persona on both sides of the platform (see /ops/changelog, /portal/changelog).
+model ChangelogEntry {
+  id          String   @id @default(cuid())
+  title       String
+  version     String?
+  category    String   @default("Improvement") // Feature/Improvement/Fix
+  description String
+  publishedAt DateTime @default(now())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
 }
