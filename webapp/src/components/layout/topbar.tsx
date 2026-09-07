@@ -33,6 +33,7 @@ export function Topbar({
   recentNotifications,
   notificationsHref,
   preferencesHref,
+  changelogHref,
   currentAccentColor,
   currentDensity,
   children,
@@ -46,6 +47,7 @@ export function Topbar({
   recentNotifications?: NotificationPreview[];
   notificationsHref: string;
   preferencesHref: string;
+  changelogHref: string;
   currentAccentColor?: string | null;
   currentDensity?: "comfortable" | "compact";
   children?: React.ReactNode;
@@ -157,13 +159,18 @@ export function Topbar({
                   })}
                 </ul>
               )}
-              <Link
-                href={notificationsHref}
-                onClick={close}
-                className="border-t border-slate-100 px-4 py-2.5 text-center text-sm font-medium text-brand hover:bg-slate-50"
-              >
-                View all notifications
-              </Link>
+              <div className="flex items-center border-t border-slate-100 text-sm font-medium text-brand">
+                <Link href={notificationsHref} onClick={close} className="flex-1 px-4 py-2.5 text-center hover:bg-slate-50">
+                  View all notifications
+                </Link>
+                <Link
+                  href={changelogHref}
+                  onClick={close}
+                  className="flex-1 border-l border-slate-100 px-4 py-2.5 text-center hover:bg-slate-50"
+                >
+                  Changelog
+                </Link>
+              </div>
             </div>
           )}
         </Popover>

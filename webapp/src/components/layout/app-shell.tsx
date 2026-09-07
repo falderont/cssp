@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Sidebar } from "./sidebar";
 import { Topbar, type NotificationPreview } from "./topbar";
 import { MobileNavProvider } from "./mobile-nav-context";
@@ -52,7 +51,7 @@ export function AppShell({
   return (
     <MobileNavProvider>
       <div
-        className="flex min-h-screen bg-slate-50"
+        className="flex h-screen overflow-hidden bg-slate-50"
         data-density={density === "compact" ? "compact" : undefined}
         style={themeColor ? ({ "--brand-primary": themeColor } as React.CSSProperties) : undefined}
       >
@@ -66,7 +65,7 @@ export function AppShell({
             tenantBrand={tenantBrand}
           />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="no-print contents">
             <Topbar
               name={userName}
@@ -78,18 +77,14 @@ export function AppShell({
               recentNotifications={recentNotifications}
               notificationsHref={notificationsHref}
               preferencesHref={preferencesHref}
+              changelogHref={changelogHref}
               currentAccentColor={accentColor}
               currentDensity={density}
             >
               {topbarSlot}
             </Topbar>
           </div>
-          <main className="flex-1 p-4 lg:p-8">{children}</main>
-          <footer className="no-print border-t border-slate-200 bg-white px-4 py-3 text-center text-xs text-slate-400 lg:px-8">
-            <Link href={changelogHref} className="hover:text-brand hover:underline">
-              Changelog
-            </Link>
-          </footer>
+          <main className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</main>
         </div>
       </div>
     </MobileNavProvider>
