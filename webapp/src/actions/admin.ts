@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSysAdmin, requireMasterDataAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
-import { withUniqueConstraintMessage } from "@/lib/prisma-errors";
+import { withUniqueConstraintMessage, withForeignKeyConstraintMessage, assertNoDependents } from "@/lib/prisma-errors";
 import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
@@ -139,6 +139,23 @@ export async function updateCountry(countryId: string, formData: FormData) {
   revalidatePath("/ops/admin");
 }
 
+export async function deleteCountry(countryId: string) {
+  const admin = await requireMasterDataAdmin();
+  const country = await prisma.country.findUniqueOrThrow({ where: { id: countryId } });
+  await assertNoDependents("country", [
+    prisma.city.count({ where: { countryId } }).then((count) => ({ label: `cit${count === 1 ? "y" : "ies"}`, count })),
+    prisma.user.count({ where: { restrictedCountryId: countryId } }).then((count) => ({ label: `user(s) restricted to it`, count })),
+    prisma.team.count({ where: { countryId } }).then((count) => ({ label: `team(s) scoped to it`, count })),
+  ]);
+  await withForeignKeyConstraintMessage(
+    () => prisma.country.delete({ where: { id: countryId } }),
+    "Can't delete this country — it still has related records. Remove those first."
+  );
+  await logAudit({ actorId: admin.id, action: "country.delete", summary: `Deleted country ${country.name} (${country.code}).`, targetType: "Country", targetId: countryId });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
 export async function createCity(countryId: string, formData: FormData) {
   const admin = await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
@@ -161,6 +178,21 @@ export async function updateCity(cityId: string, formData: FormData) {
     `A city named "${name}" already exists in this country.`
   );
   await logAudit({ actorId: admin.id, action: "city.update", summary: `Updated city ${name}.`, targetType: "City", targetId: cityId });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+}
+
+export async function deleteCity(cityId: string) {
+  const admin = await requireMasterDataAdmin();
+  const city = await prisma.city.findUniqueOrThrow({ where: { id: cityId } });
+  await assertNoDependents("city", [
+    prisma.facility.count({ where: { cityId } }).then((count) => ({ label: `site${count === 1 ? "" : "s"}`, count })),
+  ]);
+  await withForeignKeyConstraintMessage(
+    () => prisma.city.delete({ where: { id: cityId } }),
+    "Can't delete this city — it still has related records. Remove those first."
+  );
+  await logAudit({ actorId: admin.id, action: "city.delete", summary: `Deleted city ${city.name}.`, targetType: "City", targetId: cityId });
   revalidatePath("/ops/admin/facilities");
   revalidatePath("/ops/admin");
 }
@@ -262,6 +294,35 @@ export async function updateFacilitySpaceModel(facilityId: string, formData: For
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
+export async function deleteFacility(facilityId: string) {
+  const admin = await requireMasterDataAdmin();
+  const facility = await prisma.facility.findUniqueOrThrow({ where: { id: facilityId } });
+  await assertNoDependents("site", [
+    prisma.building.count({ where: { facilityId } }).then((count) => ({ label: `building${count === 1 ? "" : "s"}`, count })),
+    prisma.siteEnrollment.count({ where: { facilityId } }).then((count) => ({ label: `tenant enrollment(s)`, count })),
+    prisma.incident.count({ where: { facilityId } }).then((count) => ({ label: `incident(s)`, count })),
+    prisma.maintenanceEvent.count({ where: { facilityId } }).then((count) => ({ label: `maintenance event(s)`, count })),
+    prisma.telemetrySource.count({ where: { facilityId } }).then((count) => ({ label: `telemetry integration(s)`, count })),
+    prisma.telemetryPoint.count({ where: { facilityId } }).then((count) => ({ label: `telemetry reading(s)`, count })),
+    prisma.document.count({ where: { facilityId } }).then((count) => ({ label: `document(s)`, count })),
+    prisma.delivery.count({ where: { facilityId } }).then((count) => ({ label: `deliver${count === 1 ? "y" : "ies"}`, count })),
+    prisma.loadingDock.count({ where: { facilityId } }).then((count) => ({ label: `loading dock${count === 1 ? "" : "s"}`, count })),
+    prisma.user.count({ where: { restrictedFacilityId: facilityId } }).then((count) => ({ label: `user(s) restricted to it`, count })),
+    prisma.authorizedAccessEntry
+      .count({ where: { facilityId } })
+      .then((count) => ({ label: `authorized access entr${count === 1 ? "y" : "ies"}`, count })),
+    prisma.team.count({ where: { facilityId } }).then((count) => ({ label: `team(s) scoped to it`, count })),
+  ]);
+  await withForeignKeyConstraintMessage(
+    () => prisma.facility.delete({ where: { id: facilityId } }),
+    "Can't delete this site — it still has related records. Remove those first."
+  );
+  await logAudit({ actorId: admin.id, action: "facility.delete", summary: `Deleted site ${facility.name} (${facility.code}).`, targetType: "Facility", targetId: facilityId });
+  revalidatePath("/ops/admin/facilities");
+  revalidatePath("/ops/admin");
+  redirect("/ops/admin/facilities");
+}
+
 export async function createBuilding(facilityId: string, formData: FormData) {
   await requireMasterDataAdmin();
   const name = String(formData.get("name") ?? "");
@@ -282,6 +343,25 @@ export async function updateBuilding(buildingId: string, formData: FormData) {
   const building = await withUniqueConstraintMessage(
     () => prisma.building.update({ where: { id: buildingId }, data: { name, code } }),
     `A building with code "${code}" already exists at this site.`
+  );
+  revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
+}
+
+export async function deleteBuilding(buildingId: string) {
+  await requireMasterDataAdmin();
+  const building = await prisma.building.findUniqueOrThrow({ where: { id: buildingId } });
+  await assertNoDependents("building", [
+    prisma.room.count({ where: { buildingId } }).then((count) => ({ label: `room${count === 1 ? "" : "s"}`, count })),
+    prisma.incident.count({ where: { buildingId } }).then((count) => ({ label: `incident(s)`, count })),
+    prisma.maintenanceEvent.count({ where: { buildingId } }).then((count) => ({ label: `maintenance event(s)`, count })),
+    prisma.telemetryPoint.count({ where: { buildingId } }).then((count) => ({ label: `telemetry reading(s)`, count })),
+    prisma.visitorRequest.count({ where: { buildingId } }).then((count) => ({ label: `visitor request(s)`, count })),
+    prisma.controlledArea.count({ where: { buildingId } }).then((count) => ({ label: `tenant controlled area(s)`, count })),
+    prisma.loadingDock.count({ where: { buildingId } }).then((count) => ({ label: `loading dock${count === 1 ? "" : "s"}`, count })),
+  ]);
+  await withForeignKeyConstraintMessage(
+    () => prisma.building.delete({ where: { id: buildingId } }),
+    "Can't delete this building — it still has related records. Remove those first."
   );
   revalidatePath(`/ops/admin/facilities/${building.facilityId}`);
 }
@@ -321,6 +401,20 @@ export async function updateRoom(roomId: string, formData: FormData) {
   revalidatePath(`/ops/admin/facilities/${room.building.facilityId}`);
 }
 
+export async function deleteRoom(roomId: string) {
+  await requireMasterDataAdmin();
+  const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, include: { building: true } });
+  await assertNoDependents("room", [
+    prisma.rack.count({ where: { roomId } }).then((count) => ({ label: `rack${count === 1 ? "" : "s"}`, count })),
+    prisma.controlledArea.count({ where: { roomId } }).then((count) => ({ label: `tenant controlled area(s)`, count })),
+  ]);
+  await withForeignKeyConstraintMessage(
+    () => prisma.room.delete({ where: { id: roomId } }),
+    "Can't delete this room — it still has related records. Remove those first."
+  );
+  revalidatePath(`/ops/admin/facilities/${room.building.facilityId}`);
+}
+
 export async function createRack(facilityId: string, roomId: string, formData: FormData) {
   await requireMasterDataAdmin();
   const rackNumber = String(formData.get("rackNumber") ?? "").trim();
@@ -349,6 +443,12 @@ export async function updateRack(facilityId: string, rackId: string, formData: F
     () => prisma.rack.update({ where: { id: rackId }, data: { rackNumber, notes: notes || null } }),
     `Rack "${rackNumber}" already exists in this room.`
   );
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+export async function deleteRack(facilityId: string, rackId: string) {
+  await requireMasterDataAdmin();
+  await prisma.rack.delete({ where: { id: rackId } });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
@@ -420,7 +520,14 @@ export async function updateTeam(teamId: string, formData: FormData) {
 
 export async function deleteTeam(teamId: string) {
   const admin = await requireSysAdmin();
-  const team = await prisma.team.delete({ where: { id: teamId } });
+  const team = await prisma.team.findUniqueOrThrow({ where: { id: teamId } });
+  await assertNoDependents("team", [
+    prisma.user.count({ where: { teamId } }).then((count) => ({ label: `member(s)`, count })),
+  ]);
+  await withForeignKeyConstraintMessage(
+    () => prisma.team.delete({ where: { id: teamId } }),
+    "Can't delete this team — it still has members. Remove those first."
+  );
   await logAudit({ actorId: admin.id, action: "team.delete", summary: `Deleted team ${team.name}.`, targetType: "Team", targetId: teamId });
   revalidatePath("/ops/admin/teams");
   revalidatePath("/ops/admin/users");

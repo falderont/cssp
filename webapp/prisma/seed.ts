@@ -97,6 +97,13 @@ function generateTelemetrySeries(facilityId: string, hours: number) {
 }
 
 async function main() {
+  // Deletion order matters on SQLite/Postgres alike: a row can only be
+  // cleared once every OTHER table with a foreign key pointing at it has
+  // already been cleared (Prisma's default is onDelete: Restrict — nothing
+  // in this schema declares Cascade/SetNull). This list is topologically
+  // sorted from that constraint graph — leaves first, Region last — so
+  // reordering it without re-checking every relation in schema.prisma will
+  // likely reintroduce a P2003 here.
   console.log("Clearing existing data…");
   await prisma.$transaction([
     prisma.notification.deleteMany(),
@@ -109,7 +116,8 @@ async function main() {
     prisma.invoice.deleteMany(),
     prisma.document.deleteMany(),
     prisma.serviceRequest.deleteMany(),
-    prisma.delivery.deleteMany(),
+    prisma.deliveryPhoto.deleteMany(), // references Delivery — must precede it
+    prisma.delivery.deleteMany(), // references LoadingDock — must precede it
     prisma.maintenanceNotification.deleteMany(),
     prisma.maintenanceEvent.deleteMany(),
     prisma.incidentUpdate.deleteMany(),
@@ -121,14 +129,19 @@ async function main() {
     prisma.telemetryPoint.deleteMany(),
     prisma.telemetrySource.deleteMany(),
     prisma.controlledArea.deleteMany(),
+    prisma.loadingDock.deleteMany(), // now safe: Delivery rows referencing it are gone
     prisma.siteEnrollment.deleteMany(),
     prisma.areaChangeRequest.deleteMany(),
-    prisma.team.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.enterpriseAccount.deleteMany(),
     prisma.rack.deleteMany(),
     prisma.room.deleteMany(),
     prisma.building.deleteMany(),
+    // User references EnterpriseAccount/Facility/Region/Country/Team, so it
+    // must come before them — but nearly every other table above references
+    // User, so it must come after all of those. Team must follow User (User
+    // holds the FK via teamId), the opposite of the order this used to be in.
+    prisma.user.deleteMany(),
+    prisma.team.deleteMany(),
+    prisma.enterpriseAccount.deleteMany(),
     prisma.facility.deleteMany(),
     prisma.city.deleteMany(),
     prisma.country.deleteMany(),

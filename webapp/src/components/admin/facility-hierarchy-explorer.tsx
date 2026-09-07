@@ -6,7 +6,19 @@ import { ChevronRight, ChevronDown, Globe2, Flag, MapPin, Building2, Plus, Penci
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { createRegion, updateRegion, createCountry, updateCountry, createCity, updateCity, createFacility, toggleRegionActive } from "@/actions/admin";
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
+import {
+  createRegion,
+  updateRegion,
+  createCountry,
+  updateCountry,
+  deleteCountry,
+  createCity,
+  updateCity,
+  deleteCity,
+  createFacility,
+  toggleRegionActive,
+} from "@/actions/admin";
 
 export type FacilityNode = {
   id: string;
@@ -313,6 +325,12 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                       <>
                         <EditButton onClick={() => toggleEditing(country.id)} />
                         <AddButton label="Add city" onClick={() => toggleAdding(country.id)} />
+                        <ConfirmDeleteButton
+                          action={deleteCountry.bind(null, country.id)}
+                          confirmMessage={`Delete ${country.name}? This can't be undone.`}
+                          iconOnly
+                          className="opacity-0 transition group-hover/row:opacity-100 focus-visible:opacity-100"
+                        />
                       </>
                     }
                   />
@@ -353,6 +371,12 @@ export function FacilityHierarchyExplorer({ regions }: { regions: RegionNode[] }
                               <>
                                 <EditButton onClick={() => toggleEditing(city.id)} />
                                 <AddButton label="Add site" onClick={() => toggleAdding(city.id)} />
+                                <ConfirmDeleteButton
+                                  action={deleteCity.bind(null, city.id)}
+                                  confirmMessage={`Delete ${city.name}? This can't be undone.`}
+                                  iconOnly
+                                  className="opacity-0 transition group-hover/row:opacity-100 focus-visible:opacity-100"
+                                />
                               </>
                             }
                           />

@@ -6,18 +6,23 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button";
 import { requireMasterDataAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
   createBuilding,
   updateBuilding,
+  deleteBuilding,
   createRack,
   updateRack,
+  deleteRack,
   createRoom,
   updateRoom,
+  deleteRoom,
   updateFacilityDetails,
   updateFacilityAcs,
   updateFacilitySpaceModel,
+  deleteFacility,
 } from "@/actions/admin";
 import { ROLES, ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/constants";
 
@@ -87,15 +92,23 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                       <p className="font-medium text-slate-900">
                         {b.name} <span className="font-normal text-slate-400">({b.code})</span>
                       </p>
-                      <EditDisclosure label="Edit building">
-                        <form action={updateBuildingBound} className="space-y-2">
-                          <Input name="name" defaultValue={b.name} required placeholder="Building name" className="text-xs" />
-                          <Input name="code" defaultValue={b.code} required placeholder="Code" className="text-xs" />
-                          <Button type="submit" size="sm" className="w-full">
-                            Save
-                          </Button>
-                        </form>
-                      </EditDisclosure>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <EditDisclosure label="Edit building">
+                          <form action={updateBuildingBound} className="space-y-2">
+                            <Input name="name" defaultValue={b.name} required placeholder="Building name" className="text-xs" />
+                            <Input name="code" defaultValue={b.code} required placeholder="Code" className="text-xs" />
+                            <Button type="submit" size="sm" className="w-full">
+                              Save
+                            </Button>
+                          </form>
+                        </EditDisclosure>
+                        <ConfirmDeleteButton
+                          action={deleteBuilding.bind(null, b.id)}
+                          confirmMessage={`Delete building ${b.name}? This can't be undone.`}
+                          label="Delete building"
+                          iconOnly
+                        />
+                      </div>
                     </div>
                     {b.rooms.length === 0 ? (
                       <p className="mt-1 text-sm text-slate-500">No rooms added yet.</p>
@@ -131,6 +144,12 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                     </Button>
                                   </form>
                                 </EditDisclosure>
+                                <ConfirmDeleteButton
+                                  action={deleteRoom.bind(null, room.id)}
+                                  confirmMessage={`Delete room ${room.name}? This can't be undone.`}
+                                  label="Delete room"
+                                  iconOnly
+                                />
                               </div>
                               {facility.offersColoRacks && room.type === "DataHall" && (
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -147,6 +166,13 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                             Save
                                           </Button>
                                         </form>
+                                        <ConfirmDeleteButton
+                                          action={deleteRack.bind(null, facility.id, rack.id)}
+                                          confirmMessage={`Delete rack ${rack.rackNumber}? This can't be undone.`}
+                                          label="Delete rack"
+                                          size="sm"
+                                          className="mt-2 w-full"
+                                        />
                                       </div>
                                     </details>
                                   ))}
@@ -337,6 +363,25 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                   </p>
                 </div>
               ))}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Danger zone</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <p className="mb-3 text-xs text-slate-500">
+                Deleting a site only succeeds once it has no buildings, tenant enrollments, incidents or other
+                records left — you'll be told exactly what to remove first if it does.
+              </p>
+              <ConfirmDeleteButton
+                action={deleteFacility.bind(null, facility.id)}
+                confirmMessage={`Delete site ${facility.name}? This can't be undone.`}
+                label="Delete site"
+                size="md"
+                className="w-full"
+              />
             </CardBody>
           </Card>
         </div>
