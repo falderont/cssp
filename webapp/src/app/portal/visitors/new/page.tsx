@@ -5,7 +5,8 @@ import { requireCustomerUser } from "@/lib/session";
 import { getCustomerSiteEnrollments } from "@/lib/scope";
 import { prisma } from "@/lib/prisma";
 
-export default async function NewVisitorRequestPage({ searchParams }: { searchParams: { mode?: string } }) {
+export default async function NewVisitorRequestPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
+  const { mode } = await searchParams;
   const user = await requireCustomerUser();
   const enrollments = await getCustomerSiteEnrollments(user);
   const hostUsers = await prisma.user.findMany({
@@ -13,7 +14,7 @@ export default async function NewVisitorRequestPage({ searchParams }: { searchPa
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
-  const initialMode = searchParams.mode === "batch" ? "batch" : "manual";
+  const initialMode = mode === "batch" ? "batch" : "manual";
 
   return (
     <div>
