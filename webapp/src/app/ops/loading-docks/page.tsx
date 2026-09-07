@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 // your one site if you're restricted to one, otherwise a picker.
 export default async function LoadingDocksPage() {
   const user = await requireBuildingManager();
-  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}`);
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/loading-docks`);
 
   const facilities = await prisma.facility.findMany({
     orderBy: { name: "asc" },
@@ -28,7 +28,7 @@ export default async function LoadingDocksPage() {
           {facilities.map((f) => (
             <Link
               key={f.id}
-              href={`/ops/admin/facilities/${f.id}`}
+              href={`/ops/admin/facilities/${f.id}/loading-docks`}
               className="flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-50"
             >
               <span className="flex items-center gap-2 font-medium text-slate-900">

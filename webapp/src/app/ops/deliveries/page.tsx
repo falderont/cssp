@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,13 @@ import { formatDate, formatDateTime } from "@/lib/utils";
 import { markDeliveryArrived, markDeliveryReceived, rejectDelivery, uploadDeliveryPhoto } from "@/actions/deliveries";
 import { ActionForm } from "@/components/errors/action-form";
 
+// Deliveries now lives as a tab on each site's own management page — a
+// viewer pinned to one facility goes straight there. Cross-site roles keep
+// this page as-is.
 export default async function OpsDeliveriesPage({ searchParams }: { searchParams: Promise<{ facility?: string }> }) {
   const { facility } = await searchParams;
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/front-line/deliveries`);
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const facilities = await prisma.facility.findMany({
     where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,

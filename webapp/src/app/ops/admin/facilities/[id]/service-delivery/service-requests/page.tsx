@@ -7,43 +7,35 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { ServiceRequestCalendar } from "@/components/service-requests/calendar";
-import { requireInternalUser } from "@/lib/session";
+import { requireFacilityPageAccess } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDate, formatDateTime } from "@/lib/utils";
-import { ROLES, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
+import { SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_CATEGORY_LABELS } from "@/lib/constants";
 import { getFacilityTabAccess } from "@/lib/facility-tabs";
 
-// Service Requests now also lives as a tab on each site's own management
-// page — a viewer pinned to one facility goes straight there, but only if
-// their role can actually reach the facility page at all: CS Team and
-// vendors can also be facility-restricted, and neither has a Service
-// Delivery tab there (a vendor's queue is their own assigned tasks, not one
-// site's; CS Team stays on this cross-site page). Everyone else keeps this
-// page exactly as before.
-export default async function OpsServiceRequestsPage({
+export default async function FacilityServiceRequestsPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ id: string }>;
   searchParams: Promise<{ category?: string; status?: string; month?: string }>;
 }) {
+  const { id } = await params;
   const { category, status, month: monthParam } = await searchParams;
-  const user = await requireInternalUser();
-  if (user.restrictedFacilityId && getFacilityTabAccess(user.role).canViewServiceDelivery) {
-    redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/service-requests`);
-  }
-  const scopedFacilityIds = await getOpsFacilityIds(user);
-  const isVendor = user.role === ROLES.OPS_VENDOR;
+  const user = await requireFacilityPageAccess();
+  const { canViewServiceDelivery } = getFacilityTabAccess(user.role);
+  if (!canViewServiceDelivery) redirect(`/ops/admin/facilities/${id}`);
   const { year, month } = parseMonthParam(monthParam);
+  const basePath = `/ops/admin/facilities/${id}/service-delivery/service-requests`;
 
   const requests = await prisma.serviceRequest.findMany({
     where: {
       ...(category ? { category } : {}),
       ...(status ? { status } : {}),
-      ...(scopedFacilityIds ? { siteEnrollment: { facilityId: { in: scopedFacilityIds } } } : {}),
-      ...(isVendor ? { assignedToId: user.id } : {}),
+      siteEnrollment: { facilityId: id },
     },
-    include: { siteEnrollment: { include: { facility: true, enterpriseAccount: true } }, assignedToUser: true },
+    include: { siteEnrollment: { include: { enterpriseAccount: true } }, assignedToUser: true },
     orderBy: { createdAt: "desc" },
     take: 300,
   });
@@ -63,17 +55,11 @@ export default async function OpsServiceRequestsPage({
 
   return (
     <div>
-      <PageHeader title="Service Requests" description="Every complaint, RFI, meeting/site-walk request and remote hands task, across all accounts and sites." />
+      <PageHeader title="Service Requests" />
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ServiceRequestCalendar
-            year={year}
-            month={month}
-            events={calendarEvents}
-            basePath="/ops/service-requests"
-            detailBasePath="/ops/service-requests"
-          />
+          <ServiceRequestCalendar year={year} month={month} events={calendarEvents} basePath={basePath} detailBasePath="/ops/service-requests" />
         </div>
         <div className="space-y-3">
           <h3 className="font-display text-sm font-semibold text-slate-700">Upcoming</h3>
@@ -127,14 +113,13 @@ export default async function OpsServiceRequestsPage({
             <TH>Subject</TH>
             <TH>Type</TH>
             <TH>Tenant</TH>
-            <TH>Site</TH>
             <TH>Assigned to</TH>
             <TH>Status</TH>
             <TH>Submitted</TH>
           </tr>
         </THead>
         <TBody>
-          {requests.length === 0 && <EmptyRow colSpan={7} message="No requests match this filter." />}
+          {requests.length === 0 && <EmptyRow colSpan={6} message="No requests match this filter." />}
           {requests.map((r) => (
             <TR key={r.id}>
               <TD>
@@ -146,7 +131,6 @@ export default async function OpsServiceRequestsPage({
                 <Badge>{SERVICE_REQUEST_CATEGORY_LABELS[r.category] ?? r.category}</Badge>
               </TD>
               <TD>{r.siteEnrollment.enterpriseAccount.name}</TD>
-              <TD>{r.siteEnrollment.facility.name}</TD>
               <TD>{r.assignedToUser?.name ?? "Unassigned"}</TD>
               <TD>
                 <StatusBadge status={r.status} />

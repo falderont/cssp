@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/badge";
@@ -10,9 +11,14 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate } from "@/lib/utils";
 import { summarizeVisitorStatuses } from "@/lib/constants";
 
+// Visitor Approvals now lives as a tab on each site's own management page —
+// a viewer pinned to one facility goes straight there. Cross-site roles
+// (Service Desk, an unrestricted Site Manager, ...) keep this page exactly
+// as before: they need everything in one list, not site by site.
 export default async function OpsVisitorsPage({ searchParams }: { searchParams: Promise<{ facility?: string; status?: string }> }) {
   const { facility, status } = await searchParams;
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/front-line/visitors`);
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const facilities = await prisma.facility.findMany({
     where: scopedFacilityIds ? { id: { in: scopedFacilityIds } } : undefined,

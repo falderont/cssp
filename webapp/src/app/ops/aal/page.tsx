@@ -16,7 +16,7 @@ import { getOpsFacilityIds } from "@/lib/scope";
 export default async function OpsAalPage() {
   const user = await requireInternalUser();
   const scopedFacilityIds = await getOpsFacilityIds(user);
-  if (scopedFacilityIds && scopedFacilityIds.length === 1) redirect(`/ops/admin/facilities/${scopedFacilityIds[0]}`);
+  if (scopedFacilityIds && scopedFacilityIds.length === 1) redirect(`/ops/admin/facilities/${scopedFacilityIds[0]}/aal`);
 
   const [facilities, pendingCounts] = await Promise.all([
     prisma.facility.findMany({
@@ -46,7 +46,7 @@ export default async function OpsAalPage() {
             return (
               <Link
                 key={f.id}
-                href={`/ops/admin/facilities/${f.id}`}
+                href={`/ops/admin/facilities/${f.id}/aal`}
                 className="flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-50"
               >
                 <span className="flex items-center gap-2 font-medium text-slate-900">

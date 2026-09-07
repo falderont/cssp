@@ -59,10 +59,10 @@ export async function requireBlacklistManager() {
 }
 
 // Anyone who can view a site's own management page — the master-data admins
-// plus the day-to-day roles who now manage that site's Loading Docks and/or
-// Authorized Access List right there instead of on a separate global list
-// (see /ops/admin/facilities/[id]). Each section within the page still gates
-// itself more narrowly (isMasterDataAdmin/canManageDocks/canManageAal).
+// plus every day-to-day role that now manages a slice of that site (Loading
+// Docks, AAL, Front Line, Service Delivery, Telemetry, Documents) right
+// there instead of on a separate global list (see
+// /ops/admin/facilities/[id]). Each tab still gates itself more narrowly.
 export async function requireFacilityPageAccess() {
   const user = await requireInternalUser();
   const allowed: string[] = [
@@ -70,6 +70,7 @@ export async function requireFacilityPageAccess() {
     ROLES.SERVICE_DESK,
     ROLES.OPS_BUILDING_MANAGER,
     ROLES.OPS_SITE_MANAGER,
+    ROLES.OPS_SITE_LEAD,
     ROLES.OPS_FRONT_OFFICE_SECURITY,
   ];
   if (!allowed.includes(user.role)) redirect("/ops");

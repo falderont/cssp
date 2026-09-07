@@ -7,39 +7,35 @@ import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { IncidentMatrix } from "@/components/incidents/matrix";
-import { requireInternalUser } from "@/lib/session";
+import { requireFacilityPageAccess } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDateTime } from "@/lib/utils";
+import { getFacilityTabAccess } from "@/lib/facility-tabs";
 
-// Incidents now also lives as a tab on each site's own management page — a
-// viewer pinned to one facility goes straight there. Service Desk and other
-// cross-site roles keep this page: they triage across every site at once.
-export default async function OpsIncidentsPage() {
-  const user = await requireInternalUser();
-  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/incidents`);
-  const scopedFacilityIds = await getOpsFacilityIds(user);
+export default async function FacilityIncidentsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = await requireFacilityPageAccess();
+  const { canViewServiceDelivery } = getFacilityTabAccess(user.role);
+  if (!canViewServiceDelivery) redirect(`/ops/admin/facilities/${id}`);
+
   const incidents = await prisma.incident.findMany({
-    where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
+    where: { facilityId: id },
     include: { facility: true, building: true },
     orderBy: { startedAt: "desc" },
     take: 200,
   });
-
   const ongoing = incidents.filter((i) => i.status !== "Resolved");
 
   return (
     <div>
       <PageHeader
         title="Incidents"
-        description="Publish and manage incidents across every facility — this stands in for the manual adapter over your DCIM/CMMS."
         actions={
-          <LinkButton href="/ops/incidents/new">
+          <LinkButton href={`/ops/incidents/new?facilityId=${id}`}>
             <Plus className="h-4 w-4" /> Post incident
           </LinkButton>
         }
       />
-
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <IncidentMatrix incidents={incidents} />
@@ -61,7 +57,6 @@ export default async function OpsIncidentsPage() {
                   <Badge tone={inc.severity === "P1" || inc.severity === "P2" ? "red" : "amber"}>{inc.severity}</Badge>
                   <span className="font-medium text-slate-800">{inc.title}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500">{inc.facility.name}</p>
               </Link>
             ))}
           </CardBody>
@@ -73,7 +68,7 @@ export default async function OpsIncidentsPage() {
           <tr>
             <TH>Title</TH>
             <TH>Category</TH>
-            <TH>Facility / location</TH>
+            <TH>Location</TH>
             <TH>Severity</TH>
             <TH>Status</TH>
             <TH>Visible to tenants</TH>
@@ -81,7 +76,7 @@ export default async function OpsIncidentsPage() {
           </tr>
         </THead>
         <TBody>
-          {incidents.length === 0 && <EmptyRow colSpan={7} message="No incidents posted yet." />}
+          {incidents.length === 0 && <EmptyRow colSpan={7} message="No incidents posted for this site yet." />}
           {incidents.map((inc) => (
             <TR key={inc.id}>
               <TD>
@@ -93,8 +88,7 @@ export default async function OpsIncidentsPage() {
                 <Badge tone="slate">{inc.category}</Badge>
               </TD>
               <TD>
-                {inc.facility.name}
-                {inc.building ? ` · ${inc.building.name}` : ""}
+                {inc.building?.name ?? "Facility-wide"}
                 {inc.locationDetail && <p className="text-xs text-slate-400">{inc.locationDetail}</p>}
               </TD>
               <TD>
