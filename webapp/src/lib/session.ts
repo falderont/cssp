@@ -11,6 +11,15 @@ export async function getSession() {
 export async function requireUser() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
+
+  // The session is a JWT and isn't re-validated against the DB by NextAuth
+  // itself, so a stale cookie from before a database reset/reseed (which
+  // hands out fresh ids) or from a since-deactivated account would otherwise
+  // sail through every check below and only fail later — confusingly — as a
+  // foreign key error wherever that stale id gets written (e.g. audit logs).
+  const dbUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { isActive: true } });
+  if (!dbUser || !dbUser.isActive) redirect("/login");
+
   if (session.user.role !== ROLES.SYS_ADMIN) {
     const settings = await prisma.providerSettings.findUnique({ where: { id: "singleton" } });
     if (settings?.maintenanceMode) redirect("/maintenance");
