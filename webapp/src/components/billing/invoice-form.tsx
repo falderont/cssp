@@ -100,6 +100,7 @@ export function InvoiceForm({ accounts }: { accounts: { id: string; name: string
                 min={0.01}
                 step="0.01"
                 placeholder="Qty"
+                required
                 value={row.quantity}
                 onChange={(e) => updateRow(idx, { quantity: e.target.value })}
                 className="sm:col-span-2"
@@ -109,6 +110,7 @@ export function InvoiceForm({ accounts }: { accounts: { id: string; name: string
                 min={0}
                 step="0.01"
                 placeholder="Unit price"
+                required
                 value={row.unitPrice}
                 onChange={(e) => updateRow(idx, { unitPrice: e.target.value })}
                 className="sm:col-span-2"
@@ -157,7 +159,7 @@ export function InvoiceForm({ accounts }: { accounts: { id: string; name: string
       <input
         type="hidden"
         name="lineItemsJson"
-        value={JSON.stringify(rows.map((r) => ({ ...r, quantity: Number(r.quantity) || 0, unitPrice: Number(r.unitPrice) || 0 })))}
+        value={JSON.stringify(rows.map((r) => ({ ...r, quantity: Number(r.quantity) || 1, unitPrice: Number(r.unitPrice) || 0 })))}
       />
       <Button type="submit">Create invoice</Button>
     </form>
