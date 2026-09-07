@@ -8,6 +8,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createBackup, updateMaintenanceMode } from "@/actions/system";
 import { formatDateTime } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function BackupMaintenancePage() {
   await requireSysAdmin();
@@ -26,11 +27,11 @@ export default async function BackupMaintenancePage() {
               <CardTitle className="flex items-center gap-2">
                 <DatabaseBackup className="h-4 w-4" /> Backups
               </CardTitle>
-              <form action={createBackup}>
+              <ActionForm action={createBackup}>
                 <Button type="submit" size="sm">
                   Create backup now
                 </Button>
-              </form>
+              </ActionForm>
             </CardHeader>
             <Table>
               <THead>
@@ -69,7 +70,7 @@ export default async function BackupMaintenancePage() {
             </CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={updateMaintenanceMode} className="space-y-3">
+            <ActionForm action={updateMaintenanceMode} className="space-y-3">
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" name="maintenanceMode" defaultChecked={settings?.maintenanceMode ?? false} className="h-4 w-4 rounded border-slate-300" />
                 Show maintenance banner to everyone except Global Sys Admins
@@ -86,7 +87,7 @@ export default async function BackupMaintenancePage() {
               <Button type="submit" variant="secondary" className="w-full">
                 Save
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

@@ -8,6 +8,7 @@ import { requireCustomerUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 import { submitServiceRequestCsat } from "@/actions/service-requests";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function PortalServiceRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,16 +66,16 @@ export default async function PortalServiceRequestDetailPage({ params }: { param
                 <p className="text-sm text-slate-500">Thanks for your feedback ({request.csatRating === "up" ? "👍" : "👎"}).</p>
               ) : (
                 <div className="flex gap-2">
-                  <form action={csatUpBound}>
+                  <ActionForm action={csatUpBound}>
                     <Button type="submit" size="sm" variant="secondary">
                       👍 Good
                     </Button>
-                  </form>
-                  <form action={csatDownBound}>
+                  </ActionForm>
+                  <ActionForm action={csatDownBound}>
                     <Button type="submit" size="sm" variant="secondary">
                       👎 Not great
                     </Button>
-                  </form>
+                  </ActionForm>
                 </div>
               )}
             </CardBody>

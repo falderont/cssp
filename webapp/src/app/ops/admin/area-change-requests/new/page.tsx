@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/session";
 import { AREA_CHANGE_ACTIONS, AREA_LEVELS } from "@/lib/constants";
 import { submitAreaChangeRequest } from "@/actions/area";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function NewAreaChangeRequestPage() {
   await requireInternalUser();
@@ -17,7 +18,7 @@ export default async function NewAreaChangeRequestPage() {
       />
       <Card className="max-w-2xl">
         <CardBody>
-          <form action={submitAreaChangeRequest} className="space-y-4">
+          <ActionForm action={submitAreaChangeRequest} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Level" htmlFor="level" required>
                 <Select id="level" name="level" required defaultValue="Site">
@@ -53,7 +54,7 @@ export default async function NewAreaChangeRequestPage() {
               <Textarea id="notes" name="notes" required placeholder="New site coming online next quarter, needs to exist before site enrollment can be created." />
             </Field>
             <Button type="submit">Submit request</Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

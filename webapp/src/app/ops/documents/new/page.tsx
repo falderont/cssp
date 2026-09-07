@@ -6,6 +6,7 @@ import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { publishDocument } from "@/actions/documents";
 import { DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function NewDocumentPage() {
   await requireInternalUser();
@@ -19,7 +20,7 @@ export default async function NewDocumentPage() {
       <PageHeader title="Publish a document" description="Scope it globally, to one tenant, or to one facility." />
       <Card className="max-w-2xl">
         <CardBody>
-          <form action={publishDocument} className="space-y-4">
+          <ActionForm action={publishDocument} className="space-y-4">
             <Field label="Title" htmlFor="title" required>
               <Input id="title" name="title" required placeholder="e.g. August 2026 SLA & Uptime Report" />
             </Field>
@@ -64,7 +65,7 @@ export default async function NewDocumentPage() {
               />
             </Field>
             <Button type="submit">Publish</Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

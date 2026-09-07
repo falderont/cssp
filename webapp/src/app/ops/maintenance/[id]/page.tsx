@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/utils";
 import { updateMaintenanceStatus } from "@/actions/maintenance";
 import { MAINTENANCE_STATUSES } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function OpsMaintenanceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,7 +74,7 @@ export default async function OpsMaintenanceDetailPage({ params }: { params: Pro
             <CardTitle>Update status</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={updateStatusBound} className="space-y-3">
+            <ActionForm action={updateStatusBound} className="space-y-3">
               <Field label="Status" htmlFor="status">
                 <Select id="status" name="status" defaultValue={event.status}>
                   {MAINTENANCE_STATUSES.map((s) => (
@@ -86,7 +87,7 @@ export default async function OpsMaintenanceDetailPage({ params }: { params: Pro
               <Button type="submit" className="w-full">
                 Update &amp; notify tenants
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

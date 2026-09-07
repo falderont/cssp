@@ -788,3 +788,16 @@ model BackupRecord {
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
 }
+
+// The Global Sys Admin's editable catalog behind the app-wide error dialog
+// (see src/lib/errors.ts) — one row per ErrorCode. `title`/`fallbackMessage`
+// are shown to end users (fallbackMessage only replaces the thrown error's
+// own message for UNKNOWN, where showing the raw message would leak
+// internals); `description` is admin-only context for when the code fires.
+model SystemErrorDefinition {
+  code            String   @id // VALIDATION/UNIQUE_CONSTRAINT/FK_CONSTRAINT/NOT_FOUND/APPLICATION_ERROR/UNKNOWN — see ErrorCode in src/lib/errors.ts
+  title           String
+  description     String
+  fallbackMessage String
+  updatedAt       DateTime @updatedAt
+}

@@ -8,6 +8,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { resetUserPassword } from "@/actions/admin";
 import type { Role } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -56,14 +57,14 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
             <CardTitle>Reset password</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={resetBound} className="space-y-3">
+            <ActionForm action={resetBound} className="space-y-3">
               <Field label="New password" htmlFor="password" required hint="At least 8 characters">
                 <Input id="password" name="password" defaultValue="password123" required minLength={8} />
               </Field>
               <Button type="submit" variant="secondary" className="w-full">
                 Reset password
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

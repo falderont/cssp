@@ -5,6 +5,7 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { createTeam } from "@/actions/admin";
 import { TEAM_FUNCTIONS, TEAM_FUNCTION_LABELS } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 type ScopeType = "Global" | "Region" | "Country" | "Facility";
 
@@ -30,7 +31,7 @@ export function TeamForm({
   const [scopeType, setScopeType] = useState<ScopeType>(initial?.scopeType ?? "Facility");
 
   return (
-    <form action={action} className="space-y-3">
+    <ActionForm action={action} className="space-y-3">
       <Field label="Team name" htmlFor="name" required>
         <Input id="name" name="name" required placeholder="e.g. Indonesia NOC" defaultValue={initial?.name} />
       </Field>
@@ -78,6 +79,6 @@ export function TeamForm({
       <Button type="submit" className="w-full">
         {submitLabel}
       </Button>
-    </form>
+    </ActionForm>
   );
 }

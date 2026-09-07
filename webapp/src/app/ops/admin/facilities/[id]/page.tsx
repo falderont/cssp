@@ -25,6 +25,7 @@ import {
   deleteFacility,
 } from "@/actions/admin";
 import { ROLES, ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 // A native <details>/<summary> disclosure needs no client JS, so an existing
 // building/room's edit form can live right on this server-rendered page
@@ -94,13 +95,13 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                       </p>
                       <div className="flex shrink-0 items-center gap-1">
                         <EditDisclosure label="Edit building">
-                          <form action={updateBuildingBound} className="space-y-2">
+                          <ActionForm action={updateBuildingBound} className="space-y-2">
                             <Input name="name" defaultValue={b.name} required placeholder="Building name" className="text-xs" />
                             <Input name="code" defaultValue={b.code} required placeholder="Code" className="text-xs" />
                             <Button type="submit" size="sm" className="w-full">
                               Save
                             </Button>
-                          </form>
+                          </ActionForm>
                         </EditDisclosure>
                         <ConfirmDeleteButton
                           action={deleteBuilding.bind(null, b.id)}
@@ -129,7 +130,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                   </span>
                                 </div>
                                 <EditDisclosure label="Edit room">
-                                  <form action={updateRoomBound} className="space-y-2">
+                                  <ActionForm action={updateRoomBound} className="space-y-2">
                                     <Input name="name" defaultValue={room.name} required placeholder="Room name" className="text-xs" />
                                     <Input name="code" defaultValue={room.code} required placeholder="Code" className="text-xs" />
                                     <Select name="type" defaultValue={room.type} required className="text-xs">
@@ -142,7 +143,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                     <Button type="submit" size="sm" className="w-full">
                                       Save
                                     </Button>
-                                  </form>
+                                  </ActionForm>
                                 </EditDisclosure>
                                 <ConfirmDeleteButton
                                   action={deleteRoom.bind(null, room.id)}
@@ -159,13 +160,13 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                         {rack.rackNumber}
                                       </summary>
                                       <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
-                                        <form action={updateRack.bind(null, facility.id, rack.id)} className="space-y-2">
+                                        <ActionForm action={updateRack.bind(null, facility.id, rack.id)} className="space-y-2">
                                           <Input name="rackNumber" defaultValue={rack.rackNumber} required placeholder="Rack #" className="text-xs" />
                                           <Input name="notes" defaultValue={rack.notes ?? ""} placeholder="Notes (optional)" className="text-xs" />
                                           <Button type="submit" size="sm" className="w-full">
                                             Save
                                           </Button>
-                                        </form>
+                                        </ActionForm>
                                         <ConfirmDeleteButton
                                           action={deleteRack.bind(null, facility.id, rack.id)}
                                           confirmMessage={`Delete rack ${rack.rackNumber}? This can't be undone.`}
@@ -176,7 +177,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                       </div>
                                     </details>
                                   ))}
-                                  <form action={addRackBound} className="flex items-center gap-1.5">
+                                  <ActionForm action={addRackBound} className="flex items-center gap-1.5">
                                     <input
                                       type="text"
                                       name="rackNumber"
@@ -187,7 +188,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                                     <Button type="submit" size="sm" variant="secondary">
                                       Add rack
                                     </Button>
-                                  </form>
+                                  </ActionForm>
                                 </div>
                               )}
                             </div>
@@ -195,7 +196,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                         })}
                       </div>
                     )}
-                    <form action={addRoomBound} className="mt-3 flex flex-wrap items-end gap-2">
+                    <ActionForm action={addRoomBound} className="mt-3 flex flex-wrap items-end gap-2">
                       <div className="flex-1">
                         <Field label="Room name" htmlFor={`roomName-${b.id}`} required>
                           <Input id={`roomName-${b.id}`} name="name" required placeholder="e.g. Data Hall 001" />
@@ -220,11 +221,11 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                       <Button type="submit" variant="secondary">
                         Add room
                       </Button>
-                    </form>
+                    </ActionForm>
                   </div>
                 );
               })}
-              <form action={addBuildingBound} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+              <ActionForm action={addBuildingBound} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
                 <div className="flex-1">
                   <Field label="Building name" htmlFor="name" required>
                     <Input id="name" name="name" required placeholder="e.g. Building B" />
@@ -236,7 +237,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                   </Field>
                 </div>
                 <Button type="submit">Add building</Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
 
@@ -273,7 +274,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                 <CardTitle>Site details</CardTitle>
               </CardHeader>
               <CardBody>
-                <form action={updateFacilityDetailsBound} className="space-y-3">
+                <ActionForm action={updateFacilityDetailsBound} className="space-y-3">
                   <Field
                     label="Site name"
                     htmlFor="facilityName"
@@ -296,7 +297,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                   <Button type="submit" className="w-full" variant="secondary">
                     Save site details
                   </Button>
-                </form>
+                </ActionForm>
               </CardBody>
             </Card>
           )}
@@ -306,7 +307,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
               <CardTitle>Space model</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={updateSpaceModelBound} className="space-y-3">
+              <ActionForm action={updateSpaceModelBound} className="space-y-3">
                 <label className="flex items-start gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
@@ -325,7 +326,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                 <Button type="submit" className="w-full" variant="secondary">
                   Save
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
 
@@ -334,7 +335,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
               <CardTitle>Access control integration</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={updateAcsBound} className="space-y-3">
+              <ActionForm action={updateAcsBound} className="space-y-3">
                 <Field
                   label="ACS endpoint"
                   htmlFor="acsEndpointUrl"
@@ -345,7 +346,7 @@ export default async function FacilityDetailPage({ params }: { params: Promise<{
                 <Button type="submit" className="w-full" variant="secondary">
                   Save
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
 

@@ -6,6 +6,7 @@ import { Download } from "lucide-react";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { createVisitorRequestBatch } from "@/actions/visitors";
+import { ActionForm } from "@/components/errors/action-form";
 
 type Building = { id: string; name: string };
 type Enrollment = { id: string; facility: { name: string; buildings: Building[] } };
@@ -18,7 +19,7 @@ export function VisitorBatchForm({ enrollments }: { enrollments: Enrollment[] })
   );
 
   return (
-    <form action={createVisitorRequestBatch} className="space-y-6">
+    <ActionForm action={createVisitorRequestBatch} className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Site" htmlFor="siteEnrollmentId" required>
           <Select
@@ -81,6 +82,6 @@ export function VisitorBatchForm({ enrollments }: { enrollments: Enrollment[] })
       <div>
         <Button type="submit">Upload and create visit request</Button>
       </div>
-    </form>
+    </ActionForm>
   );
 }

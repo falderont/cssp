@@ -4,6 +4,7 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { createEnterpriseAccount } from "@/actions/admin";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function NewAccountPage() {
   await requireSysAdmin();
@@ -13,7 +14,7 @@ export default async function NewAccountPage() {
       <PageHeader title="Add tenant account" description="You can enroll it at one or more facilities right after." />
       <Card className="max-w-2xl">
         <CardBody>
-          <form action={createEnterpriseAccount} className="space-y-4">
+          <ActionForm action={createEnterpriseAccount} className="space-y-4">
             <Field label="Display name" htmlFor="name" required>
               <Input id="name" name="name" required placeholder="e.g. Meridian Logistics" />
             </Field>
@@ -33,7 +34,7 @@ export default async function NewAccountPage() {
               </Field>
             </div>
             <Button type="submit">Create account</Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

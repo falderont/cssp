@@ -10,6 +10,7 @@ import { getCustomerSiteEnrollments } from "@/lib/scope";
 import { requestAalEntry } from "@/actions/aal";
 import { AAL_ACCESS_LEVELS, AAL_ACCESS_LEVEL_LABELS, isAalExpired } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function PortalAalPage() {
   const user = await requireTenantAdminOrSiteLead();
@@ -65,7 +66,7 @@ export default async function PortalAalPage() {
             <CardTitle>Request access</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={requestAalEntry} className="space-y-3">
+            <ActionForm action={requestAalEntry} className="space-y-3">
               <Field label="Site" htmlFor="facilityId" required>
                 <Select id="facilityId" name="facilityId" required>
                   {enrollments.map((e) => (
@@ -105,7 +106,7 @@ export default async function PortalAalPage() {
               <Button type="submit" className="w-full">
                 Submit request
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

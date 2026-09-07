@@ -15,6 +15,7 @@ import {
   isSiteScopableRole,
   type Role,
 } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 type Account = { id: string; name: string };
 type Facility = { id: string; name: string };
@@ -59,7 +60,7 @@ export function UserForm({
   const action = existingUser ? updateUser.bind(null, existingUser.id) : createUser;
 
   return (
-    <form action={action} className="space-y-4">
+    <ActionForm action={action} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Full name" htmlFor="name" required>
           <Input id="name" name="name" required defaultValue={existingUser?.name} />
@@ -193,6 +194,6 @@ export function UserForm({
       )}
 
       <Button type="submit">{existingUser ? "Save changes" : "Create user"}</Button>
-    </form>
+    </ActionForm>
   );
 }

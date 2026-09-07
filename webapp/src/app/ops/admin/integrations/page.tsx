@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { updateSystemIntegration } from "@/actions/system";
 import { SYSTEM_INTEGRATION_CATALOG, SYSTEM_INTEGRATION_STATUSES } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function SystemIntegrationsPage() {
   await requireSysAdmin();
@@ -32,7 +33,7 @@ export default async function SystemIntegrationsPage() {
               </CardHeader>
               <CardBody className="space-y-3">
                 <p className="text-sm text-slate-500">{def.description}</p>
-                <form action={updateBound} className="space-y-2">
+                <ActionForm action={updateBound} className="space-y-2">
                   <Field label="Status" htmlFor={`status-${def.key}`}>
                     <Select id={`status-${def.key}`} name="status" defaultValue={row?.status ?? "NotConfigured"}>
                       {SYSTEM_INTEGRATION_STATUSES.map((s) => (
@@ -53,7 +54,7 @@ export default async function SystemIntegrationsPage() {
                       Save
                     </Button>
                   </div>
-                </form>
+                </ActionForm>
               </CardBody>
             </Card>
           );

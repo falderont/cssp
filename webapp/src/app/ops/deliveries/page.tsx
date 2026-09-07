@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { markDeliveryArrived, markDeliveryReceived, rejectDelivery, uploadDeliveryPhoto } from "@/actions/deliveries";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function OpsDeliveriesPage() {
   const user = await requireInternalUser();
@@ -77,22 +78,22 @@ export default async function OpsDeliveriesPage() {
                   {(d.status === "Expected" || d.status === "Arrived") && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       {d.status === "Expected" && (
-                        <form action={arrivedBound}>
+                        <ActionForm action={arrivedBound}>
                           <Button type="submit" size="sm" variant="secondary">
                             Mark arrived
                           </Button>
-                        </form>
+                        </ActionForm>
                       )}
-                      <form action={receivedBound}>
+                      <ActionForm action={receivedBound}>
                         <Button type="submit" size="sm" variant="secondary">
                           Mark received
                         </Button>
-                      </form>
-                      <form action={rejectBound}>
+                      </ActionForm>
+                      <ActionForm action={rejectBound}>
                         <Button type="submit" size="sm" variant="danger">
                           Reject
                         </Button>
-                      </form>
+                      </ActionForm>
                     </div>
                   )}
                 </TD>
@@ -113,7 +114,7 @@ export default async function OpsDeliveriesPage() {
                           ))}
                         </div>
                       )}
-                      <form action={uploadPhotoBound} className="flex items-center gap-1.5">
+                      <ActionForm action={uploadPhotoBound} className="flex items-center gap-1.5">
                         <input
                           type="file"
                           name="photo"
@@ -124,7 +125,7 @@ export default async function OpsDeliveriesPage() {
                         <Button type="submit" size="sm" variant="secondary">
                           Upload
                         </Button>
-                      </form>
+                      </ActionForm>
                     </div>
                   ) : (
                     <span className="text-xs text-slate-300">—</span>

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { checkInVisitor, checkOutVisitor } from "@/actions/visitors";
 import { formatDate } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function FrontDeskPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const searchParamsResolved = await searchParams;
@@ -114,18 +115,18 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: Pr
                   <TD>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {v.status === "Approved" && (
-                        <form action={checkInBound}>
+                        <ActionForm action={checkInBound}>
                           <Button type="submit" size="sm">
                             {v.badgeCode ? `Register badge ${v.badgeCode} & check in` : "Check in"}
                           </Button>
-                        </form>
+                        </ActionForm>
                       )}
                       {v.status === "CheckedIn" && (
-                        <form action={checkOutBound}>
+                        <ActionForm action={checkOutBound}>
                           <Button type="submit" size="sm" variant="secondary">
                             Check out
                           </Button>
-                        </form>
+                        </ActionForm>
                       )}
                       <LinkButton href={`/ops/front-desk/${v.visitorRequest.id}`} variant="secondary" size="sm">
                         View ticket
@@ -181,18 +182,18 @@ export default async function FrontDeskPage({ searchParams }: { searchParams: Pr
                     <TD>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {v.status === "Approved" && (
-                          <form action={checkInBound}>
+                          <ActionForm action={checkInBound}>
                             <Button type="submit" size="sm">
                               {v.badgeCode ? `Register badge ${v.badgeCode} & check in` : "Check in"}
                             </Button>
-                          </form>
+                          </ActionForm>
                         )}
                         {v.status === "CheckedIn" && (
-                          <form action={checkOutBound}>
+                          <ActionForm action={checkOutBound}>
                             <Button type="submit" size="sm" variant="secondary">
                               Check out
                             </Button>
-                          </form>
+                          </ActionForm>
                         )}
                         <Link
                           href={`/ops/front-desk/${v.visitorRequest.id}`}

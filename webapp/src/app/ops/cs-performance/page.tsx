@@ -11,6 +11,7 @@ import { getTeamPerformance } from "@/lib/cs-performance";
 import { logEngagement } from "@/actions/engagement";
 import { ENGAGEMENT_TYPES, ROLE_LABELS, ROLES, type Role } from "@/lib/constants";
 import { formatDate, humanize } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function CsPerformancePage() {
   const user = await requireInternalUser();
@@ -39,7 +40,7 @@ export default async function CsPerformancePage() {
               <CardTitle>Log a touchpoint</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={logEngagement} className="space-y-3">
+              <ActionForm action={logEngagement} className="space-y-3">
                 <Field label="Account" htmlFor="enterpriseAccountId" required>
                   <Select id="enterpriseAccountId" name="enterpriseAccountId" required>
                     {accounts.map((a) => (
@@ -67,7 +68,7 @@ export default async function CsPerformancePage() {
                 <Button type="submit" className="w-full">
                   Log touchpoint
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
         </div>

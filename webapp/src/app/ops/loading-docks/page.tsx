@@ -7,6 +7,7 @@ import { requireBuildingManager } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createLoadingDock, toggleLoadingDockActive } from "@/actions/loading-docks";
 import { cn } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function LoadingDocksPage() {
   const user = await requireBuildingManager();
@@ -48,7 +49,7 @@ export default async function LoadingDocksPage() {
                       {dock.building ? ` · ${dock.building.name}` : " · Site-level"}
                     </p>
                   </div>
-                  <form action={toggleLoadingDockActive.bind(null, dock.id)}>
+                  <ActionForm action={toggleLoadingDockActive.bind(null, dock.id)}>
                     <button
                       type="submit"
                       className={cn(
@@ -61,7 +62,7 @@ export default async function LoadingDocksPage() {
                       <span className={cn("h-1.5 w-1.5 rounded-full", dock.isActive ? "bg-emerald-500" : "bg-slate-400")} />
                       {dock.isActive ? "Active" : "Inactive"}
                     </button>
-                  </form>
+                  </ActionForm>
                 </div>
               ))}
             </CardBody>
@@ -73,7 +74,7 @@ export default async function LoadingDocksPage() {
             <CardTitle>Add a location</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={createLoadingDock} className="space-y-3">
+            <ActionForm action={createLoadingDock} className="space-y-3">
               <Field label="Site" htmlFor="facilityId" required>
                 <Select id="facilityId" name="facilityId" required defaultValue={facilities.length === 1 ? facilities[0].id : ""}>
                   {facilities.length !== 1 && <option value="">Choose…</option>}
@@ -103,7 +104,7 @@ export default async function LoadingDocksPage() {
               <Button type="submit" className="w-full">
                 Add location
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

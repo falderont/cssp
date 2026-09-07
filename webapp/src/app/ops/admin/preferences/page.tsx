@@ -6,6 +6,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { updateGlobalPreferences } from "@/actions/system";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function GlobalPreferencesPage() {
   await requireSysAdmin();
@@ -16,7 +17,7 @@ export default async function GlobalPreferencesPage() {
       <PageHeader title="Global preferences" description="Platform-wide defaults applied across every tenant and site." />
       <Card className="max-w-lg">
         <CardBody>
-          <form action={updateGlobalPreferences} className="space-y-4">
+          <ActionForm action={updateGlobalPreferences} className="space-y-4">
             <Field label="Default currency" htmlFor="defaultCurrency" required>
               <Select id="defaultCurrency" name="defaultCurrency" defaultValue={settings?.defaultCurrency ?? "USD"} required>
                 {CURRENCIES.map((c) => (
@@ -49,7 +50,7 @@ export default async function GlobalPreferencesPage() {
             <Button type="submit" className="w-full">
               Save preferences
             </Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

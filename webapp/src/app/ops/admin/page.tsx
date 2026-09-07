@@ -17,6 +17,7 @@ import {
   DatabaseBackup,
   IdCard,
   Ticket,
+  OctagonAlert,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,6 +145,7 @@ export default async function AdminIndexPage() {
         { href: "/ops/admin/preferences", icon: SlidersHorizontal, title: "Global preferences", description: "Currency, timezone and session defaults." },
         { href: "/ops/admin/backup", icon: DatabaseBackup, title: "Backup & app maintenance", description: "Database snapshots and the maintenance banner." },
         { href: "/ops/admin/branding", icon: Palette, title: "Branding", description: "Company name, logo, colors and support details shown across both portals." },
+        { href: "/ops/admin/error-catalog", icon: OctagonAlert, title: "Error handling", description: "Customize what the app-wide error pop-up and error pages say, per error type." },
       ],
     },
     {

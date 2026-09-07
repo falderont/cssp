@@ -7,6 +7,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { toggleUserActive } from "@/actions/admin";
 import { CS_SCOPE_LABELS, ROLE_LABELS, isInternalRole, type Role } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function UsersPage() {
   await requireSysAdmin();
@@ -68,11 +69,11 @@ export default async function UsersPage() {
                     <LinkButton href={`/ops/admin/users/${u.id}`} size="sm" variant="ghost">
                       Edit
                     </LinkButton>
-                    <form action={toggleBound}>
+                    <ActionForm action={toggleBound}>
                       <Button type="submit" size="sm" variant="ghost">
                         {u.isActive ? "Disable" : "Enable"}
                       </Button>
-                    </form>
+                    </ActionForm>
                   </div>
                 </TD>
               </TR>

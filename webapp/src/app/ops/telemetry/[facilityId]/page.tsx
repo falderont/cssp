@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getTelemetrySeries } from "@/lib/telemetry-query";
 import { TELEMETRY_METRICS, TELEMETRY_METRIC_LABELS } from "@/lib/constants";
 import { updateTelemetrySource } from "@/actions/telemetry";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function OpsTelemetryFacilityPage({ params }: { params: Promise<{ facilityId: string }> }) {
   const { facilityId } = await params;
@@ -55,7 +56,7 @@ export default async function OpsTelemetryFacilityPage({ params }: { params: Pro
             <CardTitle>Integration settings</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={updateBound} className="space-y-3">
+            <ActionForm action={updateBound} className="space-y-3">
               <div className="mb-2">
                 <StatusBadge status={facility.telemetrySource?.status ?? "NotConfigured"} />
               </div>
@@ -72,7 +73,7 @@ export default async function OpsTelemetryFacilityPage({ params }: { params: Pro
               <Button type="submit" className="w-full">
                 Save
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

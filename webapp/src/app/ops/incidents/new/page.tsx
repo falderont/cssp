@@ -6,6 +6,7 @@ import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createIncident } from "@/actions/incidents";
 import { INCIDENT_CATEGORIES, INCIDENT_IMPACTED_SERVICES, INCIDENT_SEVERITIES } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function NewIncidentPage() {
   await requireInternalUser();
@@ -16,7 +17,7 @@ export default async function NewIncidentPage() {
       <PageHeader title="Post an incident" description="Customer-visible by default — every enrolled tenant at the facility is notified." />
       <Card className="max-w-2xl">
         <CardBody>
-          <form action={createIncident} className="space-y-4">
+          <ActionForm action={createIncident} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Facility" htmlFor="facilityId" required>
                 <Select id="facilityId" name="facilityId" required>
@@ -84,7 +85,7 @@ export default async function NewIncidentPage() {
               Notify and show this to tenants at the facility
             </label>
             <Button type="submit">Post incident</Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { ROLES } from "@/lib/constants";
 import { decideAreaChangeRequest } from "@/actions/area";
 import { formatDateTime } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function AreaChangeRequestsPage() {
   const user = await requireInternalUser();
@@ -72,7 +73,7 @@ export default async function AreaChangeRequestsPage() {
               <TD>{formatDateTime(r.createdAt)}</TD>
               {isMasterDataAdmin && (
                 <TD>
-                  <form action={decideAreaChangeRequest.bind(null, r.id)} className="flex items-center gap-2">
+                  <ActionForm action={decideAreaChangeRequest.bind(null, r.id)} className="flex items-center gap-2">
                     <Select name="status" defaultValue={r.status} className="w-36 py-1 text-xs">
                       <option value="Submitted">Submitted</option>
                       <option value="InReview">In Review</option>
@@ -83,7 +84,7 @@ export default async function AreaChangeRequestsPage() {
                     <Button type="submit" variant="secondary" className="px-2 py-1 text-xs">
                       Save
                     </Button>
-                  </form>
+                  </ActionForm>
                 </TD>
               )}
             </TR>

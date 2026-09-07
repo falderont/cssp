@@ -8,6 +8,7 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { decideAalEntry, revokeAalEntry } from "@/actions/aal";
 import { AAL_ACCESS_LEVEL_LABELS, ROLES, isAalExpired } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function OpsAalPage() {
   const user = await requireInternalUser();
@@ -64,24 +65,24 @@ export default async function OpsAalPage() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {e.status === "PendingApproval" && (
                         <>
-                          <form action={approveBound}>
+                          <ActionForm action={approveBound}>
                             <Button type="submit" size="sm" variant="secondary">
                               Approve
                             </Button>
-                          </form>
-                          <form action={rejectBound}>
+                          </ActionForm>
+                          <ActionForm action={rejectBound}>
                             <Button type="submit" size="sm" variant="danger">
                               Reject
                             </Button>
-                          </form>
+                          </ActionForm>
                         </>
                       )}
                       {e.status === "Active" && !expired && (
-                        <form action={revokeBound}>
+                        <ActionForm action={revokeBound}>
                           <Button type="submit" size="sm" variant="danger">
                             Revoke
                           </Button>
-                        </form>
+                        </ActionForm>
                       )}
                     </div>
                   </TD>

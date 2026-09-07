@@ -19,6 +19,7 @@ import {
   createFacility,
   toggleRegionActive,
 } from "@/actions/admin";
+import { ActionForm } from "@/components/errors/action-form";
 
 export type FacilityNode = {
   id: string;
@@ -169,9 +170,9 @@ function InlineCreateForm({
   variant?: "add" | "edit";
 }) {
   return (
-    <form
+    <ActionForm
       action={action}
-      onSubmit={onDone}
+      onSuccess={onDone}
       className={cn(
         "grid grid-cols-2 gap-2 rounded-lg border p-3 sm:grid-cols-4",
         variant === "add" ? "border-dashed border-brand/30 bg-brand/5" : "border-slate-200 bg-slate-50/60"
@@ -190,13 +191,13 @@ function InlineCreateForm({
           Cancel
         </Button>
       </div>
-    </form>
+    </ActionForm>
   );
 }
 
 function RegionStatusToggle({ regionId, isActive }: { regionId: string; isActive: boolean }) {
   return (
-    <form action={toggleRegionActive.bind(null, regionId)}>
+    <ActionForm action={toggleRegionActive.bind(null, regionId)}>
       <button
         type="submit"
         title={isActive ? "Mark this region inactive" : "Mark this region active"}
@@ -210,7 +211,7 @@ function RegionStatusToggle({ regionId, isActive }: { regionId: string; isActive
         <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-500" : "bg-slate-400")} />
         {isActive ? "Active" : "Inactive"}
       </button>
-    </form>
+    </ActionForm>
   );
 }
 

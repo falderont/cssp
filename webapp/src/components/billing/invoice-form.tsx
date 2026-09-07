@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { createInvoice } from "@/actions/billing";
 import { INVOICE_LINE_CATEGORIES } from "@/lib/constants";
 import { humanize } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 type Row = { description: string; category: string; quantity: string; unitPrice: string };
 const EMPTY_ROW: Row = { description: "", category: "Space", quantity: "1", unitPrice: "0" };
@@ -28,7 +29,7 @@ export function InvoiceForm({ accounts }: { accounts: { id: string; name: string
   const total = subtotal + tax;
 
   return (
-    <form action={createInvoice} className="space-y-6">
+    <ActionForm action={createInvoice} className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="Tenant" htmlFor="enterpriseAccountId" required>
           <Select id="enterpriseAccountId" name="enterpriseAccountId" required>
@@ -162,6 +163,6 @@ export function InvoiceForm({ accounts }: { accounts: { id: string; name: string
         value={JSON.stringify(rows.map((r) => ({ ...r, quantity: Number(r.quantity) || 1, unitPrice: Number(r.unitPrice) || 0 })))}
       />
       <Button type="submit">Create invoice</Button>
-    </form>
+    </ActionForm>
   );
 }

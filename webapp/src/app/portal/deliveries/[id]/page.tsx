@@ -12,6 +12,7 @@ import { getCustomerFacilityIds } from "@/lib/scope";
 import { isDeliveryEditable } from "@/lib/deliveries";
 import { updateDelivery } from "@/actions/deliveries";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function PortalDeliveryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -48,7 +49,7 @@ export default async function PortalDeliveryDetailPage({ params }: { params: Pro
             <CardTitle>Edit ticket</CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={updateBound} className="space-y-4">
+            <ActionForm action={updateBound} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Courier / carrier" htmlFor="courierName" required>
                   <Input id="courierName" name="courierName" defaultValue={delivery.courierName} required />
@@ -87,7 +88,7 @@ export default async function PortalDeliveryDetailPage({ params }: { params: Pro
                 <Textarea id="description" name="description" defaultValue={delivery.description} required />
               </Field>
               <Button type="submit">Save changes</Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       ) : (

@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { createVisitorRequest } from "@/actions/visitors";
+import { ActionForm } from "@/components/errors/action-form";
 
 type Building = { id: string; name: string; code: string };
 type Enrollment = { id: string; facilityId: string; facility: { name: string; buildings: Building[] } };
@@ -28,7 +29,7 @@ export function VisitorRequestForm({ enrollments, hostUsers }: { enrollments: En
   }
 
   return (
-    <form action={createVisitorRequest} className="space-y-6">
+    <ActionForm action={createVisitorRequest} className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Site" htmlFor="siteEnrollmentId" required>
           <Select
@@ -128,6 +129,6 @@ export function VisitorRequestForm({ enrollments, hostUsers }: { enrollments: En
 
       <input type="hidden" name="visitorsJson" value={JSON.stringify(rows)} />
       <Button type="submit">Submit visitor request</Button>
-    </form>
+    </ActionForm>
   );
 }

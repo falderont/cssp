@@ -9,6 +9,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { deleteTeam, updateTeam } from "@/actions/admin";
 import { TEAM_FUNCTION_LABELS, type TeamFunction } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function TeamsPage() {
   await requireSysAdmin();
@@ -91,11 +92,11 @@ export default async function TeamsPage() {
                             />
                           </div>
                         </details>
-                        <form action={deleteBound}>
+                        <ActionForm action={deleteBound}>
                           <Button type="submit" size="sm" variant="ghost">
                             Delete
                           </Button>
-                        </form>
+                        </ActionForm>
                       </div>
                     </TD>
                   </TR>

@@ -9,6 +9,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createControlledArea, createSiteEnrollment, updateEnterpriseAccount } from "@/actions/admin";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -64,7 +65,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               </TBody>
             </Table>
             <CardBody className="border-t border-slate-100">
-              <form action={enrollBound} className="flex flex-wrap items-end gap-3">
+              <ActionForm action={enrollBound} className="flex flex-wrap items-end gap-3">
                 <div className="flex-1">
                   <Field label="Facility" htmlFor="facilityId" required>
                     <Select id="facilityId" name="facilityId" required>
@@ -82,7 +83,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                   </Field>
                 </div>
                 <Button type="submit">Enroll site</Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
 
@@ -119,7 +120,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               {enrolledBuildings.length === 0 ? (
                 <p className="text-sm text-slate-500">Add a building to an enrolled facility (under Admin → Facilities) before defining a controlled area.</p>
               ) : (
-                <form action={addControlledAreaBound} className="flex flex-wrap items-end gap-3">
+                <ActionForm action={addControlledAreaBound} className="flex flex-wrap items-end gap-3">
                   <div className="flex-1">
                     <Field label="Label" htmlFor="caLabel" required>
                       <Input id="caLabel" name="label" required placeholder="e.g. Suite 4B" />
@@ -152,7 +153,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                     </Field>
                   </div>
                   <Button type="submit">Add controlled area</Button>
-                </form>
+                </ActionForm>
               )}
             </CardBody>
           </Card>
@@ -191,7 +192,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               <CardTitle>Account details</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={updateAccountBound} className="space-y-3">
+              <ActionForm action={updateAccountBound} className="space-y-3">
                 <Field label="Display name" htmlFor="accountName" required>
                   <Input id="accountName" name="name" defaultValue={account.name} required />
                 </Field>
@@ -219,7 +220,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                 <Button type="submit" className="w-full" variant="secondary">
                   Save account details
                 </Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
         </div>

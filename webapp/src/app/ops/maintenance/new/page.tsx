@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { createMaintenanceEvent } from "@/actions/maintenance";
 import { MAINTENANCE_IMPACTS, MAINTENANCE_TYPES } from "@/lib/constants";
 import { humanize } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function NewMaintenancePage() {
   await requireInternalUser();
@@ -17,7 +18,7 @@ export default async function NewMaintenancePage() {
       <PageHeader title="Schedule maintenance" description="Tenants at this facility are notified automatically once scheduled." />
       <Card className="max-w-2xl">
         <CardBody>
-          <form action={createMaintenanceEvent} className="space-y-4">
+          <ActionForm action={createMaintenanceEvent} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Facility" htmlFor="facilityId" required>
                 <Select id="facilityId" name="facilityId" required>
@@ -70,7 +71,7 @@ export default async function NewMaintenancePage() {
               <Textarea id="description" name="description" required placeholder="Scope of work and any redundancy notes…" />
             </Field>
             <Button type="submit">Schedule &amp; notify tenants</Button>
-          </form>
+          </ActionForm>
         </CardBody>
       </Card>
     </div>

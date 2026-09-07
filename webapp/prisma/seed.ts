@@ -5,6 +5,7 @@ import path from "path";
 import { makeSimplePdf, makePdfWithImage } from "../src/lib/pdf";
 import { saveGeneratedFile } from "../src/lib/storage";
 import { ROLES } from "../src/lib/constants";
+import { ERROR_CODES, DEFAULT_ERROR_CATALOG } from "../src/lib/errors";
 
 const prisma = new PrismaClient();
 
@@ -147,6 +148,7 @@ async function main() {
     prisma.country.deleteMany(),
     prisma.region.deleteMany(),
     prisma.providerSettings.deleteMany(),
+    prisma.systemErrorDefinition.deleteMany(),
   ]);
 
   console.log("Branding…");
@@ -176,6 +178,11 @@ async function main() {
       { key: "SSO", name: "Single Sign-On (SSO)", status: "NotConfigured" },
       { key: "EMAIL", name: "Email / SMTP", status: "Connected", lastSyncAt: hoursFromNow(-6) },
     ],
+  });
+
+  console.log("Error catalog…");
+  await prisma.systemErrorDefinition.createMany({
+    data: ERROR_CODES.map((code) => ({ code, ...DEFAULT_ERROR_CATALOG[code] })),
   });
 
   console.log("Areas: regions, countries & cities…");

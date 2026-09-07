@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { appError } from "@/lib/errors";
 
 // A duplicate on a @unique (or @@unique) field throws a raw
 // PrismaClientKnownRequestError (code P2002) — left uncaught, that crashes
@@ -10,7 +11,7 @@ export async function withUniqueConstraintMessage<T>(operation: () => Promise<T>
     return await operation();
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new Error(message);
+      throw appError("UNIQUE_CONSTRAINT", message);
     }
     throw error;
   }
@@ -26,7 +27,7 @@ export async function withForeignKeyConstraintMessage<T>(operation: () => Promis
     return await operation();
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-      throw new Error(message);
+      throw appError("FK_CONSTRAINT", message);
     }
     throw error;
   }
@@ -40,5 +41,5 @@ export async function assertNoDependents(entityLabel: string, checks: Promise<{ 
   const blocking = results.filter((c) => c.count > 0);
   if (blocking.length === 0) return;
   const list = blocking.map((c) => `${c.count} ${c.label}`).join(", ");
-  throw new Error(`Can't delete this ${entityLabel} — it still has ${list}. Remove those first.`);
+  throw appError("FK_CONSTRAINT", `Can't delete this ${entityLabel} — it still has ${list}. Remove those first.`);
 }

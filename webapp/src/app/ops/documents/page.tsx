@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/utils";
 import { deleteDocument } from "@/actions/documents";
 import { DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function OpsDocumentsPage() {
   const user = await requireInternalUser();
@@ -64,11 +65,11 @@ export default async function OpsDocumentsPage() {
                     <a href={`/api/documents/${doc.id}`} className="text-sm text-brand hover:underline">
                       Download
                     </a>
-                    <form action={deleteBound}>
+                    <ActionForm action={deleteBound}>
                       <Button type="submit" size="sm" variant="ghost">
                         Delete
                       </Button>
-                    </form>
+                    </ActionForm>
                   </div>
                 </TD>
               </TR>
