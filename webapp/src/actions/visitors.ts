@@ -99,6 +99,7 @@ export async function createVisitorRequestBatch(formData: FormData) {
   const visitDate = String(formData.get("visitDate") ?? "");
   const windowStart = String(formData.get("windowStart") ?? "");
   const windowEnd = String(formData.get("windowEnd") ?? "");
+  const hostUserId = String(formData.get("hostUserId") ?? "") || undefined;
   const file = formData.get("visitorFile");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -123,6 +124,7 @@ export async function createVisitorRequestBatch(formData: FormData) {
       visitDate: new Date(visitDate),
       windowStart,
       windowEnd,
+      hostUserId: hostUserId || null,
       isGroup: true,
       source: "Batch",
       createdById: user.id,

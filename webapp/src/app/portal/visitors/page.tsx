@@ -33,7 +33,7 @@ export default async function PortalVisitorsPage({ searchParams }: { searchParam
         description="Register visitors — one at a time or as a group — and track approval and access-control sync."
         actions={
           <>
-            <LinkButton href="/portal/visitors/batch" variant="secondary">
+            <LinkButton href="/portal/visitors/new?mode=batch" variant="secondary">
               <Upload className="h-4 w-4" /> Batch upload
             </LinkButton>
             <LinkButton href="/portal/visitors/new">
