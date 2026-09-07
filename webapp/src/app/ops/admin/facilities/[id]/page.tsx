@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
@@ -7,12 +9,17 @@ import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createBuilding, updateFacilityAcs } from "@/actions/admin";
+import { BuildingAreasCard } from "@/components/admin/building-areas-card";
 
 export default async function FacilityDetailPage({ params }: { params: { id: string } }) {
   await requireSysAdmin();
   const facility = await prisma.facility.findUnique({
     where: { id: params.id },
-    include: { region: true, buildings: true, siteEnrollments: { include: { enterpriseAccount: true } } },
+    include: {
+      city: { include: { country: { include: { region: true } } } },
+      buildings: { orderBy: { name: "asc" }, include: { areas: { orderBy: { name: "asc" } } } },
+      siteEnrollments: { include: { enterpriseAccount: true } },
+    },
   });
   if (!facility) notFound();
 
@@ -21,30 +28,33 @@ export default async function FacilityDetailPage({ params }: { params: { id: str
 
   return (
     <div>
-      <PageHeader title={facility.name} description={`${facility.region.name} · ${facility.code}`} />
+      <nav className="mb-2 flex flex-wrap items-center gap-1 text-xs text-slate-400">
+        <Link href="/ops/admin/facilities" className="hover:text-brand hover:underline">
+          Site management
+        </Link>
+        <ChevronRight className="h-3 w-3" />
+        <span>{facility.city.country.region.name}</span>
+        <ChevronRight className="h-3 w-3" />
+        <span>{facility.city.country.name}</span>
+        <ChevronRight className="h-3 w-3" />
+        <span>{facility.city.name}</span>
+      </nav>
+      <PageHeader
+        title={facility.name}
+        description={`${facility.code} · ${facility.timezone}${facility.address ? ` · ${facility.address}` : ""}`}
+      />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Buildings</CardTitle>
+              <CardTitle>Buildings & areas</CardTitle>
             </CardHeader>
-            <Table>
-              <THead>
-                <tr>
-                  <TH>Name</TH>
-                  <TH>Code</TH>
-                </tr>
-              </THead>
-              <TBody>
-                {facility.buildings.length === 0 && <EmptyRow colSpan={2} message="No buildings added yet." />}
-                {facility.buildings.map((b) => (
-                  <TR key={b.id}>
-                    <TD>{b.name}</TD>
-                    <TD>{b.code}</TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
+            <CardBody className="space-y-3">
+              {facility.buildings.length === 0 && <p className="text-sm text-slate-400">No buildings added yet.</p>}
+              {facility.buildings.map((b) => (
+                <BuildingAreasCard key={b.id} facilityId={facility.id} building={b} />
+              ))}
+            </CardBody>
             <CardBody className="border-t border-slate-100">
               <form action={addBuildingBound} className="flex flex-wrap items-end gap-3">
                 <div className="flex-1">

@@ -118,8 +118,11 @@ async function main() {
     prisma.siteEnrollment.deleteMany(),
     prisma.user.deleteMany(),
     prisma.enterpriseAccount.deleteMany(),
+    prisma.area.deleteMany(),
     prisma.building.deleteMany(),
     prisma.facility.deleteMany(),
+    prisma.city.deleteMany(),
+    prisma.country.deleteMany(),
     prisma.region.deleteMany(),
     prisma.providerSettings.deleteMany(),
   ]);
@@ -153,21 +156,27 @@ async function main() {
     ],
   });
 
-  console.log("Regions & facilities…");
-  const regionID = await prisma.region.create({ data: { name: "Indonesia", code: "ID" } });
-  const regionSG = await prisma.region.create({ data: { name: "Singapore", code: "SG" } });
+  console.log("Regions, countries, cities & facilities…");
+  const regionAPAC = await prisma.region.create({ data: { name: "Southeast Asia", code: "APAC" } });
+  const countryID = await prisma.country.create({ data: { name: "Indonesia", code: "ID", regionId: regionAPAC.id } });
+  const countrySG = await prisma.country.create({ data: { name: "Singapore", code: "SG", regionId: regionAPAC.id } });
+
+  const cityBatam = await prisma.city.create({ data: { name: "Batam", countryId: countryID.id } });
+  const cityJakarta = await prisma.city.create({ data: { name: "Jakarta", countryId: countryID.id } });
+  const citySurabaya = await prisma.city.create({ data: { name: "Surabaya", countryId: countryID.id } });
+  const citySingapore = await prisma.city.create({ data: { name: "Singapore", countryId: countrySG.id } });
 
   const btm02 = await prisma.facility.create({
-    data: { name: "BTM-02 — Batam", code: "BTM-02", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Batam Free Trade Zone, Batam, Indonesia" },
+    data: { name: "BTM-02 — Batam", code: "BTM-02", cityId: cityBatam.id, timezone: "Asia/Jakarta", address: "Batam Free Trade Zone, Batam, Indonesia" },
   });
   const jkt01 = await prisma.facility.create({
-    data: { name: "JKT-01 — Jakarta", code: "JKT-01", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Kawasan Industri Cibitung, Jakarta, Indonesia" },
+    data: { name: "JKT-01 — Jakarta", code: "JKT-01", cityId: cityJakarta.id, timezone: "Asia/Jakarta", address: "Kawasan Industri Cibitung, Jakarta, Indonesia" },
   });
   const sby01 = await prisma.facility.create({
-    data: { name: "SBY-01 — Surabaya", code: "SBY-01", regionId: regionID.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
+    data: { name: "SBY-01 — Surabaya", code: "SBY-01", cityId: citySurabaya.id, timezone: "Asia/Jakarta", address: "Jl. Rungkut Industri, Surabaya, Indonesia" },
   });
   const sgp01 = await prisma.facility.create({
-    data: { name: "SGP-01 — Singapore", code: "SGP-01", regionId: regionSG.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
+    data: { name: "SGP-01 — Singapore", code: "SGP-01", cityId: citySingapore.id, timezone: "Asia/Singapore", address: "Tai Seng, Singapore" },
   });
 
   const [btm02A, btm02B] = await Promise.all([
@@ -180,9 +189,18 @@ async function main() {
   ]);
   const sby01A = await prisma.building.create({ data: { facilityId: sby01.id, name: "Main Hall", code: "MH" } });
   await prisma.building.create({ data: { facilityId: sgp01.id, name: "Main Hall", code: "MH" } });
-  void jkt01A;
   void jkt01B;
-  void sby01A;
+
+  console.log("Areas…");
+  await prisma.area.createMany({
+    data: [
+      { buildingId: btm02A.id, name: "Server Hall 1", code: "SH1" },
+      { buildingId: btm02A.id, name: "Loading Dock", code: "DOCK" },
+      { buildingId: btm02B.id, name: "Server Hall 2", code: "SH2" },
+      { buildingId: jkt01A.id, name: "Server Hall A", code: "SHA" },
+      { buildingId: sby01A.id, name: "Rack Row A-D", code: "RRA-D" },
+    ],
+  });
 
   console.log("Telemetry…");
   await prisma.telemetrySource.create({ data: { facilityId: btm02.id, vendor: "Schneider EcoStruxure", status: "Connected", lastSyncAt: NOW } });
@@ -228,7 +246,7 @@ async function main() {
   const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id } });
   const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id } });
   const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)" } });
-  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionID.id, title: "Customer Success Rep — Indonesia" } });
+  const csRep = await prisma.user.create({ data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionAPAC.id, title: "Customer Success Rep — Southeast Asia" } });
   const csRep2 = await prisma.user.create({ data: { name: "Agus Firmansyah II", email: "cs.agus@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Site", restrictedFacilityId: jkt01.id, title: "Customer Success Rep — JKT-01" } });
   const finance = await prisma.user.create({ data: { name: "Budi Santoso", email: "finance@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Billing", title: "Billing Manager" } });
   const vendor = await prisma.user.create({
@@ -376,7 +394,7 @@ async function main() {
       arrivedAt: daysFromNow(-2),
       receivedAt: daysFromNow(-2),
       receivedById: security.id,
-      createdById: noc.id,
+      createdById: fajar.id,
     },
   });
   await prisma.delivery.create({
@@ -388,7 +406,7 @@ async function main() {
       description: "Server chassis (3x) for Rack B08 expansion",
       status: "Arrived",
       arrivedAt: hoursFromNow(-5),
-      createdById: noc.id,
+      createdById: rinaSaputri.id,
     },
   });
   await prisma.delivery.create({
@@ -411,7 +429,7 @@ async function main() {
       description: "Confidential document pickup",
       status: "Rejected",
       notes: "Wrong recipient address on the waybill — returned to sender.",
-      createdById: security.id,
+      createdById: hendra.id,
     },
   });
 
@@ -1077,7 +1095,7 @@ async function main() {
   console.log("  Ops — Site Lead (BTM-02):          tech@aurorapdc.com");
   console.log("  Ops — Site Lead (JKT-01):          tech2@aurorapdc.com");
   console.log("  CS Team — Corporate:               csmanager@aurorapdc.com");
-  console.log("  CS Team — Region (Indonesia):       cs.rina@aurorapdc.com");
+  console.log("  CS Team — Region (Southeast Asia):  cs.rina@aurorapdc.com");
   console.log("  CS Team — Site (JKT-01):           cs.agus@aurorapdc.com");
   console.log("  CS Team — Billing:                  finance@aurorapdc.com");
   console.log("  Ops — External Vendor:             vendor@coldchain-support.example.com");

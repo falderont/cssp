@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   Building2,
-  Map,
   Users,
   Palette,
   ArrowRight,
@@ -32,8 +31,12 @@ export default async function AdminIndexPage() {
   const sections = [
     { href: "/ops/admin/users", icon: Users, title: "User management", description: `${users} user(s) — every persona, internal and tenant.` },
     { href: "/ops/admin/accounts", icon: Building2, title: "Tenant management", description: `${accounts} tenant account(s) — master data & site enrollments.` },
-    { href: "/ops/admin/regions", icon: Map, title: "Site management — regions", description: `${regions} region(s) configured.` },
-    { href: "/ops/admin/facilities", icon: Building2, title: "Site management — facilities", description: `${facilities} facility(ies) across all regions.` },
+    {
+      href: "/ops/admin/facilities",
+      icon: Building2,
+      title: "Site management",
+      description: `${facilities} site(s) across ${regions} region(s) — region, country, city, site, building & area, staged on one screen.`,
+    },
     { href: "/ops/admin/integrations", icon: Plug, title: "System integrations", description: "ACS, DCIM, BMS, SSO and email connections." },
     { href: "/ops/admin/stats", icon: BarChart3, title: "System statistics & infographics", description: "Platform-wide charts and KPIs." },
     { href: "/ops/admin/logs", icon: ScrollText, title: "System logs", description: "Audit trail of administrative actions." },

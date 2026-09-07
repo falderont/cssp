@@ -10,6 +10,9 @@ const ACTION_TONES: Record<string, "blue" | "green" | "amber" | "red" | "slate">
   tenant: "green",
   facility: "green",
   region: "green",
+  country: "green",
+  city: "green",
+  area: "green",
   branding: "amber",
   preferences: "amber",
   maintenance: "red",
@@ -26,7 +29,20 @@ export default async function SystemLogsPage({ searchParams }: { searchParams: {
     take: 300,
   });
 
-  const categories = ["user", "tenant", "facility", "region", "branding", "preferences", "maintenance", "backup", "integration"];
+  const categories = [
+    "user",
+    "tenant",
+    "facility",
+    "region",
+    "country",
+    "city",
+    "area",
+    "branding",
+    "preferences",
+    "maintenance",
+    "backup",
+    "integration",
+  ];
 
   return (
     <div>

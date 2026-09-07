@@ -12,7 +12,7 @@ A CRM + ITSM layer for data center colocation providers: a consolidated, custome
 
 ## Current scope (per PRD v5)
 
-Ten modules, all implemented in `webapp/`: Visitor Management (single + batch/group, with a campus access-control integration point), Incident Management, Maintenance (calendar + tracker), Ticketing (Complaint / RFI / Service Request), Remote / Smart Hands, BMS Telemetry (optional, per-facility), a Download/Reporting Center, Billing & Invoicing, and an internal-only CS Engagement & Performance module — on top of a `Region → Facility → Building` hierarchy, multi-tenant `EnterpriseAccount`s with multi-site enrollment, and provider branding/white-labeling. See `docs/prd-v5.md` for what changed from v4.
+Ten modules, all implemented in `webapp/`: Visitor Management (single + batch/group, with a campus access-control integration point), Incident Management, Maintenance (calendar + tracker), Ticketing (Complaint / RFI / Service Request), Remote / Smart Hands, BMS Telemetry (optional, per-facility), a Download/Reporting Center, Billing & Invoicing, and an internal-only CS Engagement & Performance module — on top of a `Region → Country → City → Facility (Site) → Building → Area` hierarchy, multi-tenant `EnterpriseAccount`s with multi-site enrollment, and provider branding/white-labeling. See `docs/prd-v5.md` for what changed from v4 (the Country/City/Area levels were added after v5, to consolidate facility hierarchy management into one admin screen).
 
 ## Working here
 

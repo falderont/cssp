@@ -14,7 +14,11 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Provider branding + facility hierarchy (Region -> Facility -> Building)
+// Provider branding + facility hierarchy:
+//   Region -> Country -> City -> Facility ("Site") -> Building -> Area
+// Managed from one consolidated screen (see /ops/admin/facilities) that
+// stages Region/Country/City/Site, then hands off to a dedicated
+// per-site admin page for that site's Buildings and Areas.
 // ---------------------------------------------------------------------------
 
 model ProviderSettings {
@@ -38,12 +42,33 @@ model ProviderSettings {
 }
 
 model Region {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  countries Country[]
+  csUsers   User[]    @relation("UserRestrictedRegion")
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique // e.g. ID, SG
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id])
+  createdAt DateTime @default(now())
+  cities    City[]
+}
+
+model City {
   id         String     @id @default(cuid())
   name       String
-  code       String     @unique
+  countryId  String
+  country    Country    @relation(fields: [countryId], references: [id])
   createdAt  DateTime   @default(now())
   facilities Facility[]
-  csUsers    User[]     @relation("UserRestrictedRegion")
+
+  @@unique([countryId, name])
 }
 
 model Facility {
@@ -53,8 +78,8 @@ model Facility {
   address        String?
   timezone       String   @default("UTC")
   acsEndpointUrl String? // campus access-control system webhook; falls back to the built-in mock adapter when unset
-  regionId       String
-  region         Region   @relation(fields: [regionId], references: [id])
+  cityId         String
+  city           City     @relation(fields: [cityId], references: [id])
   createdAt      DateTime @default(now())
 
   buildings               Building[]
@@ -77,12 +102,27 @@ model Building {
   facility   Facility @relation(fields: [facilityId], references: [id])
   createdAt  DateTime @default(now())
 
+  areas             Area[]
   incidents         Incident[]
   maintenanceEvents MaintenanceEvent[]
   telemetryPoints   TelemetryPoint[]
   visitorRequests   VisitorRequest[]
 
   @@unique([facilityId, code])
+}
+
+// A named zone/floor/room within a building (e.g. "Floor 2", "Server Hall
+// B", "Loading Dock") — the finest-grained level of the facility hierarchy.
+model Area {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?
+  description String?
+  buildingId  String
+  building    Building @relation(fields: [buildingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([buildingId, name])
 }
 
 // ---------------------------------------------------------------------------
@@ -226,28 +266,30 @@ model BlacklistEntry {
   createdAt   DateTime @default(now())
 }
 
-// Incoming logistics / courier deliveries — a lighter-weight sibling of
-// visitor management for front-desk/dock traffic that isn't a person visit.
+// Incoming logistics / courier deliveries — a customer-submitted request
+// ticket into the VMS, the same pattern as VisitorRequest: the tenant is
+// the only one who can create one (via the portal); ops only processes it
+// through to arrival/hand-off (or rejects it). See actions/deliveries.ts.
 model Delivery {
-  id                  String             @id @default(cuid())
+  id                  String            @id @default(cuid())
   facilityId          String
-  facility            Facility           @relation(fields: [facilityId], references: [id])
-  enterpriseAccountId String?
-  enterpriseAccount   EnterpriseAccount? @relation(fields: [enterpriseAccountId], references: [id])
+  facility            Facility          @relation(fields: [facilityId], references: [id])
+  enterpriseAccountId String
+  enterpriseAccount   EnterpriseAccount @relation(fields: [enterpriseAccountId], references: [id])
   courierName         String
   trackingNumber      String?
   description         String
   recipientName       String?
   expectedAt          DateTime?
-  status              String             @default("Expected") // Expected/Arrived/Received/Rejected
+  status              String            @default("Expected") // Expected/Arrived/Received/Rejected
   arrivedAt           DateTime?
   receivedAt          DateTime?
   receivedById        String?
-  receivedBy          User?              @relation("DeliveryReceivedBy", fields: [receivedById], references: [id])
+  receivedBy          User?             @relation("DeliveryReceivedBy", fields: [receivedById], references: [id])
   notes               String?
   createdById         String
-  createdBy           User               @relation("DeliveryLoggedBy", fields: [createdById], references: [id])
-  createdAt           DateTime           @default(now())
+  createdBy           User              @relation("DeliveryLoggedBy", fields: [createdById], references: [id])
+  createdAt           DateTime          @default(now())
 }
 
 model AcsIntegrationLog {

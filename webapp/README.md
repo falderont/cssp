@@ -24,7 +24,8 @@ This README is the technical reference.
 | **Download Center** | Documents scoped globally, per-tenant, and/or per-facility; access-controlled downloads (a tenant can only fetch what they're entitled to see). |
 | **CS Engagement & Performance** | Internal-only: reps log touchpoints; managers see a team KPI table (resolved items, avg resolution time, touchpoints, avg CSAT) aggregated from tickets, remote-hands tasks and engagement logs. |
 | **Billing** | Invoices with line items, tax, multi-currency, status lifecycle (Draft → Sent → Paid/Overdue), a demo "Pay now" action for tenants, and a print-friendly (Ctrl+P → Save as PDF) invoice layout. |
-| **Multi-region / multi-site / multi-tenant** | `Region → Facility → Building` hierarchy; `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). |
+| **Multi-region / multi-site / multi-tenant** | `Region → Country → City → Facility (Site) → Building → Area` hierarchy, staged and managed from one consolidated admin screen with a dedicated per-site page for its buildings/areas; `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). |
+| **Deliveries** | A customer-submitted request ticket into the VMS (only the tenant can create one, same as a visitor request) — ops processes it through arrival/hand-off or rejects it, never logs one from scratch. |
 | **Branding** | Company name, logo, accent colors and support contact, editable by a Super Admin, applied across both portals, the login screen, and printed invoices. |
 
 Everything above is backed by real Prisma models and server-validated actions

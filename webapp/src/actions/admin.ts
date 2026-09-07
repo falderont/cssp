@@ -48,7 +48,10 @@ export async function updateBranding(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
-// --- Regions ----------------------------------------------------------------
+// --- Facility hierarchy: Region -> Country -> City -> Facility ("Site") ->
+// Building -> Area. All staged from one consolidated screen
+// (/ops/admin/facilities) — see components/admin/facility-hierarchy-explorer.
+// -----------------------------------------------------------------------------
 
 export async function createRegion(formData: FormData) {
   const admin = await requireSysAdmin();
@@ -57,26 +60,45 @@ export async function createRegion(formData: FormData) {
   if (!name || !code) throw new Error("Name and code are required.");
   const region = await prisma.region.create({ data: { name, code } });
   await logAudit({ actorId: admin.id, action: "region.create", summary: `Created region ${name} (${code}).`, targetType: "Region", targetId: region.id });
-  revalidatePath("/ops/admin/regions");
+  revalidatePath("/ops/admin/facilities");
 }
 
-// --- Facilities & buildings --------------------------------------------------
+export async function createCountry(regionId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "").toUpperCase();
+  if (!name || !code) throw new Error("Name and code are required.");
+  const country = await prisma.country.create({ data: { name, code, regionId } });
+  await logAudit({ actorId: admin.id, action: "country.create", summary: `Created country ${name} (${code}).`, targetType: "Country", targetId: country.id });
+  revalidatePath("/ops/admin/facilities");
+}
+
+export async function createCity(countryId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const name = String(formData.get("name") ?? "");
+  if (!name) throw new Error("Name is required.");
+  const city = await prisma.city.create({ data: { name, countryId } });
+  await logAudit({ actorId: admin.id, action: "city.create", summary: `Created city ${name}.`, targetType: "City", targetId: city.id });
+  revalidatePath("/ops/admin/facilities");
+}
+
+// --- Sites (Facility) & buildings --------------------------------------------
 
 const facilitySchema = z.object({
   name: z.string().min(1),
   code: z.string().min(1),
-  regionId: z.string().min(1),
+  cityId: z.string().min(1),
   address: z.string().optional(),
   timezone: z.string().min(1),
   acsEndpointUrl: z.string().optional(),
 });
 
-export async function createFacility(formData: FormData) {
+export async function createFacility(cityId: string, formData: FormData) {
   const admin = await requireSysAdmin();
   const parsed = facilitySchema.parse({
     name: formData.get("name"),
     code: formData.get("code"),
-    regionId: formData.get("regionId"),
+    cityId,
     address: formData.get("address") || undefined,
     timezone: formData.get("timezone"),
     acsEndpointUrl: formData.get("acsEndpointUrl") || undefined,
@@ -86,7 +108,7 @@ export async function createFacility(formData: FormData) {
     data: {
       name: parsed.name,
       code: parsed.code.toUpperCase(),
-      regionId: parsed.regionId,
+      cityId: parsed.cityId,
       address: parsed.address || null,
       timezone: parsed.timezone,
       acsEndpointUrl: parsed.acsEndpointUrl || null,
@@ -111,6 +133,17 @@ export async function createBuilding(facilityId: string, formData: FormData) {
   const code = String(formData.get("code") ?? "").toUpperCase();
   if (!name || !code) throw new Error("Name and code are required.");
   await prisma.building.create({ data: { facilityId, name, code } });
+  revalidatePath(`/ops/admin/facilities/${facilityId}`);
+}
+
+export async function createArea(facilityId: string, buildingId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const name = String(formData.get("name") ?? "");
+  const code = String(formData.get("code") ?? "") || null;
+  const description = String(formData.get("description") ?? "") || null;
+  if (!name) throw new Error("Name is required.");
+  const area = await prisma.area.create({ data: { name, code, description, buildingId } });
+  await logAudit({ actorId: admin.id, action: "area.create", summary: `Created area ${name}.`, targetType: "Area", targetId: area.id });
   revalidatePath(`/ops/admin/facilities/${facilityId}`);
 }
 
