@@ -1,0 +1,134 @@
+# CSSP Web App — Colocation Customer Self-Service Portal
+
+A real, database-backed implementation of the CSSP product concept: a CRM + ITSM
+self-service portal for a data center colocation provider's customers, plus an
+internal console for the provider's own NOC/CS/security/finance staff. Unlike
+`prototype/` (the earlier Vite mock-data demo), this is a working full-stack
+app — real authentication, a real database, file uploads, PDF invoices, and a
+seeded dataset spanning multiple regions, facilities, tenants and roles.
+
+**For the step-by-step "I've never done this before" install walkthrough on a
+fresh Ubuntu machine, see [`docs/installation-guide-ubuntu.md`](../docs/installation-guide-ubuntu.md).**
+This README is the technical reference.
+
+## What's implemented
+
+| Area | Notes |
+|---|---|
+| **Visitor management** | Single or batch (CSV) visitor requests, approve/deny, check-in/out, and a mock campus access-control (ACS) integration with a per-facility endpoint override and a request/response log. |
+| **Incidents** | Provider-published incidents with a timeline of updates, severity, customer-visibility toggle, and in-app notifications to every tenant enrolled at the facility. |
+| **Maintenance** | A real month calendar (planned vs. emergency, impact level), status lifecycle, and a notification log — same customer-notification pattern as incidents. |
+| **Tickets** | Complaint / RFI / Service Request, assignment, status lifecycle, CSAT. |
+| **Remote / Smart Hands** | Structured task requests, technician acceptance/assignment, start/complete with automatic billable-minute calculation (editable), completion notes + photo upload, CSAT. |
+| **BMS Telemetry (optional)** | Per-facility "connect/disconnect" toggle plus seeded time-series charts (temperature, humidity, power draw, PUE) — explicitly framed as a read-only mirror of the provider's own BMS/DCIM, not a replacement. |
+| **Download Center** | Documents scoped globally, per-tenant, and/or per-facility; access-controlled downloads (a tenant can only fetch what they're entitled to see). |
+| **CS Engagement & Performance** | Internal-only: reps log touchpoints; managers see a team KPI table (resolved items, avg resolution time, touchpoints, avg CSAT) aggregated from tickets, remote-hands tasks and engagement logs. |
+| **Billing** | Invoices with line items, tax, multi-currency, status lifecycle (Draft → Sent → Paid/Overdue), a demo "Pay now" action for tenants, and a print-friendly (Ctrl+P → Save as PDF) invoice layout. |
+| **Multi-region / multi-country / multi-site / multi-tenant** | Six-level area hierarchy — `Region → Country → City → Facility ("Site") → Building → Room` — staged and managed from one consolidated admin screen, with a dedicated per-site page for its buildings/rooms; `EnterpriseAccount` (tenant) enrolled at one or more facilities via `SiteEnrollment`, with `ControlledArea` scoping an enrollment down to a specific building/room when a tenant's footprint needs that detail; a tenant user can be a Global Admin (sees every enrolled site) or a Site Contact (restricted to one facility). Area master data is owned by the Global Sys Admin, delegable to Service Desk; any other internal role raises an `AreaChangeRequest` ticket instead of editing it directly. |
+| **Deliveries** | A customer-submitted request ticket into the VMS (only the tenant can create one, same as a visitor request) — ops processes it through arrival/hand-off or rejects it, never logs one from scratch. |
+| **Teams** | Global Sys Admin master data — a named staff roster scoped to a region, a country, a single facility, or left global/company-wide. |
+| **Branding** | Company name, logo, accent colors and support contact, editable by the Global Sys Admin, applied across both portals, the login screen, and printed invoices. |
+
+Everything above is backed by real Prisma models and server-validated actions
+— see `prisma/schema.prisma` for the full data model.
+
+## Tech stack
+
+- **Next.js 14** (App Router, TypeScript, Server Actions — no separate REST API)
+- **Prisma** ORM, **SQLite** by default (zero-install local demo; swap to Postgres for production — see below)
+- **NextAuth (Auth.js) v4**, credentials provider, JWT sessions
+- **Tailwind CSS**, hand-rolled UI primitives (no component library dependency)
+- **Recharts** for telemetry and CS performance charts
+- Local disk storage for uploads (`storage/`, gitignored) — swap for S3/GCS in production
+
+## Project layout
+
+```
+webapp/
+  prisma/
+    schema.prisma      # data model
+    seed.ts             # generates all demo data (regions, facilities, tenants,
+                         # users, visitors, incidents, tickets, invoices, ...)
+  src/
+    app/
+      login/             # public login screen
+      portal/            # tenant-facing pages (customer self-service)
+      ops/                # internal provider console pages
+      api/                 # a few route handlers: NextAuth, file downloads,
+                            # the mock ACS adapter, the CSV template
+    actions/             # Server Actions (all writes go through here)
+    components/          # UI primitives + module-specific components
+    lib/                 # auth, prisma client, RBAC/scoping helpers, etc.
+  storage/               # uploaded documents & remote-hands photos (gitignored)
+  public/branding/       # the provider's logo (gitignored asset, regenerated by seed)
+```
+
+## Running it locally
+
+```bash
+npm install
+cp .env.example .env            # defaults work out of the box
+npx prisma migrate dev          # creates prisma/dev.db (SQLite) and applies the schema
+npm run seed                    # wipes and repopulates demo data
+npm run dev                     # http://localhost:3000
+```
+
+Or in one shot: `npm run setup && npm run dev` (also creates `.env` if it
+doesn't already exist, so it's safe to run on a fresh clone).
+
+### Demo logins
+
+Every seeded user's password is **`password123`**. The login screen has
+one-click buttons for the most useful ones; the full roster (also printed by
+`npm run seed`):
+
+| Role | Email |
+|---|---|
+| Global Sys Admin (provider) | admin@aurorapdc.com |
+| NOC / Ops (provider) | noc@aurorapdc.com |
+| Security (provider) | security@aurorapdc.com |
+| CS Manager — Corporate scope (provider) | csmanager@aurorapdc.com |
+| CS Rep — Region scope, APAC (provider) | cs.rina@aurorapdc.com |
+| CS Rep — Country scope, Indonesia (provider) | cs.putu@aurorapdc.com |
+| Field Technician (provider) | tech@aurorapdc.com |
+| Finance (provider) | finance@aurorapdc.com |
+| Tenant Global Admin — Meridian Logistics | dita.ayu@meridianlogistics.com |
+| Tenant Site Contact — Meridian Logistics | fajar.nugroho@meridianlogistics.com |
+| Tenant Site Contact — Nusantara Cloud | rina.saputri@nusantaracloud.io |
+| Tenant Global Admin — Nusantara Cloud | siti.rahayu@nusantaracloud.io |
+| Tenant Global Admin — Trisula Fintech | hendra.kusuma@trisulafintech.com |
+| Tenant Global Admin — Horizon Retail Group | michelle.tan@horizonretail.sg |
+
+Reset to a clean demo state at any time with `npm run seed` (it wipes and
+regenerates everything deterministically).
+
+## Environment variables
+
+See `.env.example`. `DATABASE_URL` and `NEXTAUTH_SECRET`/`NEXTAUTH_URL` are
+the only required ones for local use.
+
+## Going to production
+
+This is a demo/pilot-ready build, not a hardened production deployment. Before
+putting it in front of real customers:
+
+- **Database**: switch `datasource db { provider = "sqlite" ... }` in
+  `prisma/schema.prisma` to `provider = "postgresql"`, point `DATABASE_URL` at
+  a real Postgres instance, and re-run `prisma migrate dev`. Consider Postgres
+  row-level security for defense-in-depth tenant isolation (the app already
+  enforces tenant scoping at the query layer in `src/lib/scope.ts`).
+- **File storage**: replace `src/lib/storage.ts` with an S3/GCS-backed
+  implementation — the rest of the app only calls its exported functions.
+- **Secrets**: generate a real `NEXTAUTH_SECRET` (`openssl rand -base64 32`)
+  and set `NEXTAUTH_URL` to your real domain.
+- **Email/SMS**: notifications are currently in-app only
+  (`src/lib/notify.ts`); wire it to a real email/SMS provider for out-of-band
+  delivery.
+- **ACS/DCIM/CMMS/BMS integrations**: `Facility.acsEndpointUrl` and the
+  `TelemetrySource` model are the integration points — point them at your
+  actual vendor APIs instead of the built-in mock adapter
+  (`src/app/api/integrations/acs/mock`) and the seeded telemetry data.
+- **Dependency audit**: `npm audit` flags a few dev-only and Next.js-internal
+  advisories that require a Next 15/16 upgrade to fully clear (a larger,
+  deliberate upgrade — out of scope for this build). Run `npm audit` again
+  before any internet-facing deployment.

@@ -1,0 +1,48 @@
+{
+  "name": "cssp-webapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:reset": "prisma migrate reset --force",
+    "seed": "tsx prisma/seed.ts",
+    "setup": "cp -n .env.example .env; npm install && prisma migrate dev --name init && npm run seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "5.19.1",
+    "bcryptjs": "2.4.3",
+    "date-fns": "3.6.0",
+    "exceljs": "^4.4.0",
+    "lucide-react": "0.441.0",
+    "next": "14.2.35",
+    "next-auth": "4.24.15",
+    "papaparse": "5.4.1",
+    "qrcode": "^1.5.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "recharts": "2.12.7",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "2.4.6",
+    "@types/node": "20.14.15",
+    "@types/papaparse": "5.3.14",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "18.3.5",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.45",
+    "prisma": "5.19.1",
+    "tailwindcss": "3.4.10",
+    "tsx": "4.19.0",
+    "typescript": "5.5.4"
+  }
+}
