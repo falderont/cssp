@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
+import { StatusBadge } from "@/components/ui/badge";
 import { Field, Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
@@ -80,7 +81,9 @@ export default async function FacilityDetailPage({ params }: { params: { id: str
                   <TR key={e.id}>
                     <TD>{e.enterpriseAccount.name}</TD>
                     <TD>{e.spaceRef ?? "—"}</TD>
-                    <TD>{e.status}</TD>
+                    <TD>
+                      <StatusBadge status={e.status} />
+                    </TD>
                   </TR>
                 ))}
               </TBody>

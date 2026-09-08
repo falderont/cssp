@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSysAdmin } from "@/lib/session";
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
-import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES } from "@/lib/constants";
+import { CUSTOMER_ROLES, ENTERPRISE_ACCOUNT_STATUSES, INTERNAL_ROLES, ROLES, SITE_ENROLLMENT_STATUSES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
 
@@ -153,6 +153,48 @@ export async function createSiteEnrollment(enterpriseAccountId: string, formData
   if (!facilityId) throw new Error("Choose a facility.");
   await prisma.siteEnrollment.create({ data: { enterpriseAccountId, facilityId, spaceRef } });
   revalidatePath(`/ops/admin/accounts/${enterpriseAccountId}`);
+}
+
+// Offboarding step: end (or reinstate) one tenant's enrollment at one
+// facility. Kept as a status flag rather than a delete — historical
+// visitor/service-request/billing records stay attached for the audit trail.
+export async function updateSiteEnrollmentStatus(enrollmentId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const status = String(formData.get("status") ?? "");
+  if (!(SITE_ENROLLMENT_STATUSES as readonly string[]).includes(status)) throw new Error("Invalid status.");
+  const enrollment = await prisma.siteEnrollment.update({
+    where: { id: enrollmentId },
+    data: { status },
+    include: { enterpriseAccount: true, facility: true },
+  });
+  await logAudit({
+    actorId: admin.id,
+    action: "site_enrollment.update_status",
+    summary: `Set ${enrollment.enterpriseAccount.name}'s enrollment at ${enrollment.facility.name} to ${status}.`,
+    targetType: "SiteEnrollment",
+    targetId: enrollmentId,
+  });
+  revalidatePath(`/ops/admin/accounts/${enrollment.enterpriseAccountId}`);
+  revalidatePath(`/ops/admin/facilities/${enrollment.facilityId}`);
+}
+
+// Offboarding step: suspend/terminate the whole tenant account (blocks login
+// for every one of its users, see lib/auth.ts) or reinstate it. Site
+// enrollments, users, documents, and invoices are left in place.
+export async function updateAccountStatus(accountId: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  const status = String(formData.get("status") ?? "");
+  if (!(ENTERPRISE_ACCOUNT_STATUSES as readonly string[]).includes(status)) throw new Error("Invalid status.");
+  const account = await prisma.enterpriseAccount.update({ where: { id: accountId }, data: { status } });
+  await logAudit({
+    actorId: admin.id,
+    action: "tenant.update_status",
+    summary: `Set tenant ${account.name} to ${status}.`,
+    targetType: "EnterpriseAccount",
+    targetId: accountId,
+  });
+  revalidatePath(`/ops/admin/accounts/${accountId}`);
+  revalidatePath("/ops/admin/accounts");
 }
 
 // --- Users -------------------------------------------------------------------

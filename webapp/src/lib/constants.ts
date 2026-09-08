@@ -98,6 +98,9 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
 
 // --- Customer Success Team scope ---------------------------------------------
 // Only meaningful when role === ROLES.CS_TEAM (see User.csScope).
+export const SITE_ENROLLMENT_STATUSES = ["Active", "Suspended", "Terminated"] as const;
+export const ENTERPRISE_ACCOUNT_STATUSES = ["Active", "Suspended", "Terminated"] as const;
+
 export const CS_SCOPES = ["Corporate", "Region", "Site", "Billing"] as const;
 export type CsScope = (typeof CS_SCOPES)[number];
 export const CS_SCOPE_LABELS: Record<CsScope, string> = {
@@ -268,7 +271,7 @@ export function statusBadgeTone(status: string): "green" | "amber" | "red" | "sl
     "PendingApproval",
     "NotConfigured",
   ];
-  const negative = ["Denied", "Cancelled", "Overdue", "Error", "Failed", "Suspended", "Blacklisted", "Rejected", "Revoked", "Expired", "Disabled"];
+  const negative = ["Denied", "Cancelled", "Overdue", "Error", "Failed", "Suspended", "Terminated", "Blacklisted", "Rejected", "Revoked", "Expired", "Disabled"];
   if (positive.includes(status)) return "green";
   if (warning.includes(status)) return "amber";
   if (negative.includes(status)) return "red";

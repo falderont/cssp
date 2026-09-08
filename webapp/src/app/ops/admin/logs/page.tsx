@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/utils";
 const ACTION_TONES: Record<string, "blue" | "green" | "amber" | "red" | "slate"> = {
   user: "blue",
   tenant: "green",
+  site_enrollment: "green",
   facility: "green",
   region: "green",
   branding: "amber",
@@ -26,7 +27,7 @@ export default async function SystemLogsPage({ searchParams }: { searchParams: {
     take: 300,
   });
 
-  const categories = ["user", "tenant", "facility", "region", "branding", "preferences", "maintenance", "backup", "integration"];
+  const categories = ["user", "tenant", "site_enrollment", "facility", "region", "branding", "preferences", "maintenance", "backup", "integration"];
 
   return (
     <div>
