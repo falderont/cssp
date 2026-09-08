@@ -8,6 +8,7 @@ declare module "next-auth" {
       enterpriseAccountId: string | null;
       restrictedFacilityId: string | null;
       restrictedRegionId: string | null;
+      restrictedCountryId: string | null;
       csScope: string | null;
     } & DefaultSession["user"];
   }
@@ -17,6 +18,7 @@ declare module "next-auth" {
     enterpriseAccountId: string | null;
     restrictedFacilityId: string | null;
     restrictedRegionId: string | null;
+    restrictedCountryId: string | null;
     csScope: string | null;
   }
 }
@@ -28,6 +30,7 @@ declare module "next-auth/jwt" {
     enterpriseAccountId: string | null;
     restrictedFacilityId: string | null;
     restrictedRegionId: string | null;
+    restrictedCountryId: string | null;
     csScope: string | null;
   }
 }

@@ -1,18 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Plus, Siren } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardBody } from "@/components/ui/card";
 import { IncidentMatrix } from "@/components/incidents/matrix";
+import { IncidentsTable } from "@/components/incidents/incidents-table";
 import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
-import { formatDateTime } from "@/lib/utils";
 
+// Incidents now also lives as a tab on each site's own management page — a
+// viewer pinned to one facility goes straight there. Service Desk and other
+// cross-site roles keep this page: they triage across every site at once.
 export default async function OpsIncidentsPage() {
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/incidents`);
   const scopedFacilityIds = await getOpsFacilityIds(user);
   const incidents = await prisma.incident.findMany({
     where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,
@@ -63,47 +67,7 @@ export default async function OpsIncidentsPage() {
         </Card>
       </div>
 
-      <Table>
-        <THead>
-          <tr>
-            <TH>Title</TH>
-            <TH>Category</TH>
-            <TH>Facility / location</TH>
-            <TH>Severity</TH>
-            <TH>Status</TH>
-            <TH>Visible to tenants</TH>
-            <TH>Started</TH>
-          </tr>
-        </THead>
-        <TBody>
-          {incidents.length === 0 && <EmptyRow colSpan={7} message="No incidents posted yet." />}
-          {incidents.map((inc) => (
-            <TR key={inc.id}>
-              <TD>
-                <Link href={`/ops/incidents/${inc.id}`} className="font-medium text-brand hover:underline">
-                  {inc.title}
-                </Link>
-              </TD>
-              <TD>
-                <Badge tone="slate">{inc.category}</Badge>
-              </TD>
-              <TD>
-                {inc.facility.name}
-                {inc.building ? ` · ${inc.building.name}` : ""}
-                {inc.locationDetail && <p className="text-xs text-slate-400">{inc.locationDetail}</p>}
-              </TD>
-              <TD>
-                <Badge tone={inc.severity === "P1" || inc.severity === "P2" ? "red" : "amber"}>{inc.severity}</Badge>
-              </TD>
-              <TD>
-                <StatusBadge status={inc.status} />
-              </TD>
-              <TD>{inc.isCustomerVisible ? "Yes" : "No"}</TD>
-              <TD>{formatDateTime(inc.startedAt)}</TD>
-            </TR>
-          ))}
-        </TBody>
-      </Table>
+      <IncidentsTable incidents={incidents} />
     </div>
   );
 }

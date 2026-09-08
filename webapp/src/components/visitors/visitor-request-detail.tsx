@@ -15,6 +15,7 @@ import {
   retrySyncAcs,
 } from "@/actions/visitors";
 import type { AcsIntegrationLog, Building, Facility, SiteEnrollment, User, Visitor, VisitorRequest } from "@prisma/client";
+import { ActionForm } from "@/components/errors/action-form";
 
 type FullVisitorRequest = VisitorRequest & {
   visitors: Visitor[];
@@ -82,11 +83,11 @@ export async function VisitorRequestDetailView({
         <CardHeader className="flex items-center justify-between">
           <CardTitle>Visitors ({vr.visitors.length})</CardTitle>
           {mode === "ops" && hasPending && (
-            <form action={approveAllBound}>
+            <ActionForm action={approveAllBound}>
               <Button type="submit" size="sm">
                 Approve all &amp; sync to ACS
               </Button>
-            </form>
+            </ActionForm>
           )}
         </CardHeader>
         <Table>
@@ -95,6 +96,8 @@ export async function VisitorRequestDetailView({
               <TH>Name</TH>
               <TH>Company</TH>
               <TH>ID</TH>
+              <TH>Email</TH>
+              <TH>Phone</TH>
               <TH>Badge</TH>
               <TH>QR pass</TH>
               <TH>Status</TH>
@@ -113,6 +116,8 @@ export async function VisitorRequestDetailView({
                   <TD className="font-medium text-slate-900">{v.fullName}</TD>
                   <TD>{v.company ?? "—"}</TD>
                   <TD>{v.idType || v.idNumber ? `${v.idType ?? ""} ${v.idNumber ?? ""}`.trim() : "—"}</TD>
+                  <TD>{v.email ?? "—"}</TD>
+                  <TD>{v.phone ?? "—"}</TD>
                   <TD>{v.badgeCode ?? "—"}</TD>
                   <TD>
                     {qrDataUrl ? (
@@ -143,21 +148,21 @@ export async function VisitorRequestDetailView({
                       <div className="flex flex-wrap items-center gap-1.5">
                         {v.status === "Pending" && (
                           <>
-                            <form action={approveBound}>
+                            <ActionForm action={approveBound}>
                               <Button type="submit" size="sm" variant="secondary">
                                 Approve
                               </Button>
-                            </form>
-                            <form action={denyBound}>
+                            </ActionForm>
+                            <ActionForm action={denyBound}>
                               <Button type="submit" size="sm" variant="danger">
                                 Deny
                               </Button>
-                            </form>
+                            </ActionForm>
                           </>
                         )}
                         {v.status === "Blacklisted" && (
                           <>
-                            <form action={overrideBound} className="flex flex-wrap items-center gap-1.5">
+                            <ActionForm action={overrideBound} className="flex flex-wrap items-center gap-1.5">
                               <input
                                 type="text"
                                 name="overrideReason"
@@ -168,27 +173,27 @@ export async function VisitorRequestDetailView({
                               <Button type="submit" size="sm" variant="secondary">
                                 Override &amp; approve
                               </Button>
-                            </form>
-                            <form action={denyBound}>
+                            </ActionForm>
+                            <ActionForm action={denyBound}>
                               <Button type="submit" size="sm" variant="danger">
                                 Deny
                               </Button>
-                            </form>
+                            </ActionForm>
                           </>
                         )}
                         {v.status === "Approved" && (
-                          <form action={checkInBound}>
+                          <ActionForm action={checkInBound}>
                             <Button type="submit" size="sm" variant="secondary">
                               Check in
                             </Button>
-                          </form>
+                          </ActionForm>
                         )}
                         {v.status === "CheckedIn" && (
-                          <form action={checkOutBound}>
+                          <ActionForm action={checkOutBound}>
                             <Button type="submit" size="sm" variant="secondary">
                               Check out
                             </Button>
-                          </form>
+                          </ActionForm>
                         )}
                       </div>
                     </TD>
@@ -204,11 +209,11 @@ export async function VisitorRequestDetailView({
         <CardHeader className="flex items-center justify-between">
           <CardTitle>Access control integration log</CardTitle>
           {mode === "ops" && (
-            <form action={retrySyncBound}>
+            <ActionForm action={retrySyncBound}>
               <Button type="submit" size="sm" variant="secondary">
                 Retry sync
               </Button>
-            </form>
+            </ActionForm>
           )}
         </CardHeader>
         <CardBody>

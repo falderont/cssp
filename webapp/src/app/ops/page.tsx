@@ -9,8 +9,13 @@ import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getOpsFacilityIds } from "@/lib/scope";
 import { navForRole, OPS_NAV } from "@/components/layout/nav-config";
+import { getFacilityTabAccess } from "@/lib/facility-tabs";
 import { formatDateTime, formatMoney } from "@/lib/utils";
 import { ROLES } from "@/lib/constants";
+
+// These three no longer have their own sidebar entries (see canViewFrontLine
+// below), so the queues filter can't rely on allowedHrefs for them.
+const FRONT_LINE_HREFS = new Set(["/ops/visitors", "/ops/front-desk", "/ops/deliveries"]);
 
 export default async function OpsDashboardPage() {
   const user = await requireInternalUser();
@@ -18,6 +23,11 @@ export default async function OpsDashboardPage() {
   const facilityWhere = scopedFacilityIds ? { in: scopedFacilityIds } : undefined;
   const allowedHrefs = new Set(navForRole(OPS_NAV, user.role).map((i) => i.href));
   const isVendor = user.role === ROLES.OPS_VENDOR;
+  // Visitor approvals / front desk / deliveries no longer have their own
+  // sidebar section (moved onto each site's Front Line tab), so this can't
+  // read their access off allowedHrefs like the rest of the dashboard below —
+  // same role gate the old nav group used.
+  const { canViewFrontLine } = getFacilityTabAccess(user.role);
 
   const [
     tenantCount,
@@ -70,16 +80,20 @@ export default async function OpsDashboardPage() {
   const srDonut = serviceRequestsByStatus.map((r) => ({ name: r.status, value: r._count._all }));
 
   const queues = [
-    { href: "/ops/visitors", label: "Visitor approvals", icon: Users },
-    { href: "/ops/front-desk", label: "Front desk", icon: IdCard },
-    { href: "/ops/deliveries", label: "Deliveries", icon: Truck },
+    ...(canViewFrontLine
+      ? [
+          { href: "/ops/visitors", label: "Visitor approvals", icon: Users },
+          { href: "/ops/front-desk", label: "Front desk", icon: IdCard },
+          { href: "/ops/deliveries", label: "Deliveries", icon: Truck },
+        ]
+      : []),
     { href: "/ops/incidents", label: "Incidents", icon: Siren },
     { href: "/ops/maintenance", label: "Maintenance", icon: CalendarClock },
     { href: "/ops/service-requests", label: "Service requests", icon: Wrench },
     { href: "/ops/documents", label: "Download Center", icon: Building2 },
     { href: "/ops/billing", label: "Billing", icon: Receipt },
     { href: "/ops/cs-performance", label: "CS performance", icon: Trophy },
-  ].filter((q) => allowedHrefs.has(q.href));
+  ].filter((q) => FRONT_LINE_HREFS.has(q.href) || allowedHrefs.has(q.href));
 
   return (
     <div>
@@ -91,13 +105,13 @@ export default async function OpsDashboardPage() {
         {!isVendor && <StatTile label="Tenant accounts" value={tenantCount} icon={Building2} tone="slate" />}
         <StatTile label="Facilities" value={facilityCount} icon={MapPin} tone="slate" />
         <StatTile label={isVendor ? "My open tasks" : "Open service requests"} value={openServiceRequests} icon={Wrench} tone="blue" />
-        {allowedHrefs.has("/ops/visitors") && (
+        {canViewFrontLine && (
           <StatTile label="Pending visitor approvals" value={pendingVisitors} icon={Users} tone={pendingVisitors ? "amber" : "slate"} />
         )}
         {allowedHrefs.has("/ops/admin/blacklist") && (
           <StatTile label="Blacklist flags" value={blacklistedVisitors} icon={ShieldAlert} tone={blacklistedVisitors ? "red" : "slate"} />
         )}
-        {allowedHrefs.has("/ops/deliveries") && <StatTile label="Pending deliveries" value={pendingDeliveries} icon={Truck} tone="slate" />}
+        {canViewFrontLine && <StatTile label="Pending deliveries" value={pendingDeliveries} icon={Truck} tone="slate" />}
         {allowedHrefs.has("/ops/maintenance") && (
           <StatTile label="Upcoming maintenance" value={upcomingMaintenance} icon={CalendarClock} tone="slate" />
         )}

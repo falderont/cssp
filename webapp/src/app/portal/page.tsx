@@ -18,6 +18,8 @@ export default async function PortalDashboardPage() {
   const allowedHrefs = new Set(navForRole(PORTAL_NAV, user.role).map((i) => i.href));
   const isBillingOnly = user.role === ROLES.TENANT_BILLING;
 
+  const canViewBilling = allowedHrefs.has("/portal/billing");
+
   const [openServiceRequests, pendingVisitors, activeIncidents, upcomingMaintenance, invoices, recentNotifications, pendingAal, srByStatus] =
     await Promise.all([
       allowedHrefs.has("/portal/service-requests")
@@ -36,7 +38,9 @@ export default async function PortalDashboardPage() {
       allowedHrefs.has("/portal/maintenance")
         ? prisma.maintenanceEvent.count({ where: { facilityId: { in: facilityIds }, status: { in: ["Scheduled", "InProgress"] } } })
         : 0,
-      prisma.invoice.findMany({ where: { enterpriseAccountId: accountId, status: { in: ["Sent", "Overdue"] } } }),
+      canViewBilling
+        ? prisma.invoice.findMany({ where: { enterpriseAccountId: accountId, status: { in: ["Sent", "Overdue"] } } })
+        : [],
       prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 5 }),
       allowedHrefs.has("/portal/aal") ? prisma.authorizedAccessEntry.count({ where: { enterpriseAccountId: accountId, status: "PendingApproval" } }) : 0,
       allowedHrefs.has("/portal/service-requests")
@@ -53,10 +57,10 @@ export default async function PortalDashboardPage() {
 
   const quickActions = [
     { href: "/portal/visitors/new", label: "Register a visitor", icon: Users },
-    { href: "/portal/deliveries/new", label: "Expect a delivery", icon: Truck },
+    { href: "/portal/deliveries/new", label: "Submit a delivery ticket", icon: Truck },
     { href: "/portal/aal", label: "Request permanent access", icon: IdCard },
     { href: "/portal/service-requests/new", label: "New service request", icon: Wrench },
-    { href: "/portal/documents", label: "Download Center", icon: FolderDown },
+    { href: "/portal/documents", label: "Documents", icon: FolderDown },
     { href: "/portal/billing", label: "View invoices", icon: Receipt },
     { href: "/portal/reports", label: "Generate a report", icon: FileBarChart },
     { href: "/portal/telemetry", label: "BMS telemetry", icon: Gauge },
@@ -79,12 +83,14 @@ export default async function PortalDashboardPage() {
         {allowedHrefs.has("/portal/aal") && (
           <StatTile label="AAL pending approval" value={pendingAal} icon={IdCard} tone={pendingAal ? "amber" : "slate"} />
         )}
-        <StatTile
-          label="Outstanding balance"
-          value={formatMoney(outstandingTotal)}
-          icon={Receipt}
-          tone={outstandingTotal ? "amber" : "slate"}
-        />
+        {canViewBilling && (
+          <StatTile
+            label="Outstanding balance"
+            value={formatMoney(outstandingTotal)}
+            icon={Receipt}
+            tone={outstandingTotal ? "amber" : "slate"}
+          />
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

@@ -10,10 +10,11 @@ import {
   SERVICE_REQUEST_STATUSES,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { ServiceRequest, SiteEnrollment, Facility, User } from "@prisma/client";
+import type { ServiceRequest, SiteEnrollment, Facility, User, Building } from "@prisma/client";
 
 type FullServiceRequest = ServiceRequest & {
   siteEnrollment: SiteEnrollment & { facility: Facility };
+  building: Building | null;
   assignedToUser: User | null;
   createdByUser: User;
 };
@@ -40,6 +41,7 @@ export function ServiceRequestSummary({ request }: { request: FullServiceRequest
             <Info label="Requested by" value={request.createdByUser.name} />
             <Info label="Assigned to" value={request.assignedToUser?.name ?? "Unassigned"} />
             <Info label="Submitted" value={formatDateTime(request.createdAt)} />
+            {request.building && <Info label="Room / area" value={request.building.name} />}
             {isRemoteHands && <Info label="Asset / rack" value={request.assetRef ?? "—"} />}
             {isRemoteHands && (
               <Info label="Task type" value={(request.taskType && REMOTE_HANDS_TASK_LABELS[request.taskType]) || "—"} />

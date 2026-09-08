@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LinkButton } from "@/components/ui/button";
@@ -11,10 +12,15 @@ import { getOpsFacilityIds } from "@/lib/scope";
 import { parseMonthParam } from "@/lib/calendar";
 import { formatDateTime } from "@/lib/utils";
 
-export default async function OpsMaintenancePage({ searchParams }: { searchParams: { month?: string } }) {
+// Maintenance now also lives as a tab on each site's own management page —
+// a viewer pinned to one facility goes straight there. Cross-site roles
+// keep this page as-is.
+export default async function OpsMaintenancePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { month: monthParam } = await searchParams;
   const user = await requireInternalUser();
+  if (user.restrictedFacilityId) redirect(`/ops/admin/facilities/${user.restrictedFacilityId}/service-delivery/maintenance`);
   const scopedFacilityIds = await getOpsFacilityIds(user);
-  const { year, month } = parseMonthParam(searchParams.month);
+  const { year, month } = parseMonthParam(monthParam);
 
   const events = await prisma.maintenanceEvent.findMany({
     where: scopedFacilityIds ? { facilityId: { in: scopedFacilityIds } } : undefined,

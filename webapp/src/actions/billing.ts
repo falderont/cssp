@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireCustomerUser, requireInternalUser } from "@/lib/session";
+import { requireInternalUser, requireTenantBillingViewer } from "@/lib/session";
 import { notifyEnterpriseAccountAdmins } from "@/lib/notify";
 import { INVOICE_LINE_CATEGORIES, INVOICE_STATUSES } from "@/lib/constants";
 
@@ -98,7 +98,7 @@ export async function updateInvoiceStatus(invoiceId: string, returnPath: string,
 }
 
 export async function payInvoice(invoiceId: string, returnPath: string) {
-  const user = await requireCustomerUser();
+  const user = await requireTenantBillingViewer();
   const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, enterpriseAccountId: user.enterpriseAccountId } });
   if (!invoice) throw new Error("Invoice not found.");
   if (invoice.status !== "Sent" && invoice.status !== "Overdue") throw new Error("This invoice isn't awaiting payment.");

@@ -1,6 +1,8 @@
 import { FileDown } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { requireTenantGlobalAdmin } from "@/lib/session";
 import { REPORT_TYPES, REPORT_TYPE_LABELS } from "@/lib/constants";
 
@@ -24,33 +26,18 @@ export default async function PortalReportsPage() {
                 <input type="hidden" name="type" value={type} />
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
-                  <input
-                    type="date"
-                    name="from"
-                    defaultValue={thirtyDaysAgo()}
-                    className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                  />
+                  <Input type="date" name="from" defaultValue={thirtyDaysAgo()} className="w-auto" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-500">To</label>
-                  <input type="date" name="to" defaultValue={today()} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+                  <Input type="date" name="to" defaultValue={today()} className="w-auto" />
                 </div>
-                <button
-                  type="submit"
-                  name="format"
-                  value="csv"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
-                >
+                <Button type="submit" name="format" value="csv" variant="secondary">
                   <FileDown className="h-4 w-4" /> CSV
-                </button>
-                <button
-                  type="submit"
-                  name="format"
-                  value="pdf"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
-                >
+                </Button>
+                <Button type="submit" name="format" value="pdf">
                   <FileDown className="h-4 w-4" /> PDF summary
-                </button>
+                </Button>
               </form>
             </CardBody>
           </Card>

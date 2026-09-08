@@ -5,9 +5,10 @@ import { readStoredFile } from "@/lib/storage";
 import { isInternalRole } from "@/lib/constants";
 import { canViewDocument, getCustomerFacilityIds } from "@/lib/scope";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireUser();
-  const doc = await prisma.document.findUnique({ where: { id: params.id } });
+  const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (!isInternalRole(user.role)) {

@@ -4,10 +4,11 @@ import { requireUser } from "@/lib/session";
 import { readStoredFile } from "@/lib/storage";
 import { isInternalRole } from "@/lib/constants";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await requireUser();
   const sr = await prisma.serviceRequest.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { siteEnrollment: true },
   });
   if (!sr || !sr.completionPhotoUrl) {

@@ -31,6 +31,16 @@ const requestSchema = z.object({
   visitors: z.array(visitorRowSchema).min(1, "Add at least one visitor"),
 });
 
+const batchRequestSchema = z.object({
+  siteEnrollmentId: z.string().min(1, "Site is required"),
+  buildingId: z.string().optional(),
+  purpose: z.string().optional().default(""),
+  visitDate: z.string().min(1, "Visit date is required"),
+  windowStart: z.string().min(1, "Window start is required"),
+  windowEnd: z.string().min(1, "Window end is required"),
+  hostUserId: z.string().optional(),
+});
+
 // The blacklist is the automated first layer, checked for every row before a
 // visitor ever reaches the ops approval queue — see BlacklistEntry in
 // prisma/schema.prisma.
@@ -93,19 +103,22 @@ export async function createVisitorRequest(formData: FormData) {
 export async function createVisitorRequestBatch(formData: FormData) {
   const user = await requireCustomerUser();
 
-  const siteEnrollmentId = String(formData.get("siteEnrollmentId") ?? "");
-  const buildingId = String(formData.get("buildingId") ?? "") || undefined;
-  const purpose = String(formData.get("purpose") ?? "");
-  const visitDate = String(formData.get("visitDate") ?? "");
-  const windowStart = String(formData.get("windowStart") ?? "");
-  const windowEnd = String(formData.get("windowEnd") ?? "");
+  const parsed = batchRequestSchema.parse({
+    siteEnrollmentId: String(formData.get("siteEnrollmentId") ?? ""),
+    buildingId: String(formData.get("buildingId") ?? "") || undefined,
+    purpose: String(formData.get("purpose") ?? ""),
+    visitDate: String(formData.get("visitDate") ?? ""),
+    windowStart: String(formData.get("windowStart") ?? ""),
+    windowEnd: String(formData.get("windowEnd") ?? ""),
+    hostUserId: String(formData.get("hostUserId") ?? "") || undefined,
+  });
   const file = formData.get("visitorFile");
 
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Attach an Excel (.xlsx) or CSV file with your visitor list.");
   }
 
-  const hasAccess = await assertSiteEnrollmentAccess(user, siteEnrollmentId);
+  const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
   if (!hasAccess) throw new Error("You do not have access to that site.");
 
   const rows = await parseVisitorRowsFromFile(file);
@@ -117,12 +130,13 @@ export async function createVisitorRequestBatch(formData: FormData) {
 
   const visitorRequest = await prisma.visitorRequest.create({
     data: {
-      siteEnrollmentId,
-      buildingId: buildingId || null,
-      purpose: purpose || "Group visit (batch upload)",
-      visitDate: new Date(visitDate),
-      windowStart,
-      windowEnd,
+      siteEnrollmentId: parsed.siteEnrollmentId,
+      buildingId: parsed.buildingId || null,
+      purpose: parsed.purpose || "Group visit (batch upload)",
+      visitDate: new Date(parsed.visitDate),
+      windowStart: parsed.windowStart,
+      windowEnd: parsed.windowEnd,
+      hostUserId: parsed.hostUserId || null,
       isGroup: true,
       source: "Batch",
       createdById: user.id,

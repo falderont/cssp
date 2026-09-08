@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
           enterpriseAccountId: user.enterpriseAccountId,
           restrictedFacilityId: user.restrictedFacilityId,
           restrictedRegionId: user.restrictedRegionId,
+          restrictedCountryId: user.restrictedCountryId,
           csScope: user.csScope,
         };
       },
@@ -46,6 +47,7 @@ export const authOptions: NextAuthOptions = {
         token.enterpriseAccountId = user.enterpriseAccountId;
         token.restrictedFacilityId = user.restrictedFacilityId;
         token.restrictedRegionId = user.restrictedRegionId;
+        token.restrictedCountryId = user.restrictedCountryId;
         token.csScope = user.csScope;
       }
       return token;
@@ -57,6 +59,7 @@ export const authOptions: NextAuthOptions = {
         session.user.enterpriseAccountId = token.enterpriseAccountId;
         session.user.restrictedFacilityId = token.restrictedFacilityId;
         session.user.restrictedRegionId = token.restrictedRegionId;
+        session.user.restrictedCountryId = token.restrictedCountryId;
         session.user.csScope = token.csScope;
       }
       return session;

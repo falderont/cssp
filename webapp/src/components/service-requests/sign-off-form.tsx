@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Field, Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { ActionForm } from "@/components/errors/action-form";
 import { submitSignOff } from "@/actions/service-requests";
 
 const CANVAS_WIDTH = 400;
@@ -82,7 +83,7 @@ export function SignOffForm({ serviceRequestId, returnPath }: { serviceRequestId
   }
 
   return (
-    <form action={boundAction} onSubmit={handleSubmit} className="space-y-3">
+    <ActionForm action={boundAction} onSubmit={handleSubmit} className="space-y-3">
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Signed by" htmlFor="signOffName" required>
@@ -117,9 +118,9 @@ export function SignOffForm({ serviceRequestId, returnPath }: { serviceRequestId
         Submit sign-off
       </Button>
       <p className="text-xs text-slate-400">
-        This creates a signed acceptance certificate attached to this request and available in the Download Center —
+        This creates a signed acceptance certificate attached to this request and available in Documents —
         the same document your provider can attach for billing.
       </p>
-    </form>
+    </ActionForm>
   );
 }

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTenantAdminOrSiteLead, requireInternalUser } from "@/lib/session";
 import { notifyFacilityTenantUsers } from "@/lib/notify";
 import { logAudit } from "@/lib/audit";
-import { assertSiteEnrollmentAccess } from "@/lib/scope";
+import { assertSiteEnrollmentAccess, getOpsFacilityIds } from "@/lib/scope";
 import { AAL_ACCESS_LEVELS, ROLES } from "@/lib/constants";
 
 const requestSchema = z.object({
@@ -64,6 +64,79 @@ async function requireAalDecisionMaker() {
   const allowed: string[] = [ROLES.SYS_ADMIN, ROLES.OPS_SITE_MANAGER];
   if (!allowed.includes(user.role)) throw new Error("You do not have permission to decide AAL requests.");
   return user;
+}
+
+const opsCreateSchema = z.object({
+  siteEnrollmentId: z.string().min(1),
+  fullName: z.string().min(1),
+  idType: z.string().optional(),
+  idNumber: z.string().optional(),
+  company: z.string().optional(),
+  accessLevel: z.enum(AAL_ACCESS_LEVELS),
+  reason: z.string().min(1),
+  validUntil: z.string().optional(),
+});
+
+// Ops adding a permanent access entry directly from a site's own AAL tab
+// (not via a tenant request) — they're the decision-maker, so it goes
+// straight to Active.
+export async function createAalEntryOps(formData: FormData) {
+  const user = await requireAalDecisionMaker();
+  const parsed = opsCreateSchema.parse({
+    siteEnrollmentId: formData.get("siteEnrollmentId"),
+    fullName: formData.get("fullName"),
+    idType: formData.get("idType") || undefined,
+    idNumber: formData.get("idNumber") || undefined,
+    company: formData.get("company") || undefined,
+    accessLevel: formData.get("accessLevel"),
+    reason: formData.get("reason"),
+    validUntil: formData.get("validUntil") || undefined,
+  });
+
+  const siteEnrollment = await prisma.siteEnrollment.findUnique({ where: { id: parsed.siteEnrollmentId } });
+  if (!siteEnrollment) throw new Error("Invalid site.");
+
+  const scopedFacilityIds = await getOpsFacilityIds(user);
+  if (scopedFacilityIds && !scopedFacilityIds.includes(siteEnrollment.facilityId)) {
+    throw new Error("You do not have access to that site.");
+  }
+
+  const entry = await prisma.authorizedAccessEntry.create({
+    data: {
+      enterpriseAccountId: siteEnrollment.enterpriseAccountId,
+      facilityId: siteEnrollment.facilityId,
+      fullName: parsed.fullName,
+      idType: parsed.idType || null,
+      idNumber: parsed.idNumber || null,
+      company: parsed.company || null,
+      accessLevel: parsed.accessLevel,
+      reason: parsed.reason,
+      validUntil: parsed.validUntil ? new Date(parsed.validUntil) : null,
+      requestedById: user.id,
+      status: "Active",
+      decidedById: user.id,
+      decidedAt: new Date(),
+      decisionNotes: "Added directly by operations.",
+    },
+  });
+
+  await notifyFacilityTenantUsers(siteEnrollment.facilityId, {
+    title: `Authorized access granted: ${parsed.fullName}`,
+    body: "Permanent access was added directly by the operations team.",
+    category: "aal",
+    linkUrl: "/portal/aal",
+  });
+
+  await logAudit({
+    actorId: user.id,
+    action: "aal.create",
+    summary: `Added AAL entry for ${parsed.fullName} directly.`,
+    targetType: "AuthorizedAccessEntry",
+    targetId: entry.id,
+  });
+
+  revalidatePath(`/ops/admin/facilities/${siteEnrollment.facilityId}/aal`);
+  revalidatePath("/portal/aal");
 }
 
 export async function decideAalEntry(entryId: string, decision: "Active" | "Rejected", formData: FormData) {

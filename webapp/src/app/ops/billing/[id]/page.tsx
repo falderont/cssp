@@ -8,11 +8,13 @@ import { requireInternalUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { updateInvoiceStatus } from "@/actions/billing";
 import { INVOICE_STATUSES } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
-export default async function OpsInvoiceDetailPage({ params }: { params: { id: string } }) {
+export default async function OpsInvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   await requireInternalUser();
   const invoice = await prisma.invoice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { lineItems: true, enterpriseAccount: true },
   });
   if (!invoice) notFound();
@@ -32,7 +34,7 @@ export default async function OpsInvoiceDetailPage({ params }: { params: { id: s
               <CardTitle>Update status</CardTitle>
             </CardHeader>
             <CardBody>
-              <form action={statusBound} className="flex items-end gap-3">
+              <ActionForm action={statusBound} className="flex items-end gap-3">
                 <div className="flex-1">
                   <Field label="Status" htmlFor="status">
                     <Select id="status" name="status" defaultValue={invoice.status}>
@@ -45,7 +47,7 @@ export default async function OpsInvoiceDetailPage({ params }: { params: { id: s
                   </Field>
                 </div>
                 <Button type="submit">Save</Button>
-              </form>
+              </ActionForm>
             </CardBody>
           </Card>
         }

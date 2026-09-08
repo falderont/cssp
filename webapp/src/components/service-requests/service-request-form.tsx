@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { createServiceRequest } from "@/actions/service-requests";
@@ -11,22 +11,46 @@ import {
   SERVICE_REQUEST_CATEGORY_LABELS,
   SERVICE_REQUEST_PRIORITIES,
 } from "@/lib/constants";
+import { ActionForm } from "@/components/errors/action-form";
 
-type Enrollment = { id: string; facility: { name: string } };
+type Building = { id: string; name: string; code: string };
+type Enrollment = { id: string; facility: { name: string; buildings: Building[] } };
 
 export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] }) {
+  const [siteEnrollmentId, setSiteEnrollmentId] = useState(enrollments[0]?.id ?? "");
   const [category, setCategory] = useState<string>("RemoteHands");
   const isRemoteHands = category === "RemoteHands";
   const isScheduled = category === "SiteWalkEscort" || category === "GeneralMeeting";
 
+  const buildings = useMemo(
+    () => enrollments.find((e) => e.id === siteEnrollmentId)?.facility.buildings ?? [],
+    [enrollments, siteEnrollmentId]
+  );
+
   return (
-    <form action={createServiceRequest} className="space-y-4">
+    <ActionForm action={createServiceRequest} className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Site" htmlFor="siteEnrollmentId" required>
-          <Select id="siteEnrollmentId" name="siteEnrollmentId" required>
+          <Select
+            id="siteEnrollmentId"
+            name="siteEnrollmentId"
+            required
+            value={siteEnrollmentId}
+            onChange={(e) => setSiteEnrollmentId(e.target.value)}
+          >
             {enrollments.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.facility.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Room / area (optional)" htmlFor="buildingId" hint="Where should we go?">
+          <Select id="buildingId" name="buildingId" defaultValue="">
+            <option value="">Not specified</option>
+            {buildings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
               </option>
             ))}
           </Select>
@@ -52,36 +76,42 @@ export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] 
       </div>
 
       {isRemoteHands && (
-        <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 p-3 sm:grid-cols-2">
-          <Field label="Task type" htmlFor="taskType" required>
-            <Select id="taskType" name="taskType" required defaultValue="PowerCycle">
-              {REMOTE_HANDS_TASK_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {REMOTE_HANDS_TASK_LABELS[t]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Asset / rack reference" htmlFor="assetRef" required>
-            <Input id="assetRef" name="assetRef" required placeholder="e.g. Rack C14 — Switch SW-C14-02" />
-          </Field>
-          <Field label="Preferred window start (optional)" htmlFor="scheduledStart">
-            <Input id="scheduledStart" name="scheduledStart" type="datetime-local" />
-          </Field>
-          <Field label="Preferred window end (optional)" htmlFor="scheduledEnd">
-            <Input id="scheduledEnd" name="scheduledEnd" type="datetime-local" />
-          </Field>
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Remote / Smart Hands details</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Task type" htmlFor="taskType" required>
+              <Select id="taskType" name="taskType" required defaultValue="PowerCycle">
+                {REMOTE_HANDS_TASK_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {REMOTE_HANDS_TASK_LABELS[t]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Asset / rack reference" htmlFor="assetRef" required>
+              <Input id="assetRef" name="assetRef" required placeholder="e.g. Rack C14 — Switch SW-C14-02" />
+            </Field>
+            <Field label="Preferred window start (optional)" htmlFor="scheduledStart">
+              <Input id="scheduledStart" name="scheduledStart" type="datetime-local" />
+            </Field>
+            <Field label="Preferred window end (optional)" htmlFor="scheduledEnd">
+              <Input id="scheduledEnd" name="scheduledEnd" type="datetime-local" />
+            </Field>
+          </div>
         </div>
       )}
 
       {isScheduled && (
-        <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 p-3 sm:grid-cols-2">
-          <Field label="Date & time" htmlFor="scheduledStart" required hint="Shown on the calendar and exportable to Outlook">
-            <Input id="scheduledStart" name="scheduledStart" type="datetime-local" required />
-          </Field>
-          <Field label="End time (optional)" htmlFor="scheduledEnd">
-            <Input id="scheduledEnd" name="scheduledEnd" type="datetime-local" />
-          </Field>
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Schedule</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Date & time" htmlFor="scheduledStart" required hint="Shown on the calendar and exportable to Outlook">
+              <Input id="scheduledStart" name="scheduledStart" type="datetime-local" required />
+            </Field>
+            <Field label="End time (optional)" htmlFor="scheduledEnd">
+              <Input id="scheduledEnd" name="scheduledEnd" type="datetime-local" />
+            </Field>
+          </div>
         </div>
       )}
 
@@ -96,7 +126,9 @@ export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] 
           placeholder={isRemoteHands ? "What should the technician do?" : "Details…"}
         />
       </Field>
-      <Button type="submit">Submit request</Button>
-    </form>
+      <Button type="submit" className="w-full sm:w-auto">
+        Submit request
+      </Button>
+    </ActionForm>
   );
 }

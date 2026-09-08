@@ -8,13 +8,14 @@ import { getCustomerFacilityIds, documentVisibilityWhere } from "@/lib/scope";
 import { formatDate } from "@/lib/utils";
 import { DOCUMENT_CATEGORIES, DOCUMENT_CATEGORY_LABELS } from "@/lib/constants";
 
-export default async function PortalDocumentsPage({ searchParams }: { searchParams: { category?: string } }) {
+export default async function PortalDocumentsPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const { category } = await searchParams;
   const user = await requireCustomerUser();
   const facilityIds = await getCustomerFacilityIds(user);
   const documents = await prisma.document.findMany({
     where: {
       ...documentVisibilityWhere(user.enterpriseAccountId, facilityIds),
-      ...(searchParams.category ? { category: searchParams.category } : {}),
+      ...(category ? { category } : {}),
     },
     include: { facility: true },
     orderBy: { publishedAt: "desc" },
@@ -22,11 +23,11 @@ export default async function PortalDocumentsPage({ searchParams }: { searchPara
 
   return (
     <div>
-      <PageHeader title="Download Center" description="SLA reports, invoices, compliance certificates and contracts, all in one place." />
+      <PageHeader title="Documents" description="SLA reports, invoices, compliance certificates and contracts, all in one place." />
       <form className="mb-4 flex flex-wrap gap-2" method="get">
         <a
           href="/portal/documents"
-          className={`rounded-full px-3 py-1 text-xs font-medium ${!searchParams.category ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+          className={`rounded-full px-3 py-1 text-xs font-medium ${!category ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
         >
           All
         </a>
@@ -34,7 +35,7 @@ export default async function PortalDocumentsPage({ searchParams }: { searchPara
           <a
             key={c}
             href={`/portal/documents?category=${c}`}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${searchParams.category === c ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${category === c ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
           >
             {DOCUMENT_CATEGORY_LABELS[c] ?? c}
           </a>

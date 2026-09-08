@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { getProviderBranding } from "@/lib/branding";
+import { getErrorCatalog } from "@/lib/error-catalog";
 
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getProviderBranding();
@@ -12,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const branding = await getProviderBranding();
+  const [branding, errorCatalog] = await Promise.all([getProviderBranding(), getErrorCatalog()]);
   return (
     <html
       lang="en"
@@ -25,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       }
     >
       <body>
-        <Providers>{children}</Providers>
+        <Providers errorCatalog={errorCatalog}>{children}</Providers>
       </body>
     </html>
   );

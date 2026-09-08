@@ -1,13 +1,13 @@
 import { DatabaseBackup, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, THead, TH, TBody, TR, TD, EmptyRow } from "@/components/ui/table";
+import { BackupsTable } from "@/components/admin/backups-table";
 import { Field, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { requireSysAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createBackup, updateMaintenanceMode } from "@/actions/system";
-import { formatDateTime } from "@/lib/utils";
+import { ActionForm } from "@/components/errors/action-form";
 
 export default async function BackupMaintenancePage() {
   await requireSysAdmin();
@@ -26,39 +26,15 @@ export default async function BackupMaintenancePage() {
               <CardTitle className="flex items-center gap-2">
                 <DatabaseBackup className="h-4 w-4" /> Backups
               </CardTitle>
-              <form action={createBackup}>
+              <ActionForm action={createBackup}>
                 <Button type="submit" size="sm">
                   Create backup now
                 </Button>
-              </form>
+              </ActionForm>
             </CardHeader>
-            <Table>
-              <THead>
-                <tr>
-                  <TH>File</TH>
-                  <TH>Size</TH>
-                  <TH>Created by</TH>
-                  <TH>Created</TH>
-                  <TH>Actions</TH>
-                </tr>
-              </THead>
-              <TBody>
-                {backups.length === 0 && <EmptyRow colSpan={5} message="No backups yet." />}
-                {backups.map((b) => (
-                  <TR key={b.id}>
-                    <TD className="font-medium text-slate-900">{b.fileName}</TD>
-                    <TD>{(b.fileSizeKb / 1024).toFixed(2)} MB</TD>
-                    <TD>{b.createdBy.name}</TD>
-                    <TD>{formatDateTime(b.createdAt)}</TD>
-                    <TD>
-                      <a href={`/api/admin/backups/${b.id}`} className="text-sm text-brand hover:underline">
-                        Download
-                      </a>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
+            <CardBody>
+              <BackupsTable backups={backups} />
+            </CardBody>
           </Card>
         </div>
 
@@ -69,7 +45,7 @@ export default async function BackupMaintenancePage() {
             </CardTitle>
           </CardHeader>
           <CardBody>
-            <form action={updateMaintenanceMode} className="space-y-3">
+            <ActionForm action={updateMaintenanceMode} className="space-y-3">
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" name="maintenanceMode" defaultChecked={settings?.maintenanceMode ?? false} className="h-4 w-4 rounded border-slate-300" />
                 Show maintenance banner to everyone except Global Sys Admins
@@ -86,7 +62,7 @@ export default async function BackupMaintenancePage() {
               <Button type="submit" variant="secondary" className="w-full">
                 Save
               </Button>
-            </form>
+            </ActionForm>
           </CardBody>
         </Card>
       </div>

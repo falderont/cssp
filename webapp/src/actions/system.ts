@@ -9,6 +9,7 @@ import { requireSysAdmin } from "@/lib/session";
 import { saveGeneratedFile } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
 import { CURRENCIES, SYSTEM_INTEGRATION_STATUSES, TIMEZONES } from "@/lib/constants";
+import { isErrorCode } from "@/lib/errors";
 
 // --- System integrations ------------------------------------------------------
 
@@ -123,4 +124,42 @@ export async function createBackup() {
 
   await logAudit({ actorId: admin.id, action: "backup.create", summary: `Created database backup ${fileName}.` });
   revalidatePath("/ops/admin/backup");
+}
+
+// --- Error catalog ---------------------------------------------------------
+// Global Sys Admin-editable copy behind the app-wide error pop-up/pages —
+// see src/lib/errors.ts for the ErrorCode set and the fallback catalog these
+// rows override.
+
+const errorDefinitionSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  fallbackMessage: z.string().min(1),
+});
+
+export async function updateErrorDefinition(code: string, formData: FormData) {
+  const admin = await requireSysAdmin();
+  if (!isErrorCode(code)) throw new Error("Unknown error code.");
+  const parsed = errorDefinitionSchema.parse({
+    title: formData.get("title"),
+    description: formData.get("description"),
+    fallbackMessage: formData.get("fallbackMessage"),
+  });
+
+  await prisma.systemErrorDefinition.upsert({
+    where: { code },
+    create: { code, ...parsed },
+    update: parsed,
+  });
+
+  await logAudit({ actorId: admin.id, action: "error_catalog.update", summary: `Updated error catalog entry ${code}.`, targetType: "SystemErrorDefinition", targetId: code });
+  revalidatePath("/ops/admin/error-catalog");
+}
+
+export async function resetErrorDefinition(code: string) {
+  const admin = await requireSysAdmin();
+  if (!isErrorCode(code)) throw new Error("Unknown error code.");
+  await prisma.systemErrorDefinition.deleteMany({ where: { code } });
+  await logAudit({ actorId: admin.id, action: "error_catalog.reset", summary: `Reset error catalog entry ${code} to its default copy.`, targetType: "SystemErrorDefinition", targetId: code });
+  revalidatePath("/ops/admin/error-catalog");
 }
