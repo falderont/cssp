@@ -48,6 +48,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
                 restrictedCountryId: target.restrictedCountryId,
                 csScope: target.csScope,
                 teamId: target.teamId,
+                isEscalationContact: target.isEscalationContact,
               }}
             />
           </CardBody>

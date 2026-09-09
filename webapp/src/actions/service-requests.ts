@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireCustomerUser, requireInternalUser } from "@/lib/session";
-import { assertSiteEnrollmentAccess } from "@/lib/scope";
-import { notifyFacilityTenantUsers } from "@/lib/notify";
+import { assertSiteEnrollmentAccess, getMeetingRequestContacts } from "@/lib/scope";
+import { notifyFacilityTenantUsers, notifyUsers } from "@/lib/notify";
 import { saveUploadedFile, saveGeneratedFile } from "@/lib/storage";
 import { makePdfWithImage } from "@/lib/pdf";
 import {
@@ -28,6 +28,7 @@ const createSchema = z.object({
   assetRef: z.string().optional(),
   scheduledStart: z.string().optional(),
   scheduledEnd: z.string().optional(),
+  requestedWithId: z.string().optional(),
 });
 
 export async function createServiceRequest(formData: FormData) {
@@ -43,8 +44,11 @@ export async function createServiceRequest(formData: FormData) {
     assetRef: formData.get("assetRef") || undefined,
     scheduledStart: formData.get("scheduledStart") || undefined,
     scheduledEnd: formData.get("scheduledEnd") || undefined,
+    requestedWithId: formData.get("requestedWithId") || undefined,
   });
 
+  const enrollment = await prisma.siteEnrollment.findUnique({ where: { id: parsed.siteEnrollmentId } });
+  if (!enrollment) throw new Error("You do not have access to that site.");
   const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
   if (!hasAccess) throw new Error("You do not have access to that site.");
 
@@ -53,6 +57,15 @@ export async function createServiceRequest(formData: FormData) {
   }
   if ((parsed.category === "SiteWalkEscort" || parsed.category === "GeneralMeeting") && !parsed.scheduledStart) {
     throw new Error("Pick a date and time for this request.");
+  }
+
+  let requestedWithId: string | null = null;
+  if (parsed.category === "GeneralMeeting" && parsed.requestedWithId) {
+    const contacts = await getMeetingRequestContacts(enrollment.facilityId);
+    if (!contacts.some((c) => c.id === parsed.requestedWithId)) {
+      throw new Error("That contact isn't available for this site.");
+    }
+    requestedWithId = parsed.requestedWithId;
   }
 
   const request = await prisma.serviceRequest.create({
@@ -68,8 +81,18 @@ export async function createServiceRequest(formData: FormData) {
       assetRef: parsed.category === "RemoteHands" ? parsed.assetRef : null,
       scheduledStart: parsed.scheduledStart ? new Date(parsed.scheduledStart) : null,
       scheduledEnd: parsed.scheduledEnd ? new Date(parsed.scheduledEnd) : parsed.scheduledStart ? new Date(parsed.scheduledStart) : null,
+      requestedWithId,
     },
   });
+
+  if (requestedWithId) {
+    await notifyUsers([requestedWithId], {
+      title: "New meeting request",
+      body: `${user.name} requested a meeting with you: "${parsed.subject}".`,
+      category: "service_request",
+      linkUrl: `/ops/service-requests/${request.id}`,
+    });
+  }
 
   revalidatePath("/portal/service-requests");
   redirect(`/portal/service-requests/${request.id}`);

@@ -51,6 +51,7 @@ export function UsersTable({ users }: { users: UserRow[] }) {
           u.restrictedCountry ? `Country: ${u.restrictedCountry.name}` : null,
           u.restrictedFacility ? `${u.restrictedFacility.name} only` : null,
           u.team ? `Team: ${u.team.name}` : null,
+          u.isEscalationContact ? "Escalation matrix" : null,
         ]
           .filter(Boolean)
           .join(" · ") || "—",

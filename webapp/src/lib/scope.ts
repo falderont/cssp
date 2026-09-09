@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { ROLES } from "./constants";
+import { ROLES, OPS_TEAM_ROLES } from "./constants";
 
 type ScopedUser = {
   enterpriseAccountId: string | null;
@@ -61,6 +61,50 @@ export async function getCustomerFacilityIds(user: ScopedUser): Promise<string[]
 export async function assertSiteEnrollmentAccess(user: ScopedUser, siteEnrollmentId: string) {
   const enrollments = await getCustomerSiteEnrollments(user);
   return enrollments.some((e) => e.id === siteEnrollmentId);
+}
+
+// Who a customer can request to meet with for a GeneralMeeting service
+// request, for one facility: that site's escalation matrix (Ops team
+// members explicitly flagged isEscalationContact and restricted to this
+// facility) plus the CS Team rep(s) whose csScope covers it. CS Team
+// "Billing" scope is excluded — they cover invoices, not meetings.
+export type MeetingContact = {
+  id: string;
+  name: string;
+  title: string | null;
+  role: string;
+  group: "Escalation" | "CSTeam";
+};
+
+export async function getMeetingRequestContacts(facilityId: string): Promise<MeetingContact[]> {
+  const facility = await prisma.facility.findUnique({
+    where: { id: facilityId },
+    select: { city: { select: { countryId: true, country: { select: { regionId: true } } } } },
+  });
+  if (!facility) return [];
+  const countryId = facility.city.countryId;
+  const regionId = facility.city.country.regionId;
+
+  const [escalationContacts, csTeam] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: { in: OPS_TEAM_ROLES }, isEscalationContact: true, isActive: true, restrictedFacilityId: facilityId },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({ where: { role: ROLES.CS_TEAM, isActive: true }, orderBy: { name: "asc" } }),
+  ]);
+
+  const assignedCs = csTeam.filter((u) => {
+    if (u.csScope === "Corporate") return true;
+    if (u.csScope === "Region") return u.restrictedRegionId === regionId;
+    if (u.csScope === "Country") return u.restrictedCountryId === countryId;
+    if (u.csScope === "Site") return u.restrictedFacilityId === facilityId;
+    return false;
+  });
+
+  return [
+    ...escalationContacts.map((u) => ({ id: u.id, name: u.name, title: u.title, role: u.role, group: "Escalation" as const })),
+    ...assignedCs.map((u) => ({ id: u.id, name: u.name, title: u.title, role: u.role, group: "CSTeam" as const })),
+  ];
 }
 
 // A document is visible to a tenant if it's global (no account) or theirs,

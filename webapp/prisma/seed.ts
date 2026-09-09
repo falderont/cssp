@@ -364,13 +364,55 @@ async function main() {
   const admin = await prisma.user.create({ data: { name: "Andra Wicaksono", email: "admin@aurorapdc.com", passwordHash: pw, role: ROLES.SYS_ADMIN, title: "Global Sys Admin" } });
   const serviceDesk = await prisma.user.create({ data: { name: "Putri Amelia", email: "servicedesk@aurorapdc.com", passwordHash: pw, role: ROLES.SERVICE_DESK, title: "Service Desk Agent", teamId: teamServiceDesk.id } });
   const noc = await prisma.user.create({ data: { name: "Agus Firmansyah", email: "noc@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager", teamId: teamNocID.id } });
-  const nocJkt = await prisma.user.create({ data: { name: "Yusuf Hidayat", email: "noc.jkt@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_MANAGER, title: "Site Manager — JKT-01", restrictedFacilityId: jkt01.id, teamId: teamNocID.id } });
+  const nocJkt = await prisma.user.create({
+    data: {
+      name: "Yusuf Hidayat",
+      email: "noc.jkt@aurorapdc.com",
+      passwordHash: pw,
+      role: ROLES.OPS_SITE_MANAGER,
+      title: "Site Manager — JKT-01",
+      restrictedFacilityId: jkt01.id,
+      teamId: teamNocID.id,
+      isEscalationContact: true,
+    },
+  });
   const security = await prisma.user.create({ data: { name: "Dewi Lestari", email: "security@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_FRONT_OFFICE_SECURITY, title: "Front Office & Security Lead", teamId: teamSecurityID.id } });
   const buildingManager = await prisma.user.create({
-    data: { name: "Rudi Hartono", email: "buildingmgr@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_BUILDING_MANAGER, title: "Building Manager — BTM-02", restrictedFacilityId: btm02.id, teamId: teamFacilitiesBtm.id },
+    data: {
+      name: "Rudi Hartono",
+      email: "buildingmgr@aurorapdc.com",
+      passwordHash: pw,
+      role: ROLES.OPS_BUILDING_MANAGER,
+      title: "Building Manager — BTM-02",
+      restrictedFacilityId: btm02.id,
+      teamId: teamFacilitiesBtm.id,
+      isEscalationContact: true,
+    },
   });
-  const tech = await prisma.user.create({ data: { name: "Yoga Pratama", email: "tech@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — BTM-02", restrictedFacilityId: btm02.id, teamId: teamNocID.id } });
-  const tech2 = await prisma.user.create({ data: { name: "Wayan Suryadi", email: "tech2@aurorapdc.com", passwordHash: pw, role: ROLES.OPS_SITE_LEAD, title: "Site Lead — JKT-01", restrictedFacilityId: jkt01.id, teamId: teamNocID.id } });
+  const tech = await prisma.user.create({
+    data: {
+      name: "Yoga Pratama",
+      email: "tech@aurorapdc.com",
+      passwordHash: pw,
+      role: ROLES.OPS_SITE_LEAD,
+      title: "Site Lead — BTM-02",
+      restrictedFacilityId: btm02.id,
+      teamId: teamNocID.id,
+      isEscalationContact: true,
+    },
+  });
+  const tech2 = await prisma.user.create({
+    data: {
+      name: "Wayan Suryadi",
+      email: "tech2@aurorapdc.com",
+      passwordHash: pw,
+      role: ROLES.OPS_SITE_LEAD,
+      title: "Site Lead — JKT-01",
+      restrictedFacilityId: jkt01.id,
+      teamId: teamNocID.id,
+      isEscalationContact: true,
+    },
+  });
   const csManager = await prisma.user.create({ data: { name: "Made Wirawan", email: "csmanager@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Corporate", title: "CS Manager (Corporate)", teamId: teamCsGlobal.id } });
   const csRep = await prisma.user.create({
     data: { name: "Rina Setiawan", email: "cs.rina@aurorapdc.com", passwordHash: pw, role: ROLES.CS_TEAM, csScope: "Region", restrictedRegionId: regionAPAC.id, title: "Customer Success Rep — APAC", teamId: teamCsAPAC.id },
@@ -892,6 +934,7 @@ async function main() {
       createdById: rinaSaputri.id,
       scheduledStart: daysFromNow(10.6),
       scheduledEnd: daysFromNow(10.7),
+      requestedWithId: nocJkt.id,
     },
   });
 

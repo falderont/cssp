@@ -9,6 +9,7 @@ import {
   CS_SCOPE_LABELS,
   CUSTOMER_ROLES,
   INTERNAL_ROLES,
+  OPS_TEAM_ROLES,
   ROLES,
   ROLE_LABELS,
   TEAM_FUNCTION_LABELS,
@@ -47,12 +48,14 @@ export function UserForm({
     restrictedCountryId: string | null;
     csScope: string | null;
     teamId: string | null;
+    isEscalationContact: boolean;
   };
 }) {
   const [role, setRole] = useState<Role>(existingUser?.role ?? INTERNAL_ROLES[0]);
   const [csScope, setCsScope] = useState<string>(existingUser?.csScope ?? "Site");
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(role);
   const isCsTeam = role === ROLES.CS_TEAM;
+  const isOpsTeam = (OPS_TEAM_ROLES as string[]).includes(role);
   const showFacility = isCustomer || isSiteScopableRole(role) || (isCsTeam && csScope === "Site");
   const showRegion = isCsTeam && csScope === "Region";
   const showCountry = isCsTeam && csScope === "Country";
@@ -175,6 +178,26 @@ export function UserForm({
               ))}
             </Select>
           </Field>
+        </div>
+      )}
+
+      {isOpsTeam && (
+        <div className="rounded-lg border border-slate-200 p-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              id="isEscalationContact"
+              name="isEscalationContact"
+              defaultChecked={existingUser?.isEscalationContact ?? false}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand"
+            />
+            <span>
+              <span className="font-medium text-slate-800">Escalation matrix contact</span>
+              <span className="block text-xs text-slate-500">
+                Shown to customers at this facility when they request a meeting (see Facility above).
+              </span>
+            </span>
+          </label>
         </div>
       )}
 

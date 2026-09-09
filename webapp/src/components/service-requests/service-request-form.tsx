@@ -14,18 +14,26 @@ import {
 import { ActionForm } from "@/components/errors/action-form";
 
 type Building = { id: string; name: string; code: string };
-type Enrollment = { id: string; facility: { name: string; buildings: Building[] } };
+type MeetingContact = { id: string; name: string; title: string | null; role: string; group: "Escalation" | "CSTeam" };
+type Enrollment = { id: string; facility: { name: string; buildings: Building[] }; meetingContacts: MeetingContact[] };
 
 export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] }) {
   const [siteEnrollmentId, setSiteEnrollmentId] = useState(enrollments[0]?.id ?? "");
   const [category, setCategory] = useState<string>("RemoteHands");
   const isRemoteHands = category === "RemoteHands";
+  const isMeeting = category === "GeneralMeeting";
   const isScheduled = category === "SiteWalkEscort" || category === "GeneralMeeting";
 
   const buildings = useMemo(
     () => enrollments.find((e) => e.id === siteEnrollmentId)?.facility.buildings ?? [],
     [enrollments, siteEnrollmentId]
   );
+  const meetingContacts = useMemo(
+    () => enrollments.find((e) => e.id === siteEnrollmentId)?.meetingContacts ?? [],
+    [enrollments, siteEnrollmentId]
+  );
+  const escalationContacts = meetingContacts.filter((c) => c.group === "Escalation");
+  const csContacts = meetingContacts.filter((c) => c.group === "CSTeam");
 
   return (
     <ActionForm action={createServiceRequest} className="space-y-5">
@@ -113,6 +121,38 @@ export function ServiceRequestForm({ enrollments }: { enrollments: Enrollment[] 
             </Field>
           </div>
         </div>
+      )}
+
+      {isMeeting && (
+        <Field
+          label="Who would you like to meet with? (optional)"
+          htmlFor="requestedWithId"
+          hint="Limited to this site's escalation matrix and your assigned CS Team"
+        >
+          <Select id="requestedWithId" name="requestedWithId" key={siteEnrollmentId} defaultValue="">
+            <option value="">No preference — anyone available</option>
+            {escalationContacts.length > 0 && (
+              <optgroup label="Site escalation matrix">
+                {escalationContacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.title ? ` — ${c.title}` : ""}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {csContacts.length > 0 && (
+              <optgroup label="Customer Success team">
+                {csContacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.title ? ` — ${c.title}` : ""}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </Select>
+        </Field>
       )}
 
       <Field label="Subject" htmlFor="subject" required>

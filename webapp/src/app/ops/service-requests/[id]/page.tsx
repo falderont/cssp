@@ -26,6 +26,7 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
       building: true,
       assignedToUser: true,
       createdByUser: true,
+      requestedWithUser: true,
     },
   });
   if (!request) notFound();
@@ -43,6 +44,13 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
     },
     orderBy: { name: "asc" },
   });
+  // The customer's requested meeting contact might sit outside the general
+  // assignment role list above (e.g. an OPS_SITE_LEAD/OPS_BUILDING_MANAGER
+  // escalation-matrix contact) — make sure ops can still honor the pick.
+  const assignableStaff =
+    request.requestedWithUser && !staff.some((s) => s.id === request.requestedWithUser!.id)
+      ? [request.requestedWithUser, ...staff]
+      : staff;
 
   const returnPath = `/ops/service-requests/${request.id}`;
   const assignBound = assignServiceRequest.bind(null, request.id, returnPath);
@@ -100,9 +108,9 @@ export default async function OpsServiceRequestDetailPage({ params }: { params: 
               <CardBody>
                 <ActionForm action={assignBound} className="space-y-3">
                   <Field label={isRemoteHands ? "Technician" : "Assign to"} htmlFor="assignedToId" required>
-                    <Select id="assignedToId" name="assignedToId" required>
+                    <Select id="assignedToId" name="assignedToId" required defaultValue={request.requestedWithId ?? ""}>
                       <option value="">Choose…</option>
-                      {staff.map((s) => (
+                      {assignableStaff.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
                         </option>

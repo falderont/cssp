@@ -250,6 +250,12 @@ model User {
   avatarUrl    String?
   isActive     Boolean @default(true)
 
+  // Marks an Ops-team member (see OPS_TEAM_ROLES in lib/constants.ts) as an
+  // official escalation-matrix contact for their restrictedFacilityId site —
+  // the pool of people a customer can request to meet with, alongside their
+  // assigned CS Team coverage (see getMeetingRequestContacts in lib/scope.ts).
+  isEscalationContact Boolean @default(false)
+
   // Personal UI customization — chrome-only preferences, scoped to this
   // user's own view (not tenant/provider branding). accentColor overrides
   // --brand-primary when set; mutedNotificationCategories is a comma
@@ -294,6 +300,7 @@ model User {
   assignedAreaChanges     AreaChangeRequest[]     @relation("AreaChangeAssignedTo")
   decidedAreaChanges      AreaChangeRequest[]     @relation("AreaChangeDecidedBy")
   changelogEntries        ChangelogEntry[]
+  requestedMeetings       ServiceRequest[]        @relation("SRRequestedWith")
 }
 
 // ---------------------------------------------------------------------------
@@ -536,6 +543,13 @@ model ServiceRequest {
   createdByUser  User    @relation("SRCreatedBy", fields: [createdById], references: [id])
   assignedToId   String?
   assignedToUser User?   @relation("SRAssignedTo", fields: [assignedToId], references: [id])
+
+  // Who the customer asked to meet with (category = GeneralMeeting only) —
+  // limited to that site's escalation matrix plus their assigned CS Team
+  // coverage; see getMeetingRequestContacts in lib/scope.ts. Distinct from
+  // assignedToId, which is who ops actually assigns to fulfill the ticket.
+  requestedWithId   String?
+  requestedWithUser User?   @relation("SRRequestedWith", fields: [requestedWithId], references: [id])
 
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?

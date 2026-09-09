@@ -71,6 +71,18 @@ export function isSiteScopableRole(role: string): boolean {
   return (SITE_SCOPABLE_ROLES as string[]).includes(role);
 }
 
+// The "operation team" for a site — hands-on ops staff (excludes external
+// vendors, Service Desk, and Sys Admin, who aren't part of a site's own
+// team). A member of this set can be flagged isEscalationContact so
+// customers can request a meeting with them — see getMeetingRequestContacts
+// in lib/scope.ts.
+export const OPS_TEAM_ROLES: Role[] = [
+  ROLES.OPS_SITE_MANAGER,
+  ROLES.OPS_SITE_LEAD,
+  ROLES.OPS_FRONT_OFFICE_SECURITY,
+  ROLES.OPS_BUILDING_MANAGER,
+];
+
 export const ROLE_LABELS: Record<Role, string> = {
   TENANT_GLOBAL_ADMIN: "Global Admin",
   TENANT_SITE_LEAD: "Site Lead",

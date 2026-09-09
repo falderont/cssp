@@ -15,7 +15,13 @@ export default async function PortalServiceRequestDetailPage({ params }: { param
   const user = await requireCustomerUser();
   const request = await prisma.serviceRequest.findFirst({
     where: { id, siteEnrollment: { enterpriseAccountId: user.enterpriseAccountId } },
-    include: { siteEnrollment: { include: { facility: true } }, building: true, assignedToUser: true, createdByUser: true },
+    include: {
+      siteEnrollment: { include: { facility: true } },
+      building: true,
+      assignedToUser: true,
+      createdByUser: true,
+      requestedWithUser: true,
+    },
   });
   if (!request) notFound();
 

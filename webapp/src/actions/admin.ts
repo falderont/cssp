@@ -9,7 +9,7 @@ import { requireSysAdmin, requireMasterDataAdmin, requireAccountManager } from "
 import { savePublicAsset } from "@/lib/storage";
 import { logAudit } from "@/lib/audit";
 import { withUniqueConstraintMessage, withForeignKeyConstraintMessage, assertNoDependents } from "@/lib/prisma-errors";
-import { CUSTOMER_ROLES, INTERNAL_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
+import { CUSTOMER_ROLES, INTERNAL_ROLES, OPS_TEAM_ROLES, ROLES, ROOM_TYPES } from "@/lib/constants";
 
 // --- Branding -------------------------------------------------------------
 
@@ -673,6 +673,7 @@ const userSchema = z.object({
   restrictedCountryId: z.string().optional(),
   csScope: z.string().optional(),
   teamId: z.string().optional(),
+  isEscalationContact: z.coerce.boolean().optional(),
 });
 
 export async function createUser(formData: FormData) {
@@ -688,6 +689,7 @@ export async function createUser(formData: FormData) {
     restrictedCountryId: formData.get("restrictedCountryId") || undefined,
     csScope: formData.get("csScope") || undefined,
     teamId: formData.get("teamId") || undefined,
+    isEscalationContact: formData.get("isEscalationContact") === "on",
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
@@ -695,6 +697,7 @@ export async function createUser(formData: FormData) {
     throw new Error("Tenant users must belong to an enterprise account.");
   }
   const isCsTeam = parsed.role === ROLES.CS_TEAM;
+  const isOpsTeam = (OPS_TEAM_ROLES as string[]).includes(parsed.role);
 
   const passwordHash = await bcrypt.hash(parsed.password, 10);
   const user = await withUniqueConstraintMessage(
@@ -711,6 +714,7 @@ export async function createUser(formData: FormData) {
           restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
           csScope: isCsTeam ? parsed.csScope || "Site" : null,
           teamId: !isCustomer ? parsed.teamId || null : null,
+          isEscalationContact: isOpsTeam ? (parsed.isEscalationContact ?? false) : false,
         },
       }),
     `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`
@@ -736,6 +740,7 @@ export async function updateUser(userId: string, formData: FormData) {
     restrictedCountryId: formData.get("restrictedCountryId") || undefined,
     csScope: formData.get("csScope") || undefined,
     teamId: formData.get("teamId") || undefined,
+    isEscalationContact: formData.get("isEscalationContact") === "on",
   });
 
   const isCustomer = (CUSTOMER_ROLES as string[]).includes(parsed.role);
@@ -743,6 +748,7 @@ export async function updateUser(userId: string, formData: FormData) {
     throw new Error("Tenant users must belong to an enterprise account.");
   }
   const isCsTeam = parsed.role === ROLES.CS_TEAM;
+  const isOpsTeam = (OPS_TEAM_ROLES as string[]).includes(parsed.role);
 
   await withUniqueConstraintMessage(
     () =>
@@ -758,6 +764,7 @@ export async function updateUser(userId: string, formData: FormData) {
           restrictedCountryId: isCsTeam ? parsed.restrictedCountryId || null : null,
           csScope: isCsTeam ? parsed.csScope || "Site" : null,
           teamId: !isCustomer ? parsed.teamId || null : null,
+          isEscalationContact: isOpsTeam ? (parsed.isEscalationContact ?? false) : false,
         },
       }),
     `A user with email "${parsed.email.toLowerCase().trim()}" already exists.`

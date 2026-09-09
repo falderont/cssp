@@ -17,6 +17,7 @@ type FullServiceRequest = ServiceRequest & {
   building: Building | null;
   assignedToUser: User | null;
   createdByUser: User;
+  requestedWithUser?: User | null;
 };
 
 export function ServiceRequestSummary({ request }: { request: FullServiceRequest }) {
@@ -39,6 +40,7 @@ export function ServiceRequestSummary({ request }: { request: FullServiceRequest
           <p className="text-sm text-slate-700">{request.description}</p>
           <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <Info label="Requested by" value={request.createdByUser.name} />
+            {request.requestedWithUser && <Info label="Requested to meet with" value={request.requestedWithUser.name} />}
             <Info label="Assigned to" value={request.assignedToUser?.name ?? "Unassigned"} />
             <Info label="Submitted" value={formatDateTime(request.createdAt)} />
             {request.building && <Info label="Room / area" value={request.building.name} />}
