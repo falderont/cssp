@@ -8,6 +8,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { createVisitorRequest, createVisitorRequestBatch } from "@/actions/visitors";
 import { ActionForm } from "@/components/errors/action-form";
+import { MAX_VISITORS_PER_REQUEST } from "@/lib/constants";
 
 type Building = { id: string; name: string; code: string };
 type Enrollment = { id: string; facilityId: string; facility: { name: string; buildings: Building[] } };
@@ -124,12 +125,27 @@ export function VisitorRequestForm({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-medium text-slate-700">
-              Visitors <span className="text-slate-400">({rows.length})</span>
+              Visitors{" "}
+              <span className={rows.length >= MAX_VISITORS_PER_REQUEST ? "text-amber-600" : "text-slate-400"}>
+                ({rows.length} / {MAX_VISITORS_PER_REQUEST})
+              </span>
             </p>
-            <Button type="button" variant="secondary" size="sm" onClick={() => setRows((r) => [...r, { ...EMPTY_ROW }])}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={rows.length >= MAX_VISITORS_PER_REQUEST}
+              onClick={() => setRows((r) => (r.length >= MAX_VISITORS_PER_REQUEST ? r : [...r, { ...EMPTY_ROW }]))}
+            >
               <Plus className="h-3.5 w-3.5" /> Add another visitor
             </Button>
           </div>
+          {rows.length >= MAX_VISITORS_PER_REQUEST && (
+            <p className="mb-2 text-sm text-amber-600">
+              A single request is capped at {MAX_VISITORS_PER_REQUEST} visitors — submit this group, then start a
+              second request for the rest.
+            </p>
+          )}
           <div className="space-y-3">
             {rows.map((row, idx) => (
               <div key={idx} className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-6">
@@ -173,7 +189,7 @@ export function VisitorRequestForm({
           label="Visitor list (Excel or CSV)"
           htmlFor="visitorFile"
           required
-          hint="Header row required: fullName, company, idType, idNumber, email, phone. Each name is screened against the blacklist automatically."
+          hint={`Header row required: fullName, company, idType, idNumber, email, phone. Each name is screened against the blacklist automatically. Capped at ${MAX_VISITORS_PER_REQUEST} visitors per upload — split a larger crew into multiple uploads.`}
         >
           <input
             id="visitorFile"

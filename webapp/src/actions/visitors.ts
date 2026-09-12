@@ -10,8 +10,9 @@ import { pushVisitorRequestToAcs } from "@/lib/acs";
 import { notifyFacilityTenantUsers } from "@/lib/notify";
 import { checkBlacklist } from "@/lib/blacklist";
 import { parseVisitorRowsFromFile, type VisitorImportRow } from "@/lib/visitor-import";
+import { assertVisitorGroupSizeWithinLimit } from "@/lib/constants";
 
-const visitorRowSchema = z.object({
+export const visitorRowSchema = z.object({
   fullName: z.string().min(1, "Name is required"),
   idType: z.string().optional().default(""),
   idNumber: z.string().optional().default(""),
@@ -20,7 +21,7 @@ const visitorRowSchema = z.object({
   phone: z.string().optional().default(""),
 });
 
-const requestSchema = z.object({
+export const requestSchema = z.object({
   siteEnrollmentId: z.string().min(1),
   buildingId: z.string().optional(),
   purpose: z.string().min(1, "Purpose is required"),
@@ -31,7 +32,7 @@ const requestSchema = z.object({
   visitors: z.array(visitorRowSchema).min(1, "Add at least one visitor"),
 });
 
-const batchRequestSchema = z.object({
+export const batchRequestSchema = z.object({
   siteEnrollmentId: z.string().min(1, "Site is required"),
   buildingId: z.string().optional(),
   purpose: z.string().optional().default(""),
@@ -59,6 +60,69 @@ async function screenRow(row: VisitorImportRow | z.infer<typeof visitorRowSchema
   };
 }
 
+// Core logic behind both creation paths, split out from the "use server"
+// actions below so it can run without a Next.js request context (no
+// cookies()/headers() dependency) — used directly by the visitor-management
+// simulation script (scripts/simulate-visitor-management.ts) and by tests.
+type RequestingUser = { id: string; enterpriseAccountId: string | null; restrictedFacilityId: string | null };
+
+export async function buildAndCreateVisitorRequest(user: RequestingUser, parsed: z.infer<typeof requestSchema>) {
+  const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
+  if (!hasAccess) throw new Error("You do not have access to that site.");
+
+  assertVisitorGroupSizeWithinLimit(parsed.visitors.length);
+
+  const screenedVisitors = await Promise.all(parsed.visitors.map(screenRow));
+
+  return prisma.visitorRequest.create({
+    data: {
+      siteEnrollmentId: parsed.siteEnrollmentId,
+      buildingId: parsed.buildingId || null,
+      purpose: parsed.purpose,
+      visitDate: new Date(parsed.visitDate),
+      windowStart: parsed.windowStart,
+      windowEnd: parsed.windowEnd,
+      hostUserId: parsed.hostUserId || null,
+      isGroup: parsed.visitors.length > 1,
+      source: "Single",
+      createdById: user.id,
+      visitors: { create: screenedVisitors },
+    },
+  });
+}
+
+export async function buildAndCreateVisitorRequestBatch(
+  user: RequestingUser,
+  parsed: z.infer<typeof batchRequestSchema>,
+  rows: VisitorImportRow[]
+) {
+  const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
+  if (!hasAccess) throw new Error("You do not have access to that site.");
+
+  if (rows.length === 0) {
+    throw new Error("No valid rows found — check the fullName column is populated using the provided template.");
+  }
+  assertVisitorGroupSizeWithinLimit(rows.length);
+
+  const screenedVisitors = await Promise.all(rows.map(screenRow));
+
+  return prisma.visitorRequest.create({
+    data: {
+      siteEnrollmentId: parsed.siteEnrollmentId,
+      buildingId: parsed.buildingId || null,
+      purpose: parsed.purpose || "Group visit (batch upload)",
+      visitDate: new Date(parsed.visitDate),
+      windowStart: parsed.windowStart,
+      windowEnd: parsed.windowEnd,
+      hostUserId: parsed.hostUserId || null,
+      isGroup: true,
+      source: "Batch",
+      createdById: user.id,
+      visitors: { create: screenedVisitors },
+    },
+  });
+}
+
 export async function createVisitorRequest(formData: FormData) {
   const user = await requireCustomerUser();
 
@@ -74,27 +138,7 @@ export async function createVisitorRequest(formData: FormData) {
   };
 
   const parsed = requestSchema.parse(raw);
-
-  const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
-  if (!hasAccess) throw new Error("You do not have access to that site.");
-
-  const screenedVisitors = await Promise.all(parsed.visitors.map(screenRow));
-
-  const visitorRequest = await prisma.visitorRequest.create({
-    data: {
-      siteEnrollmentId: parsed.siteEnrollmentId,
-      buildingId: parsed.buildingId || null,
-      purpose: parsed.purpose,
-      visitDate: new Date(parsed.visitDate),
-      windowStart: parsed.windowStart,
-      windowEnd: parsed.windowEnd,
-      hostUserId: parsed.hostUserId || null,
-      isGroup: parsed.visitors.length > 1,
-      source: "Single",
-      createdById: user.id,
-      visitors: { create: screenedVisitors },
-    },
-  });
+  const visitorRequest = await buildAndCreateVisitorRequest(user, parsed);
 
   revalidatePath("/portal/visitors");
   redirect(`/portal/visitors/${visitorRequest.id}`);
@@ -118,31 +162,8 @@ export async function createVisitorRequestBatch(formData: FormData) {
     throw new Error("Attach an Excel (.xlsx) or CSV file with your visitor list.");
   }
 
-  const hasAccess = await assertSiteEnrollmentAccess(user, parsed.siteEnrollmentId);
-  if (!hasAccess) throw new Error("You do not have access to that site.");
-
   const rows = await parseVisitorRowsFromFile(file);
-  if (rows.length === 0) {
-    throw new Error("No valid rows found — check the fullName column is populated using the provided template.");
-  }
-
-  const screenedVisitors = await Promise.all(rows.map(screenRow));
-
-  const visitorRequest = await prisma.visitorRequest.create({
-    data: {
-      siteEnrollmentId: parsed.siteEnrollmentId,
-      buildingId: parsed.buildingId || null,
-      purpose: parsed.purpose || "Group visit (batch upload)",
-      visitDate: new Date(parsed.visitDate),
-      windowStart: parsed.windowStart,
-      windowEnd: parsed.windowEnd,
-      hostUserId: parsed.hostUserId || null,
-      isGroup: true,
-      source: "Batch",
-      createdById: user.id,
-      visitors: { create: screenedVisitors },
-    },
-  });
+  const visitorRequest = await buildAndCreateVisitorRequestBatch(user, parsed, rows);
 
   revalidatePath("/portal/visitors");
   redirect(`/portal/visitors/${visitorRequest.id}?imported=${rows.length}`);

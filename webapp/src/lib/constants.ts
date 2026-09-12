@@ -145,6 +145,27 @@ export const TEAM_FUNCTION_LABELS: Record<TeamFunction, string> = {
 
 export const VISITOR_STATUSES = ["Pending", "Blacklisted", "Approved", "Denied", "CheckedIn", "CheckedOut"] as const;
 
+// Caps a single visitor request — manual multi-row entry or a batch/group
+// spreadsheet upload — to a manageable group size. Keeps front-desk
+// check-in, badge printing and the one ACS sync call for the whole request
+// workable, and guards against a bad file dumping thousands of rows into a
+// single request. Applies per submission, not per site or per day — a
+// larger crew is split across multiple requests.
+export const MAX_VISITORS_PER_REQUEST = 50;
+
+export class VisitorGroupSizeError extends Error {
+  constructor(public readonly count: number, public readonly limit: number = MAX_VISITORS_PER_REQUEST) {
+    super(
+      `This request lists ${count} visitors, which is over the ${limit}-visitor limit for a single group/batch request. Split the group across multiple requests.`
+    );
+    this.name = "VisitorGroupSizeError";
+  }
+}
+
+export function assertVisitorGroupSizeWithinLimit(count: number, limit: number = MAX_VISITORS_PER_REQUEST): void {
+  if (count > limit) throw new VisitorGroupSizeError(count, limit);
+}
+
 export const DELIVERY_STATUSES = ["Expected", "Arrived", "Received", "Rejected"] as const;
 
 // --- Incidents ---------------------------------------------------------------
